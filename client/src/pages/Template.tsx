@@ -1,5 +1,8 @@
-import { AlertTriangle, CreditCard, Edit, FileText, Plus, Search, Trash } from 'lucide-react';
+import { AlertTriangle, CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import NewTemplateForm from '../components/devices/NewTemplateForm/index';
+import { useDevices } from '../hooks/useDevices';
+import { Button } from '../components/ui/Button';
 
 interface Template {
   id: string;
@@ -15,75 +18,98 @@ const TemplatesPage: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [isNewTemplateFormOpen, setIsNewTemplateFormOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
+  
+  // Get devices functions from useDevices hook
+  const { addDevice, refreshDevices } = useDevices();
 
+  // Define fetchTemplates function outside useEffect so it can be called elsewhere
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Mock template data
+      const mockTemplates: Template[] = [
+        {
+          id: '1',
+          name: 'Energy Analyzer Template',
+          description:
+            'Standard template for energy analyzer devices with voltage, current, and power readings',
+          deviceType: 'Energy Analyzer',
+          registerCount: 12,
+          createdAt: '2024-03-15T09:00:00Z',
+          updatedAt: '2024-04-10T14:23:00Z',
+        },
+        {
+          id: '2',
+          name: 'HVAC Controller Template',
+          description:
+            'Template for HVAC controllers with temperature, humidity, and fan control registers',
+          deviceType: 'HVAC Controller',
+          registerCount: 8,
+          createdAt: '2024-03-20T11:30:00Z',
+          updatedAt: '2024-04-12T09:45:00Z',
+        },
+        {
+          id: '3',
+          name: 'Temperature Sensor Template',
+          description: 'Basic template for temperature monitoring devices',
+          deviceType: 'Sensor',
+          registerCount: 4,
+          createdAt: '2024-03-25T15:20:00Z',
+          updatedAt: '2024-04-05T10:15:00Z',
+        },
+        {
+          id: '4',
+          name: 'Water Level Controller Template',
+          description:
+            'Template for water level controllers with level, flow, and pump control registers',
+          deviceType: 'Level Controller',
+          registerCount: 6,
+          createdAt: '2024-04-02T08:40:00Z',
+          updatedAt: '2024-04-15T16:30:00Z',
+        },
+      ];
+
+      setTemplates(mockTemplates);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load templates on component mount
   useEffect(() => {
-    // In a real app, this would be an API call
-    const fetchTemplates = async () => {
-      setLoading(true);
-      try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Mock template data
-        const mockTemplates: Template[] = [
-          {
-            id: '1',
-            name: 'Energy Analyzer Template',
-            description:
-              'Standard template for energy analyzer devices with voltage, current, and power readings',
-            deviceType: 'Energy Analyzer',
-            registerCount: 12,
-            createdAt: '2024-03-15T09:00:00Z',
-            updatedAt: '2024-04-10T14:23:00Z',
-          },
-          {
-            id: '2',
-            name: 'HVAC Controller Template',
-            description:
-              'Template for HVAC controllers with temperature, humidity, and fan control registers',
-            deviceType: 'HVAC Controller',
-            registerCount: 8,
-            createdAt: '2024-03-20T11:30:00Z',
-            updatedAt: '2024-04-12T09:45:00Z',
-          },
-          {
-            id: '3',
-            name: 'Temperature Sensor Template',
-            description: 'Basic template for temperature monitoring devices',
-            deviceType: 'Sensor',
-            registerCount: 4,
-            createdAt: '2024-03-25T15:20:00Z',
-            updatedAt: '2024-04-05T10:15:00Z',
-          },
-          {
-            id: '4',
-            name: 'Water Level Controller Template',
-            description:
-              'Template for water level controllers with level, flow, and pump control registers',
-            deviceType: 'Level Controller',
-            registerCount: 6,
-            createdAt: '2024-04-02T08:40:00Z',
-            updatedAt: '2024-04-15T16:30:00Z',
-          },
-        ];
-
-        setTemplates(mockTemplates);
-      } catch (error) {
-        console.error('Error fetching templates:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTemplates();
   }, []);
 
   const handleAddTemplate = () => {
     setCurrentTemplate(null);
-    setShowAddModal(true);
+    setIsNewTemplateFormOpen(true);
+  };
+  
+  // Add handler functions for template form
+  const onNewTemplateFormSubmit = async (templateData: any) => {
+    console.log('Submitting template data:', templateData);
+    try {
+      await addDevice(templateData);
+      await refreshDevices();
+      setIsNewTemplateFormOpen(false);
+      // Refresh the templates list
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error adding template:', error);
+    }
+  };
+
+  const onNewTemplateFormClose = () => {
+    console.log('Closing template form');
+    setIsNewTemplateFormOpen(false);
   };
 
   const handleEditTemplate = (template: Template) => {
@@ -126,13 +152,14 @@ const TemplatesPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Device Templates</h1>
-        <button
+        <Button
+          variant="default"
           onClick={handleAddTemplate}
-          className="flex items-center gap-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          className="flex items-center gap-2"
         >
           <Plus size={16} />
-          Add Template
-        </button>
+          Add New Template
+        </Button>
       </div>
 
       <div className="rounded-lg bg-white p-4 shadow">
@@ -166,13 +193,14 @@ const TemplatesPage: React.FC = () => {
               : "You haven't created any device templates yet."}
           </p>
           {!searchQuery && (
-            <button
+            <Button
+              variant="default"
               onClick={handleAddTemplate}
-              className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              className="inline-flex items-center"
             >
               <Plus size={16} className="mr-2" />
               Create your first template
-            </button>
+            </Button>
           )}
         </div>
       ) : (
@@ -266,8 +294,36 @@ const TemplatesPage: React.FC = () => {
         </div>
       )}
 
-      {/* This is where you would add the modal components for adding/editing templates */}
-      {/* We'll implement these in separate components */}
+      {/* Template Form Modal */}
+      {isNewTemplateFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50" onClick={(e) => {
+          // Close modal when clicking the overlay (background)
+          if (e.target === e.currentTarget) {
+            console.log('Modal background clicked, closing modal');
+            onNewTemplateFormClose();
+          }
+        }}>
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-gray-200 p-4">
+              <h2 className="text-xl font-semibold">Add New Template</h2>
+              <button
+                onClick={() => {
+                  console.log('Close button clicked');
+                  onNewTemplateFormClose();
+                }}
+                className="text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <NewTemplateForm onClose={onNewTemplateFormClose} onSubmit={onNewTemplateFormSubmit} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit template modal would go here */}
     </div>
   );
 };
