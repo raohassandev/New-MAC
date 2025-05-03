@@ -39,17 +39,28 @@ export interface IDataPoint {
   parser: IParser;
 }
 
+// TCP Connection settings
+export interface ITcpSettings {
+  ip: string;
+  port: number;
+  slaveId: number;
+}
+
+// RTU Connection settings
+export interface IRtuSettings {
+  serialPort: string;
+  baudRate: number;
+  dataBits: number;
+  stopBits: number;
+  parity: string;
+  slaveId: number;
+}
+
 // Connection settings structure
 export interface IConnectionSetting {
   connectionType: 'tcp' | 'rtu';
-  ip?: string;
-  port?: number;
-  slaveId: number;
-  serialPort?: string;
-  baudRate?: number;
-  dataBits?: number;
-  stopBits?: number;
-  parity?: string;
+  tcp?: ITcpSettings;
+  rtu?: IRtuSettings;
 }
 
 // For backward compatibility
@@ -130,16 +141,28 @@ const DataPointSchema = new Schema<IDataPoint>({
   parser: { type: ParserSchema, required: true },
 });
 
+// TCP Settings Schema
+const TcpSettingsSchema = new Schema<ITcpSettings>({
+  ip: { type: String, required: true },
+  port: { type: Number, required: true },
+  slaveId: { type: Number, required: true }
+});
+
+// RTU Settings Schema
+const RtuSettingsSchema = new Schema<IRtuSettings>({
+  serialPort: { type: String, required: true },
+  baudRate: { type: Number, required: true },
+  dataBits: { type: Number, required: true },
+  stopBits: { type: Number, required: true },
+  parity: { type: String, required: true },
+  slaveId: { type: Number, required: true }
+});
+
+// Combined Connection Setting Schema
 const ConnectionSettingSchema = new Schema<IConnectionSetting>({
   connectionType: { type: String, enum: ['tcp', 'rtu'], required: true },
-  ip: { type: String },
-  port: { type: Number },
-  slaveId: { type: Number, required: true },
-  serialPort: { type: String },
-  baudRate: { type: Number },
-  dataBits: { type: Number },
-  stopBits: { type: Number },
-  parity: { type: String },
+  tcp: { type: TcpSettingsSchema },
+  rtu: { type: RtuSettingsSchema }
 });
 
 // Legacy schema
