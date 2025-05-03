@@ -328,5 +328,9 @@ const TemplatesPage: React.FC = () => {
     </div>
   );
 };
-
+2
 export default TemplatesPage;
+function setCurrentTemplate(arg0: null) {
+  throw new Error('Function not implemented.');
+}
+

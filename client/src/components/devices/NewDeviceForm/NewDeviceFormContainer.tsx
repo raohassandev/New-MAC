@@ -185,6 +185,7 @@ const NewDeviceFormContainer: React.FC<NewDeviceFormContainerProps> = ({
     ? {
         deviceBasics: {
           name: initialData.name || '',
+          deviceType: initialData.deviceType || '',
           make: initialData.make || '',
           model: initialData.model || '',
           description: initialData.description || '',

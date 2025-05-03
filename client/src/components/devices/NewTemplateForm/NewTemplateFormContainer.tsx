@@ -192,6 +192,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
     ? {
         deviceBasics: {
           name: initialData.name || '',
+          deviceType: initialData.deviceType || '',
           make: initialData.make || '',
           model: initialData.model || '',
           description: initialData.description || '',
