@@ -440,16 +440,8 @@ const DeviceTemplate: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800">Device Management</h1>
           <p className="mt-1 text-sm text-gray-500">Manage and monitor your Modbus devices</p>
         </div>
-        {/* Always show Add Device button regardless of permissions */}
+        {/* Export button only - Add Device button moved to Templates page */}
         <div className="flex space-x-2">
-          <Button
-            variant="default"
-            onClick={() => setIsNewDeviceFormOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Add New Device
-          </Button>
           {filteredDevices.length > 0 && (
             <Button
               variant="outline"
@@ -743,24 +735,8 @@ const DeviceTemplate: React.FC = () => {
           <p className="mb-4 text-gray-500">
             {searchQuery || statusFilter || typeFilter || groupFilter || selectedTags.length > 0
               ? 'Try adjusting your filters'
-              : "You haven't added any devices yet."}
+              : "You haven't added any devices yet. Go to Templates page to create a new device."}
           </p>
-          {!(
-            searchQuery ||
-            statusFilter ||
-            typeFilter ||
-            groupFilter ||
-            selectedTags.length > 0
-          ) && (
-            <Button
-              variant="default"
-              onClick={() => setIsNewDeviceFormOpen(true)}
-              className="inline-flex items-center"
-            >
-              <Plus size={16} className="mr-2" />
-              Add your first device
-            </Button>
-          )}
         </div>
       ) : viewMode === 'list' ? (
         <div className="overflow-hidden rounded-lg bg-white shadow">

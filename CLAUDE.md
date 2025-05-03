@@ -18,7 +18,8 @@ Device Management System - A React-based frontend client and Node.js backend for
 - Client-side routing with React Router
 - Component library in `client/src/components/ui`
 - Device management features in `client/src/components/devices`
-- New device form implementation in `client/src/components/devices/NewDeviceForm`
+- New device template form in `client/src/components/devices/NewTemplateForm`
+- Device form implementation shared between devices and templates in `client/src/components/devices/NewDeviceForm`
 
 ## Device Data Structure
 - Device objects use the following structure:
