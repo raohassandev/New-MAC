@@ -1,0 +1,230 @@
+/* ProfileManagement.css - Styles for the profile management page */
+
+.profile-management-page {
+  padding: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937; /* gray-800 */
+}
+
+.create-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6; /* blue-500 */
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-button:hover {
+  background-color: #2563eb; /* blue-600 */
+}
+
+.profiles-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.profile-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.profile-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937; /* gray-800 */
+}
+
+.profile-description {
+  color: #6b7280; /* gray-500 */
+  margin-bottom: 1rem;
+  flex-grow: 1;
+}
+
+.profile-details {
+  margin-bottom: 1.5rem;
+}
+
+.profile-detail {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+}
+
+.profile-detail:last-child {
+  border-bottom: none;
+}
+
+.profile-detail-label {
+  font-weight: 500;
+  color: #4b5563; /* gray-600 */
+}
+
+.profile-detail-value {
+  color: #1f2937; /* gray-800 */
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.edit-button {
+  padding: 0.5rem 1rem;
+  background-color: #e5e7eb; /* gray-200 */
+  color: #4b5563; /* gray-600 */
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #d1d5db; /* gray-300 */
+}
+
+.delete-button {
+  padding: 0.5rem 1rem;
+  background-color: #fee2e2; /* red-100 */
+  color: #ef4444; /* red-500 */
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+  background-color: #fecaca; /* red-200 */
+}
+
+.apply-button {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6; /* blue-500 */
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.apply-button:hover {
+  background-color: #2563eb; /* blue-600 */
+}
+
+.form-container {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.form-container h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #1f2937; /* gray-800 */
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancel-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #e5e7eb; /* gray-200 */
+  color: #4b5563; /* gray-600 */
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #d1d5db; /* gray-300 */
+}
+
+.save-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6; /* blue-500 */
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #2563eb; /* blue-600 */
+}
+
+.no-profiles {
+  text-align: center;
+  padding: 3rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.no-profiles p {
+  color: #6b7280; /* gray-500 */
+  font-size: 1.125rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+}
+
+.error-message {
+  background-color: #fee2e2; /* red-100 */
+  border-left: 4px solid #ef4444; /* red-500 */
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.25rem;
+  color: #b91c1c; /* red-700 */
+}

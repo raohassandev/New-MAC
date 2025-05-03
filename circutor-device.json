@@ -1,0 +1,460 @@
+{
+  "name": "Circutor CVM-C4",
+  "make": "Circutor",
+  "model": "CVM-C4",
+  "description": "Power analyzer for electrical panel monitoring",
+  "enabled": true,
+  "tags": ["power analyzer", "energy meter"],
+  
+  "connectionSetting": {
+    "connectionType": "tcp",
+    "ip": "192.168.1.1",
+    "port": 502,
+    "slaveId": 1,
+    "baudRate": 9600,
+    "dataBits": 8,
+    "stopBits": 1,
+    "parity": "none"
+  },
+  
+  "dataPoints": [
+    {
+      "range": {
+        "startAddress": 0,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "V1",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 1,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Voltage",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 2,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "V2",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 1,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Voltage",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 4,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "V3",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 1,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Voltage",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 6,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "I1",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 2,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Current",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 8,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "I2",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 2,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Current",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 10,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "I3",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 2,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Current",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 12,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "ActivePower",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 0,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Power",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 14,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "ReactivePower",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 0,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Power",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 16,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "PowerFactor",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 3,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "PowerFactor",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 18,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "Frequency",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 1,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Frequency",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 20,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "ImportActiveEnergy",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 0,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Energy",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "startAddress": 22,
+        "count": 2,
+        "fc": 3
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "ExportActiveEnergy",
+            "dataType": "FLOAT",
+            "scalingFactor": 1,
+            "decimalPoint": 0,
+            "byteOrder": "ABCD",
+            "signed": true,
+            "registerRange": "Energy",
+            "registerIndex": 0,
+            "wordCount": 2
+          }
+        ]
+      }
+    }
+  ],
+  
+  "registerRanges": [
+    {
+      "rangeName": "Voltage",
+      "startRegister": 0,
+      "length": 6,
+      "functionCode": 3
+    },
+    {
+      "rangeName": "Current",
+      "startRegister": 6,
+      "length": 6,
+      "functionCode": 3
+    },
+    {
+      "rangeName": "Power",
+      "startRegister": 12,
+      "length": 4,
+      "functionCode": 3
+    },
+    {
+      "rangeName": "PowerFactor",
+      "startRegister": 16,
+      "length": 2,
+      "functionCode": 3
+    },
+    {
+      "rangeName": "Frequency",
+      "startRegister": 18,
+      "length": 2,
+      "functionCode": 3
+    },
+    {
+      "rangeName": "Energy",
+      "startRegister": 20,
+      "length": 4,
+      "functionCode": 3
+    }
+  ],
+  
+  "parameterConfigs": [
+    {
+      "name": "V1",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 1,
+      "byteOrder": "ABCD",
+      "registerRange": "Voltage",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "V2",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 1,
+      "byteOrder": "ABCD",
+      "registerRange": "Voltage",
+      "registerIndex": 2,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "V3",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 1,
+      "byteOrder": "ABCD",
+      "registerRange": "Voltage",
+      "registerIndex": 4,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "I1",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 2,
+      "byteOrder": "ABCD",
+      "registerRange": "Current",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "I2",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 2,
+      "byteOrder": "ABCD",
+      "registerRange": "Current",
+      "registerIndex": 2,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "I3",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 2,
+      "byteOrder": "ABCD",
+      "registerRange": "Current",
+      "registerIndex": 4,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "ActivePower",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 0,
+      "byteOrder": "ABCD",
+      "registerRange": "Power",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "ReactivePower",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 0,
+      "byteOrder": "ABCD",
+      "registerRange": "Power",
+      "registerIndex": 2,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "PowerFactor",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 3,
+      "byteOrder": "ABCD",
+      "registerRange": "PowerFactor",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "Frequency",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 1,
+      "byteOrder": "ABCD",
+      "registerRange": "Frequency",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "ImportActiveEnergy",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 0,
+      "byteOrder": "ABCD",
+      "registerRange": "Energy",
+      "registerIndex": 0,
+      "signed": true,
+      "wordCount": 2
+    },
+    {
+      "name": "ExportActiveEnergy",
+      "dataType": "FLOAT",
+      "scalingFactor": 1,
+      "decimalPoint": 0,
+      "byteOrder": "ABCD",
+      "registerRange": "Energy",
+      "registerIndex": 2,
+      "signed": true,
+      "wordCount": 2
+    }
+  ]
+}

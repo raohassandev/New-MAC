@@ -1,0 +1,64 @@
+Device Object Structure Improvements
+===============================
+
+The device object structure has been updated to remove duplicate connection fields and improve data organization.
+
+1. Changes Made:
+   - Removed connection fields from the root of the Device interface
+   - Added proper ConnectionSetting interface for the connectionSetting property
+   - Added DataPoint interface with Range and Parser interfaces
+   - Updated TypeAdapter.ts to no longer add duplicate connection fields
+
+2. New Device Interface:
+```typescript
+export interface Device {
+  _id: string;
+  name: string;
+  enabled: boolean;
+  lastSeen?: Date | string;
+  make?: string;
+  model?: string;
+  description?: string;
+  tags?: string[];
+  
+  // New consolidated structure
+  connectionSetting?: ConnectionSetting;
+  dataPoints?: DataPoint[];
+  
+  // Legacy fields for backward compatibility
+  registerRanges?: RegisterRange[];
+  parameterConfigs?: ParameterConfig[];
+  
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+```
+
+3. New ConnectionSetting Interface:
+```typescript
+export interface ConnectionSetting {
+  connectionType: 'tcp' | 'rtu';
+  ip?: string;
+  port?: number;
+  slaveId: number;
+  serialPort?: string;
+  baudRate?: number;
+  dataBits?: number;
+  stopBits?: number;
+  parity?: string;
+}
+```
+
+4. Effects on the Generated Object:
+   - The API will receive a cleaner object structure
+   - No more duplicate connection fields
+   - All connection settings are properly encapsulated
+   - Better organization of data points with range and parser structure
+
+5. Benefits:
+   - Cleaner data model with less redundancy
+   - More clear separation of concerns
+   - Improved maintainability
+   - Better alignment with server-side model
+
+These changes maintain backward compatibility through the use of optional fields and by continuing to include the legacy registerRanges and parameterConfigs for compatibility with existing code.
