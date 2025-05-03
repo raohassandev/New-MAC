@@ -1,5 +1,6 @@
-import { AlertTriangle, CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react';
+import { CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import NewTemplateForm from '../components/devices/NewTemplateForm/index';
 import { useDevices } from '../hooks/useDevices';
 import { Button } from '../components/ui/Button';
@@ -15,12 +16,11 @@ interface Template {
 }
 
 const TemplatesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewTemplateFormOpen, setIsNewTemplateFormOpen] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
   
   // Get devices functions from useDevices hook
   const { addDevice, refreshDevices } = useDevices();
@@ -113,8 +113,9 @@ const TemplatesPage: React.FC = () => {
   };
 
   const handleEditTemplate = (template: Template) => {
-    setCurrentTemplate(template);
-    setShowEditModal(true);
+    // For now, just navigate to the device detail page
+    // We'll implement proper template editing in the future
+    navigate(`/devices/${template.id}`);
   };
 
   const handleDeleteTemplate = (id: string) => {
