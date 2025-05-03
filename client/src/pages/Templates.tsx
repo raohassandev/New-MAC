@@ -272,6 +272,7 @@ const Templates: React.FC = () => {
   // Handle adding new template
   const handleAddTemplate = async (templateData: any) => {
     try {
+      console.log('handleAddTemplate called with data:', templateData);
       await addDevice(templateData);
       setIsNewTemplateFormOpen(false);
       await refreshDevices();
@@ -282,10 +283,12 @@ const Templates: React.FC = () => {
 
   // Define form submit and close handlers
   const onNewTemplateFormSubmit = (templateData: any) => {
+    console.log('onNewTemplateFormSubmit called with data:', templateData);
     handleAddTemplate(templateData);
   };
 
   const onNewTemplateFormClose = () => {
+    console.log('onNewTemplateFormClose called');
     setIsNewTemplateFormOpen(false);
   };
 
@@ -413,7 +416,10 @@ const Templates: React.FC = () => {
         <div className="flex space-x-2">
           <Button
             variant="default"
-            onClick={() => setIsNewTemplateFormOpen(true)}
+            onClick={() => {
+              console.log('Add New Template button clicked');
+              setIsNewTemplateFormOpen(true);
+            }}
             className="flex items-center gap-2"
           >
             <Plus size={16} />
@@ -684,7 +690,10 @@ const Templates: React.FC = () => {
           ) && (
             <Button
               variant="default"
-              onClick={() => setIsNewTemplateFormOpen(true)}
+              onClick={() => {
+                console.log('Create your first template button clicked');
+                setIsNewTemplateFormOpen(true);
+              }}
               className="inline-flex items-center"
             >
               <Plus size={16} className="mr-2" />
@@ -961,12 +970,21 @@ const Templates: React.FC = () => {
 
       {/* New Template Modal */}
       {isNewTemplateFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50" onClick={(e) => {
+          // Close modal when clicking the overlay (background)
+          if (e.target === e.currentTarget) {
+            console.log('Modal background clicked, closing modal');
+            onNewTemplateFormClose();
+          }
+        }}>
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
             <div className="flex items-center justify-between border-b border-gray-200 p-4">
               <h2 className="text-xl font-semibold">Add New Template</h2>
               <button
-                onClick={onNewTemplateFormClose}
+                onClick={() => {
+                  console.log('Close button clicked');
+                  onNewTemplateFormClose();
+                }}
                 className="text-gray-500 hover:text-gray-700 focus:outline-none"
               >
                 <X size={20} />

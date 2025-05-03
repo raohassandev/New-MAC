@@ -109,7 +109,13 @@ const TemplateFormContent: React.FC<{
       user
     );
     console.log("Device data ready for submission:", deviceData);
-    onSubmit(deviceData);
+    console.log("Calling onSubmit with data - typeof onSubmit:", typeof onSubmit);
+    try {
+      onSubmit(deviceData);
+      console.log("onSubmit called successfully");
+    } catch (error) {
+      console.error("Error calling onSubmit:", error);
+    }
   };
 
   return (
@@ -180,6 +186,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
   initialData,
   isEditing = false,
 }) => {
+  console.log('NewTemplateFormContainer rendered with props:', { onClose, onSubmit, initialData, isEditing });
   // Parse initialData into form state format if provided
   const formattedInitialData = initialData
     ? {
