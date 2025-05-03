@@ -3,18 +3,15 @@ import { X } from 'lucide-react';
 import { Form } from '../ui/Form';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { NewDeviceType } from '../../types/template.types';
 
 interface NewDeviceTypeModalProps {
   onClose: () => void;
-  onSubmit: (deviceType: {
-    name: string;
-    description: string;
-    category: string;
-  }) => void;
+  onSubmit: (deviceType: NewDeviceType) => void;
 }
 
 const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubmit }) => {
-  const [deviceType, setDeviceType] = useState({
+  const [deviceType, setDeviceType] = useState<NewDeviceType>({
     name: '',
     description: '',
     category: ''

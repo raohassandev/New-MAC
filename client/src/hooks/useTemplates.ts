@@ -6,10 +6,9 @@ import {
   updateTemplate, 
   deleteTemplate,
   getDeviceTypes,
-  createDeviceType,
-  Template,
-  DeviceType
+  createDeviceType
 } from '../services/templates';
+import { Template, DeviceType, TemplateFormData, NewDeviceType } from '../types/template.types';
 
 export const useTemplates = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -49,7 +48,7 @@ export const useTemplates = () => {
   }, [loadTemplates, loadDeviceTypes]);
 
   // Add a template
-  const addTemplate = useCallback(async (templateData: any) => {
+  const addTemplate = useCallback(async (templateData: TemplateFormData) => {
     try {
       setLoading(true);
       setError(null);
@@ -69,7 +68,13 @@ export const useTemplates = () => {
         setDeviceTypes(prev => [...prev, newDeviceType]);
       }
       
-      const newTemplate = await createTemplate(templateData);
+      // Ensure template has isTemplate flag
+      const templateToCreate: TemplateFormData = {
+        ...templateData,
+        isTemplate: true
+      };
+      
+      const newTemplate = await createTemplate(templateToCreate);
       setTemplates(prev => [...prev, newTemplate]);
       return newTemplate;
     } catch (err) {
@@ -98,7 +103,7 @@ export const useTemplates = () => {
   }, []);
 
   // Update a template
-  const updateTemplateById = useCallback(async (id: string, templateData: any) => {
+  const updateTemplateById = useCallback(async (id: string, templateData: Partial<Template>) => {
     try {
       setLoading(true);
       setError(null);

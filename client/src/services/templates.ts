@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Device } from './devices';
+import { DeviceType, Template, TemplateFormData, NewDeviceType } from '../types/template.types';
 
 // Create api instance 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
@@ -16,26 +16,8 @@ if (token) {
   api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
-// Template interfaces
-export interface DeviceType {
-  _id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  specifications?: Record<string, any>;
-  createdAt?: string;
-  updatedAt?: string;
-  createdBy?: {
-    userId: string;
-    username: string;
-    email: string;
-  };
-}
-
-export interface Template extends Device {
-  deviceType: string;
-  isTemplate: boolean;
-}
+// Re-export types for convenience
+export type { DeviceType, Template, TemplateFormData, NewDeviceType };
 
 // Template API functions
 export const getTemplates = async (): Promise<Template[]> => {
@@ -68,7 +50,7 @@ export const getTemplatesByDeviceType = async (deviceType: string): Promise<Temp
   }
 };
 
-export const createTemplate = async (template: Partial<Template>): Promise<Template> => {
+export const createTemplate = async (template: TemplateFormData): Promise<Template> => {
   try {
     const response = await api.post('/templates', template);
     return response.data;
@@ -118,7 +100,7 @@ export const getDeviceTypeById = async (id: string): Promise<DeviceType> => {
   }
 };
 
-export const createDeviceType = async (deviceType: Partial<DeviceType>): Promise<DeviceType> => {
+export const createDeviceType = async (deviceType: NewDeviceType): Promise<DeviceType> => {
   try {
     const response = await api.post('/device-types', deviceType);
     return response.data;
