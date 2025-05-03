@@ -67,8 +67,8 @@ TemplateSchema.pre('save', function (this: ITemplate, next) {
   next(null);
 });
 
-// Use a separate connection for templates
-const templateConnection = mongoose.createConnection(process.env.TEMPLATES_MONGO_URI || 'mongodb://localhost:27017/macsys_templates');
-const Template = templateConnection.model<ITemplate>('Template', TemplateSchema);
+// Use the main connection for templates for now to simplify setup
+// In production, you might want to use a separate connection
+const Template = mongoose.model<ITemplate>('Template', TemplateSchema);
 
 export default Template;

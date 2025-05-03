@@ -7,7 +7,7 @@ import {
   deleteTemplate,
   getTemplatesByDeviceType
 } from '../controllers/templateController';
-import { authenticate } from '../middleware/authMiddleware';
+import { protect as authenticate } from '../middleware/authMiddleware';
 
 const router = express.Router();
 

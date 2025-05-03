@@ -6,7 +6,7 @@ import {
   updateDeviceType,
   deleteDeviceType
 } from '../controllers/deviceTypeController';
-import { authenticate } from '../middleware/authMiddleware';
+import { protect as authenticate } from '../middleware/authMiddleware';
 
 const router = express.Router();
 

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import Template, { ITemplate } from '../models/Template';
-import DeviceType from '../models/DeviceType';
+import { Template, DeviceType, ITemplate } from '../models';
 
 // Get all templates
 export const getTemplates = async (req: Request, res: Response) => {

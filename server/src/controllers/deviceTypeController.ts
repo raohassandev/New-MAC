@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import DeviceType, { IDeviceType } from '../models/DeviceType';
+import { DeviceType, IDeviceType } from '../models';
 
 // Get all device types
 export const getDeviceTypes = async (req: Request, res: Response) => {
