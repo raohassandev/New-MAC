@@ -23,12 +23,12 @@ Device Management System - A React-based frontend client and Node.js backend for
 ## Device Data Structure
 - Device objects use the following structure:
   - Core device metadata (name, make, model, description, enabled, tags)
-  - Connection settings consolidated in `connectionSetting` object
+  - Connection settings consolidated in `connectionSetting` object with protocol-specific settings
   - Data points organized in `dataPoints` array with ranges and parsers
   - User tracking with `createdBy` object containing userId, username, and email
   - Legacy fields removed (registers, registerRanges, parameterConfigs)
   
-### Example Device Structure
+### Example Device Structure with TCP Connection
 ```json
 {
   "name": "AC Room 1",
@@ -39,13 +39,11 @@ Device Management System - A React-based frontend client and Node.js backend for
   "tags": ["power", "energy"],
   "connectionSetting": {
     "connectionType": "tcp",
-    "ip": "192.168.1.100",
-    "port": 502,
-    "slaveId": 1,
-    "baudRate": 9600,
-    "dataBits": 8,
-    "stopBits": 1,
-    "parity": "none"
+    "tcp": {
+      "ip": "192.168.1.100",
+      "port": 502,
+      "slaveId": 1
+    }
   },
   "dataPoints": [
     {
@@ -79,11 +77,43 @@ Device Management System - A React-based frontend client and Node.js backend for
 }
 ```
 
+### Example Device Structure with RTU Connection
+```json
+{
+  "name": "Serial Device",
+  "make": "Automation",
+  "model": "PLC-RTU",
+  "description": "Serial modbus device",
+  "enabled": true,
+  "tags": ["production", "control"],
+  "connectionSetting": {
+    "connectionType": "rtu",
+    "rtu": {
+      "serialPort": "/dev/ttyS0",
+      "baudRate": 9600,
+      "dataBits": 8,
+      "stopBits": 1,
+      "parity": "none",
+      "slaveId": 1
+    }
+  },
+  "dataPoints": [
+    // Similar structure as TCP device
+  ],
+  "createdBy": {
+    "userId": "user123",
+    "username": "john_doe",
+    "email": "john@example.com"
+  }
+}
+```
+
 ## Current Work
 - Improving device form with validation and better UX
 - Implementing Modbus integration for industrial devices
-- Optimizing device data structure to remove redundancy
+- Optimizing device data structure with protocol-specific connection settings
 - Adding user tracking to device creation
+- Enhancing UI to properly handle different connection types
 
 ## Coding Standards
 - TypeScript for type safety
