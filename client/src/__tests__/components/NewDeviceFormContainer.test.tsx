@@ -1,12 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import NewDeviceFormContainer from '../../components/devices/NewDeviceForm/NewDeviceFormContainer';
 import { validateDeviceForm } from '../../components/devices/NewDeviceForm/validation';
 
 // Mock utility functions
-jest.mock('../../utils/TypeAdapter', () => ({
-  convertFormToDeviceData: jest.fn(
+vi.mock('../../utils/TypeAdapter', () => ({
+  convertFormToDeviceData: vi.fn(
     (deviceBasics, connectionSettings, registerRanges, parameters) => ({
       ...deviceBasics,
       ...connectionSettings,
@@ -17,8 +18,8 @@ jest.mock('../../utils/TypeAdapter', () => ({
 }));
 
 // Mock sub-components to simplify testing
-jest.mock('../../components/devices/NewDeviceForm/ConnectionSettings', () => {
-  return function MockConnectionSettings() {
+vi.mock('../../components/devices/NewDeviceForm/ConnectionSettings', () => ({
+  default: () => {
     return (
       <div data-testid="connection-settings">
         <input data-testid="device-name-input" placeholder="Device Name" aria-label="Device Name" />
@@ -29,49 +30,49 @@ jest.mock('../../components/devices/NewDeviceForm/ConnectionSettings', () => {
         <input data-testid="ip-address-input" placeholder="IP Address" />
       </div>
     );
-  };
-});
+  }
+}));
 
-jest.mock('../../components/devices/NewDeviceForm/RegisterConfiguration', () => {
-  return function MockRegisterConfiguration() {
+vi.mock('../../components/devices/NewDeviceForm/RegisterConfiguration', () => ({
+  default: () => {
     return (
       <div data-testid="register-configuration">
         <button data-testid="add-register-range-button">Add Register Range</button>
       </div>
     );
-  };
-});
+  }
+}));
 
-jest.mock('../../components/devices/NewDeviceForm/DataReaderTab', () => {
-  return function MockDataReaderTab() {
+vi.mock('../../components/devices/NewDeviceForm/DataReaderTab', () => ({
+  default: () => {
     return (
       <div data-testid="data-reader-tab">
         <button data-testid="add-parameter-button">Add Parameter</button>
       </div>
     );
-  };
-});
+  }
+}));
 
-jest.mock('../../components/devices/NewDeviceForm/FormGuide', () => {
-  return function MockFormGuide() {
+vi.mock('../../components/devices/NewDeviceForm/FormGuide', () => ({
+  default: () => {
     return <div data-testid="form-guide"></div>;
-  };
-});
+  }
+}));
 
-jest.mock('../../components/devices/NewDeviceForm/ValidationMessages', () => {
-  return function MockValidationMessages() {
+vi.mock('../../components/devices/NewDeviceForm/ValidationMessages', () => ({
+  default: () => {
     return <div data-testid="validation-messages"></div>;
-  };
-});
+  }
+}));
 
 // Mock validation functions to control test behavior
-jest.mock('../../components/devices/NewDeviceForm/validation', () => {
-  const original = jest.requireActual('../../components/devices/NewDeviceForm/validation');
+vi.mock('../../components/devices/NewDeviceForm/validation', () => {
+  const original = vi.importActual('../../components/devices/NewDeviceForm/validation');
 
   return {
     ...original,
-    validateDeviceForm: jest.fn(),
-    convertValidationErrorsToState: jest.fn(errors => ({
+    validateDeviceForm: vi.fn(),
+    convertValidationErrorsToState: vi.fn(errors => ({
       isValid: errors.isValid,
       basicInfo: errors.basicInfo.map(msg => ({ field: 'test', message: msg })),
       connection: errors.connection.map(msg => ({ field: 'test', message: msg })),
@@ -83,14 +84,14 @@ jest.mock('../../components/devices/NewDeviceForm/validation', () => {
 });
 
 describe('NewDeviceFormContainer', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSubmit = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSubmit = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Default mock implementation for validation function - no errors
-    (validateDeviceForm as jest.Mock).mockReturnValue({
+    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: true,
       basicInfo: [],
       connection: [],
@@ -146,7 +147,7 @@ describe('NewDeviceFormContainer', () => {
 
   test('shows validation errors when navigation attempted with invalid data', async () => {
     // Mock validation to return errors
-    (validateDeviceForm as jest.Mock).mockReturnValue({
+    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: ['IP address is required'],
@@ -205,7 +206,7 @@ describe('NewDeviceFormContainer', () => {
     render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Navigate to the final tab - using a custom mock to allow navigation despite errors
-    (validateDeviceForm as jest.Mock).mockReturnValue({
+    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: true,
       basicInfo: [],
       connection: [],
@@ -218,7 +219,7 @@ describe('NewDeviceFormContainer', () => {
     fireEvent.click(screen.getByText('Next')); // to data reader
 
     // Now set validation to fail for submission
-    (validateDeviceForm as jest.Mock).mockReturnValue({
+    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: [],

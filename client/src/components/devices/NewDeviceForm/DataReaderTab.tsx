@@ -16,7 +16,7 @@ import {
 import { Button } from '../../ui/Button';
 import { Badge } from '../../ui/Badge';
 import { Tooltip } from '../../ui/Tooltip';
-import { useDeviceForm } from './DeviceFormContext';
+import { useDeviceForm } from './DeviceformContext';
 import ParameterEditor from './ParameterEditor';
 import { ParameterConfig } from '../../../types/form.types';
 
@@ -142,7 +142,13 @@ const DataReaderTab: React.FC = () => {
       (_, index) => excludeIndex === undefined || index !== excludeIndex
     );
 
-    // Check for duplicate name
+    // ===================================================================
+    // PART 1: Check for duplicate parameter names GLOBALLY
+    // ===================================================================
+    // Names must be unique across ALL register ranges
+    // ===================================================================
+
+    // Check for duplicate name (case-insensitive comparison)
     const duplicateName = existingParams.find(
       p => p.name.trim().toLowerCase() === parameter.name.trim().toLowerCase()
     );
@@ -150,38 +156,44 @@ const DataReaderTab: React.FC = () => {
       return `Parameter name "${parameter.name}" is already in use`;
     }
 
-    // Check for register conflicts
+    // ===================================================================
+    // PART 2: Check for register index overlaps WITHIN THE SAME RANGE ONLY
+    // ===================================================================
+    // Register indices only need to be unique within the SAME register range
+    // ===================================================================
+
+    // First filter existing parameters to ONLY include those in the SAME register range
+    // This ensures parameters in different register ranges don't trigger conflict errors
+    const sameRangeParams = existingParams.filter(
+      p => p.registerRange === parameter.registerRange
+    );
+    
+    // Calculate register ranges
     const wordCount = parameter.wordCount || getWordCount(parameter);
     const paramStart = parameter.registerIndex;
     const paramEnd = paramStart + wordCount - 1;
-
-    // For bit-level parameters, check bit position conflicts
+    
+    // For bit-level parameters, check bit position conflicts (only within the same register range)
     if (['BOOLEAN', 'BIT'].includes(parameter.dataType)) {
-      const conflictingBitParam = existingParams.find(
+      const conflictingBitParam = sameRangeParams.find(
         p =>
           ['BOOLEAN', 'BIT'].includes(p.dataType) &&
-          p.registerRange === parameter.registerRange &&
           p.registerIndex === parameter.registerIndex &&
           p.bitPosition === parameter.bitPosition
       );
 
       if (conflictingBitParam) {
-        return `Bit position ${parameter.bitPosition} at register index ${parameter.registerIndex} is already used by parameter "${conflictingBitParam.name}"`;
+        return `Bit position ${parameter.bitPosition} at register index ${parameter.registerIndex} is already used by parameter "${conflictingBitParam.name}" in the same register range`;
       }
 
       // Bit parameters can share registers with other types, so no further checks needed
       return null;
     }
 
-    // For non-bit parameters, check register overlaps
-    for (const existing of existingParams) {
+    // For non-bit parameters, check register overlaps (only within the same register range)
+    for (const existing of sameRangeParams) {
       // Skip bit-level parameters as they can share registers
       if (['BOOLEAN', 'BIT'].includes(existing.dataType)) {
-        continue;
-      }
-
-      // Only check conflicts within the same register range
-      if (existing.registerRange !== parameter.registerRange) {
         continue;
       }
 
@@ -194,7 +206,7 @@ const DataReaderTab: React.FC = () => {
         (paramStart <= existingEnd && paramEnd >= existingStart) ||
         (existingStart <= paramEnd && existingEnd >= paramStart)
       ) {
-        return `Register conflict: Parameter "${parameter.name}" (registers ${paramStart}-${paramEnd}) overlaps with existing parameter "${existing.name}" (registers ${existingStart}-${existingEnd})`;
+        return `Register conflict in "${parameter.registerRange}": Parameter "${parameter.name}" (registers ${paramStart}-${paramEnd}) overlaps with existing parameter "${existing.name}" (registers ${existingStart}-${existingEnd})`;
       }
     }
 

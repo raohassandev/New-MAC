@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceFormContext';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import RegisterConfiguration from '../../components/devices/NewDeviceForm/RegisterConfiguration';
 import { RegisterRange } from '../../types/form.types';
 
 // Mock UI components for testing
-jest.mock('../../components/ui/Button', () => ({
+vi.mock('../../components/ui/Button', () => ({
   Button: ({
     children,
     onClick,
@@ -33,8 +34,8 @@ jest.mock('../../components/ui/Button', () => ({
 }));
 
 // Mock RegisterRangeEditor component
-jest.mock('../../components/devices/NewDeviceForm/RegisterRangeEditor', () => {
-  return function MockRegisterRangeEditor({
+vi.mock('../../components/devices/NewDeviceForm/RegisterRangeEditor', () => ({
+  default: ({
     initialData,
     onSave,
     onCancel,
@@ -42,7 +43,7 @@ jest.mock('../../components/devices/NewDeviceForm/RegisterRangeEditor', () => {
     initialData?: any;
     onSave: (range: any) => void;
     onCancel: () => void;
-  }) {
+  }) => {
     const handleSaveClick = () => {
       const newRange = initialData || {
         rangeName: 'Test Range',
@@ -64,11 +65,11 @@ jest.mock('../../components/devices/NewDeviceForm/RegisterRangeEditor', () => {
         </button>
       </div>
     );
-  };
-});
+  }
+}));
 
 // Mock icons
-jest.mock('lucide-react', () => ({
+vi.mock('lucide-react', () => ({
   Plus: () => <span data-testid="plus-icon" />,
   Trash: () => <span data-testid="trash-icon" />,
   Edit: () => <span data-testid="edit-icon" />,
@@ -93,6 +94,10 @@ const sampleRegisterRanges: RegisterRange[] = [
 ];
 
 describe('RegisterConfiguration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  
   // Test initial render with no ranges
   test('renders empty state when no register ranges exist', () => {
     render(

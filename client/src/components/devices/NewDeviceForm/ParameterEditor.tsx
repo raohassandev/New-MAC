@@ -364,10 +364,38 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
 
   // Checks if a parameter overlaps with existing parameters in the same range
   const checkForParameterOverlaps = (): string | null => {
-    // If no initial data, we're creating a new parameter, so we need to check
-    // if it would overlap with existing parameters in the device form context
-    if (!parameter.registerRange) return null;
+    // If no name or register range, can't check for overlaps
+    if (!parameter.name || !parameter.registerRange) return null;
 
+    // ===================================================================
+    // PART 1: Check for duplicate parameter names GLOBALLY
+    // ===================================================================
+    // Names must be unique across ALL register ranges
+    // ===================================================================
+    
+    // Get all parameters from all register ranges
+    const allParamsFromAllRanges = availableRanges.flatMap(range => range.dataParser || []);
+    
+    // If we're editing an existing parameter, exclude it from the comparison
+    const existingParamsAll = initialData
+      ? allParamsFromAllRanges.filter(p => p.name !== initialData.name)
+      : allParamsFromAllRanges;
+    
+    // Check for duplicate name (case-insensitive)
+    const hasDuplicateName = existingParamsAll.some(
+      p => p.name && p.name.trim().toLowerCase() === parameter.name.trim().toLowerCase()
+    );
+
+    if (hasDuplicateName) {
+      return `Parameter name "${parameter.name}" is already in use`;
+    }
+
+    // ===================================================================
+    // PART 2: Check for register index overlaps WITHIN THE SAME RANGE ONLY
+    // ===================================================================
+    // Register indices only need to be unique within the SAME register range
+    // ===================================================================
+    
     // Find the selected range
     const selectedRange = availableRanges.find(
       range => range.rangeName === parameter.registerRange
@@ -379,30 +407,20 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
     const startIndex = parameter.registerIndex;
     const endIndex = parameter.registerIndex + wordCount - 1;
 
-    // Get all existing parameters from the current form context
-    // We need to consider all parameters that have the same range
-    const allParameters =
-      availableRanges.find(range => range.rangeName === parameter.registerRange)?.dataParser || [];
+    // Get existing parameters from the CURRENT selected register range only
+    const parametersInCurrentRange = selectedRange?.dataParser || [];
 
     // If we're editing an existing parameter, exclude it from the comparison
     const existingParameters = initialData
-      ? allParameters.filter(p => p.name !== initialData.name) // Exclude the parameter being edited
-      : allParameters;
+      ? parametersInCurrentRange.filter(p => p.name !== initialData.name)
+      : parametersInCurrentRange;
 
     if (existingParameters.length === 0) return null;
 
-    // Check for duplicate parameter names
-    const hasDuplicateName = existingParameters.some(
-      p => p.name && p.name.trim() === parameter.name.trim()
-    );
-
-    if (hasDuplicateName) {
-      return `Parameter name "${parameter.name}" is already in use`;
-    }
-
-    // If this is a bit-level parameter, we need special handling
+    // Special case for bit-level parameters - only check bit position conflicts
     if (['BOOLEAN', 'BIT'].includes(parameter.dataType)) {
-      // For bit parameters, check if another bit parameter uses the same register and bit position
+      // For bit parameters, check if another bit parameter uses the same register AND bit position
+      // ONLY within the same register range
       const conflictingBitParam = existingParameters.find(
         p =>
           ['BOOLEAN', 'BIT'].includes(p.dataType) &&
@@ -411,13 +429,14 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
       );
 
       if (conflictingBitParam) {
-        return `Bit position ${parameter.bitPosition} at register index ${parameter.registerIndex} is already used by parameter "${conflictingBitParam.name}"`;
+        return `Bit position ${parameter.bitPosition} at register index ${parameter.registerIndex} is already used by parameter "${conflictingBitParam.name}" in the same register range`;
       }
 
       return null; // Bit parameters can share register with other types
     }
 
-    // Check for register overlaps with non-bit parameters
+    // Check for register overlaps with non-bit parameters 
+    // ONLY within the same register range
     for (const existing of existingParameters) {
       // Skip bit-level parameters as they can share registers with other types
       if (['BOOLEAN', 'BIT'].includes(existing.dataType)) continue;
@@ -428,7 +447,7 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
 
       // Special case: exact same register index
       if (startIndex === existingStartIndex) {
-        return `Register index ${startIndex} is already used by parameter "${existing.name}"`;
+        return `Register index ${startIndex} in register range "${parameter.registerRange}" is already used by parameter "${existing.name}"`;
       }
 
       // Check if ranges overlap
@@ -436,7 +455,7 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
         (startIndex <= existingEndIndex && endIndex >= existingStartIndex) ||
         (existingStartIndex <= endIndex && existingEndIndex >= startIndex)
       ) {
-        return `Register range ${startIndex}-${endIndex} overlaps with parameter "${existing.name}" (registers ${existingStartIndex}-${existingEndIndex})`;
+        return `Register range ${startIndex}-${endIndex} in "${parameter.registerRange}" overlaps with parameter "${existing.name}" (registers ${existingStartIndex}-${existingEndIndex})`;
       }
     }
 

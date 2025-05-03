@@ -115,14 +115,22 @@ export const testDeviceConnection = async (req: Request, res: Response) => {
     try {
       // Get connection settings (support both new and legacy format)
       const connectionType = device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-      const ip = device.connectionSetting?.ip || device.ip;
-      const port = device.connectionSetting?.port || device.port;
-      const slaveId = device.connectionSetting?.slaveId || device.slaveId;
-      const serialPort = device.connectionSetting?.serialPort || device.serialPort;
-      const baudRate = device.connectionSetting?.baudRate || device.baudRate;
-      const dataBits = device.connectionSetting?.dataBits || device.dataBits;
-      const stopBits = device.connectionSetting?.stopBits || device.stopBits;
-      const parity = device.connectionSetting?.parity || device.parity;
+      
+      // Get TCP settings
+      const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : (device.ip || '');
+      const port = connectionType === 'tcp' ? device.connectionSetting?.tcp?.port : (device.port || 0);
+      const tcpSlaveId = connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
+      
+      // Get RTU settings  
+      const serialPort = connectionType === 'rtu' ? device.connectionSetting?.rtu?.serialPort : (device.serialPort || '');
+      const baudRate = connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : (device.baudRate || 0);
+      const dataBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : (device.dataBits || 0);
+      const stopBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : (device.stopBits || 0);
+      const parity = connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : (device.parity || '');
+      const rtuSlaveId = connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
+      
+      // Combined slaveId (prefer the one from the matching connection type)
+      const slaveId = connectionType === 'tcp' ? tcpSlaveId : (rtuSlaveId || device.slaveId || 1);
 
       // Connect based on connection type
       if (connectionType === 'tcp' && ip && port) {
@@ -229,14 +237,22 @@ export const readDeviceRegisters = async (req: Request, res: Response) => {
 
     // Get connection settings (support both new and legacy format)
     const connectionType = device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-    const ip = device.connectionSetting?.ip || device.ip;
-    const port = device.connectionSetting?.port || device.port;
-    const slaveId = device.connectionSetting?.slaveId || device.slaveId;
-    const serialPort = device.connectionSetting?.serialPort || device.serialPort;
-    const baudRate = device.connectionSetting?.baudRate || device.baudRate;
-    const dataBits = device.connectionSetting?.dataBits || device.dataBits;
-    const stopBits = device.connectionSetting?.stopBits || device.stopBits;
-    const parity = device.connectionSetting?.parity || device.parity;
+    
+    // Get TCP settings
+    const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : (device.ip || '');
+    const port = connectionType === 'tcp' ? device.connectionSetting?.tcp?.port : (device.port || 0);
+    const tcpSlaveId = connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
+    
+    // Get RTU settings  
+    const serialPort = connectionType === 'rtu' ? device.connectionSetting?.rtu?.serialPort : (device.serialPort || '');
+    const baudRate = connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : (device.baudRate || 0);
+    const dataBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : (device.dataBits || 0);
+    const stopBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : (device.stopBits || 0);
+    const parity = connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : (device.parity || '');
+    const rtuSlaveId = connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
+    
+    // Combined slaveId (prefer the one from the matching connection type)
+    const slaveId = connectionType === 'tcp' ? tcpSlaveId : (rtuSlaveId || device.slaveId || 1);
 
     // Initialize Modbus client
     const client = new ModbusRTU();

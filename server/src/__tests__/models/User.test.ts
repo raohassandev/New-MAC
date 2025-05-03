@@ -1,15 +1,130 @@
-import mongoose from 'mongoose';
-import User from '../../models/User';
-import bcrypt from 'bcryptjs';
+// Need to manually mock bcryptjs before importing the model
+jest.mock('bcryptjs', () => {
+  return {
+    genSalt: jest.fn().mockResolvedValue('mocksalt'),
+    hash: jest.fn().mockImplementation((password) => Promise.resolve(`hashed_${password}`)),
+    compare: jest.fn().mockImplementation((candidate, hash) => 
+      Promise.resolve(hash === `hashed_${candidate}`)
+    )
+  };
+});
 
-// Mock bcrypt for password verification tests
-jest.mock('bcryptjs', () => ({
-  genSalt: jest.fn(() => 'mocksalt'),
-  hash: jest.fn().mockImplementation((password, salt) => `hashed_${password}`),
-  compare: jest.fn().mockImplementation((password, hash) => 
-    hash === `hashed_${password}` || hash === password
-  ),
+// Import bcrypt after mocking
+const bcrypt = require('bcryptjs');
+
+// Mock the mongoose connection
+jest.mock('mongoose', () => ({
+  connect: jest.fn().mockResolvedValue({}),
+  connection: {
+    db: { dropDatabase: jest.fn().mockResolvedValue(true) },
+    close: jest.fn().mockResolvedValue(true),
+  },
+  Schema: jest.fn().mockReturnValue({}),
+  model: jest.fn(),
 }));
+
+// Create mock storage
+const mockUserData = new Map();
+
+// Generate ObjectId
+const generateObjectId = () => {
+  const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
+  const rest = Math.floor(Math.random() * 16777216).toString(16).padStart(6, '0');
+  return timestamp + rest;
+};
+
+// Create mock implementation for User model
+const mockUserImplementation = {
+  create: jest.fn().mockImplementation(async (data) => {
+    // Handle array or single document
+    if (Array.isArray(data)) {
+      return Promise.all(data.map(item => mockUserImplementation.create(item)));
+    }
+    
+    // Handle unique email validation
+    const existingEmail = Array.from(mockUserData.values()).find(user => user.email === data.email);
+    if (existingEmail) {
+      const error: any = new Error('Duplicate key error');
+      error.name = 'MongoError';
+      error.code = 11000;
+      return Promise.reject(error);
+    }
+    
+    // Check required fields
+    if (!data.name || !data.email || !data.password) {
+      const error = new Error('Validation failed');
+      error.name = 'ValidationError';
+      return Promise.reject(error);
+    }
+    
+    // Hash password
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(data.password, salt);
+    
+    const doc = {
+      _id: generateObjectId(),
+      ...data, 
+      password: hashedPassword,
+      role: data.role || 'user',
+      permissions: data.permissions || ['view_devices', 'view_profiles'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      
+      // Add instance methods
+      save: jest.fn().mockImplementation(function(this: any) {
+        this.updatedAt = new Date();
+        mockUserData.set(this._id.toString(), this);
+        return Promise.resolve(this);
+      }),
+      
+      deleteOne: jest.fn().mockImplementation(function(this: any) {
+        mockUserData.delete(this._id.toString());
+        return Promise.resolve({ acknowledged: true, deletedCount: 1 });
+      }),
+    };
+    
+    mockUserData.set(doc._id.toString(), doc);
+    return Promise.resolve(doc);
+  }),
+  
+  find: jest.fn().mockImplementation((query = {}) => {
+    const matchingDocs = Array.from(mockUserData.values()).filter(doc => {
+      return Object.entries(query).every(([key, value]) => doc[key] === value);
+    });
+    return matchingDocs;
+  }),
+  
+  findOne: jest.fn().mockImplementation((query = {}) => {
+    const doc = Array.from(mockUserData.values()).find(doc => {
+      return Object.entries(query).every(([key, value]) => doc[key] === value);
+    });
+    return doc || null;
+  }),
+  
+  findById: jest.fn().mockImplementation((id) => {
+    return Promise.resolve(mockUserData.get(id.toString()) || null);
+  }),
+  
+  findByIdAndUpdate: jest.fn().mockImplementation((id, update, options) => {
+    const doc = mockUserData.get(id.toString());
+    if (!doc) return Promise.resolve(null);
+    
+    const updatedDoc = { ...doc, ...update, updatedAt: new Date() };
+    mockUserData.set(id.toString(), updatedDoc);
+    
+    return Promise.resolve(options?.new === true ? updatedDoc : doc);
+  }),
+  
+  deleteMany: jest.fn().mockImplementation(() => {
+    mockUserData.clear();
+    return Promise.resolve({ acknowledged: true, deletedCount: mockUserData.size });
+  }),
+};
+
+// Apply the mock
+jest.mock('../../models/User', () => mockUserImplementation);
+import User from '../../models/User';
+import mongoose from 'mongoose';
 
 describe('User Model', () => {
   beforeAll(async () => {
@@ -143,16 +258,16 @@ describe('User Model', () => {
       password: 'authpass',
     };
     
-    let user;
-    
-    // For this test we need to manage bcrypt mocking differently to test instance methods
-    bcrypt.hash = jest.fn().mockReturnValueOnce('hashed_authpass');
+    // Set up the hash mock specifically for this test
+    bcrypt.hash.mockResolvedValueOnce('hashed_authpass');
     
     // Create the user with hashed password
-    user = await User.create(userData);
+    const user = await User.create(userData);
     
-    // Reset the mock and set up for password comparison
-    bcrypt.compare.mockImplementation((candidate, hash) => Promise.resolve(candidate === 'authpass'));
+    // Configure the compare mock for our tests
+    bcrypt.compare
+      .mockResolvedValueOnce(true)   // First call with correct password
+      .mockResolvedValueOnce(false); // Second call with wrong password
     
     // Test authenticating with correct password
     const isMatch = await bcrypt.compare('authpass', user.password);

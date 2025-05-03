@@ -1,6 +1,6 @@
 // client/src/components/devices/NewDeviceForm/ConnectionSettings.tsx
 import React, { useContext } from 'react';
-import { useDeviceForm } from './DeviceFormContext';
+import { useDeviceForm } from './DeviceformContext';
 import { Input } from '../../ui/Input';
 import { Form } from '../../ui/Form';
 import { AlertCircle } from 'lucide-react';
@@ -19,10 +19,11 @@ interface SelectProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   error?: string;
+  ref?: React.RefObject<HTMLSelectElement>;
 }
 
-// Custom Select component
-const Select: React.FC<SelectProps> = ({ id, value, onChange, options, error }) => {
+// Custom Select component with forwardRef to support refs
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ id, value, onChange, options, error }, ref) => {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange(e.target.value);
   };
@@ -32,6 +33,7 @@ const Select: React.FC<SelectProps> = ({ id, value, onChange, options, error }) 
       id={id}
       value={value}
       onChange={handleChange}
+      ref={ref}
       className={`block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm ${
         error ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500' : ''
       }`}
@@ -43,7 +45,7 @@ const Select: React.FC<SelectProps> = ({ id, value, onChange, options, error }) 
       ))}
     </select>
   );
-};
+});
 
 // Field Error component to display validation errors
 const FieldError: React.FC<{ message?: string }> = ({ message }) => {
@@ -109,7 +111,7 @@ const ConnectionSettings: React.FC = () => {
             onChange={handleDeviceBasicsChange}
             placeholder="Production Line PLC"
             className={getBasicFieldError('name') ? 'border-red-300' : ''}
-            ref={refs.name}
+            ref={refs.name as React.RefObject<HTMLInputElement>}
           />
           <FieldError message={getBasicFieldError('name')} />
         </Form.Group>
@@ -125,7 +127,7 @@ const ConnectionSettings: React.FC = () => {
             onChange={handleDeviceBasicsChange}
             placeholder="Siemens, Allen-Bradley, etc."
             className={getBasicFieldError('make') ? 'border-red-300' : ''}
-            ref={refs.make}
+            ref={refs.make as React.RefObject<HTMLInputElement>}
           />
           <FieldError message={getBasicFieldError('make')} />
         </Form.Group>
@@ -143,7 +145,7 @@ const ConnectionSettings: React.FC = () => {
             onChange={handleDeviceBasicsChange}
             placeholder="S7-1200, CompactLogix, etc."
             className={getBasicFieldError('model') ? 'border-red-300' : ''}
-            ref={refs.model}
+            ref={refs.model as React.RefObject<HTMLInputElement>}
           />
           <FieldError message={getBasicFieldError('model')} />
         </Form.Group>
@@ -156,7 +158,7 @@ const ConnectionSettings: React.FC = () => {
             value={deviceBasics.description}
             onChange={handleDeviceBasicsChange}
             placeholder="Optional device description"
-            ref={refs.description}
+            ref={refs.description as React.RefObject<HTMLInputElement>}
           />
         </Form.Group>
       </Form.Row>
@@ -174,7 +176,7 @@ const ConnectionSettings: React.FC = () => {
             { value: 'rtu', label: 'RTU (Serial)' },
           ]}
           error={getFieldError('connectionType')}
-          ref={refs.connectionType}
+          ref={refs.connectionType as React.RefObject<HTMLSelectElement>}
         />
       </Form.Group>
 
@@ -192,7 +194,7 @@ const ConnectionSettings: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="192.168.1.100"
                 className={getFieldError('ip') ? 'border-red-300' : ''}
-                ref={refs.ip}
+                ref={refs.ip as React.RefObject<HTMLInputElement>}
               />
               <FieldError message={getFieldError('ip')} />
             </Form.Group>
@@ -209,7 +211,7 @@ const ConnectionSettings: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="502"
                 className={getFieldError('port') ? 'border-red-300' : ''}
-                ref={refs.port}
+                ref={refs.port as React.RefObject<HTMLInputElement>}
               />
               <FieldError message={getFieldError('port')} />
             </Form.Group>
@@ -312,7 +314,7 @@ const ConnectionSettings: React.FC = () => {
           onChange={handleInputChange}
           placeholder="1"
           className={getFieldError('slaveId') ? 'border-red-300' : ''}
-          ref={refs.slaveId}
+          ref={refs.slaveId as React.RefObject<HTMLInputElement>}
         />
         <FieldError message={getFieldError('slaveId')} />
       </Form.Group>

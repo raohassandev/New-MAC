@@ -1,7 +1,7 @@
 // client/src/components/devices/NewDeviceForm/FormGuide.tsx
 import React from 'react';
 import { CheckCircle, HelpCircle, AlertCircle } from 'lucide-react';
-import { useDeviceForm } from './DeviceFormContext';
+import { useDeviceForm } from './DeviceformContext';
 
 const FormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
   const { state } = useDeviceForm();

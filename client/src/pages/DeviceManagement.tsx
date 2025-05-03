@@ -120,7 +120,7 @@ const DeviceTemplate: React.FC = () => {
       filtered = filtered.filter(
         device =>
           device.name.toLowerCase().includes(query) ||
-          (device.connectionSetting?.ip && device.connectionSetting.ip.toLowerCase().includes(query)) ||
+          (device.connectionSetting?.tcp?.ip && device.connectionSetting.tcp.ip.toLowerCase().includes(query)) ||
           (device.make && device.make.toLowerCase().includes(query)) ||
           (device.model && device.model.toLowerCase().includes(query))
       );
@@ -365,10 +365,10 @@ const DeviceTemplate: React.FC = () => {
     const rows = filteredDevices.map(device =>
       [
         device.name,
-        device.connectionSetting?.ip || '',
-        device.connectionSetting?.port || '',
+        device.connectionSetting?.tcp?.ip || device.connectionSetting?.rtu?.serialPort || '',
+        device.connectionSetting?.tcp?.port || device.connectionSetting?.rtu?.baudRate || '',
         device.enabled ? 'Enabled' : 'Disabled',
-        device.connectionSetting?.slaveId || '',
+        device.connectionSetting?.tcp?.slaveId || device.connectionSetting?.rtu?.slaveId || '',
         device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never',
         device.make || '',
         device.model || '',
@@ -879,7 +879,11 @@ const DeviceTemplate: React.FC = () => {
                       </span>
                     </Table.Cell>
                     <Table.Cell>
-                      {device.connectionSetting?.ip ? `${device.connectionSetting.ip}:${device.connectionSetting.port} (ID: ${device.connectionSetting.slaveId})` : 'N/A'}
+                      {device.connectionSetting?.tcp?.ip 
+                        ? `${device.connectionSetting.tcp.ip}:${device.connectionSetting.tcp.port} (ID: ${device.connectionSetting.tcp.slaveId})` 
+                        : device.connectionSetting?.rtu?.serialPort 
+                          ? `${device.connectionSetting.rtu.serialPort}:${device.connectionSetting.rtu.baudRate} (ID: ${device.connectionSetting.rtu.slaveId})`
+                          : 'N/A'}
                     </Table.Cell>
                     <Table.Cell>
                       {device.make && device.model
@@ -970,7 +974,7 @@ const DeviceTemplate: React.FC = () => {
 
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">
-                    {device.connectionSetting?.ip ? `${device.connectionSetting.ip}:${device.connectionSetting.port}` : 'No connection info'}
+                    {device.connectionSetting?.tcp?.ip ? `${device.connectionSetting.tcp?.ip}:${device.connectionSetting?.tcp?.port}` : 'No connection info'}
                   </p>
                 </div>
 

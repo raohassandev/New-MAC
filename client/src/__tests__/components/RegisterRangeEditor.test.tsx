@@ -1,10 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import RegisterRangeEditor from '../../components/devices/NewDeviceForm/RegisterRangeEditor';
 import { RegisterRange } from '../../types/form.types';
 
 // Mock UI components for testing
-jest.mock('../../components/ui/Input', () => ({
+vi.mock('../../components/ui/Input', () => ({
   Input: ({
     id,
     name,
@@ -41,7 +42,7 @@ jest.mock('../../components/ui/Input', () => ({
   ),
 }));
 
-jest.mock('../../components/ui/Button', () => ({
+vi.mock('../../components/ui/Button', () => ({
   Button: ({
     children,
     onClick,
@@ -63,7 +64,7 @@ jest.mock('../../components/ui/Button', () => ({
   ),
 }));
 
-jest.mock('../../components/ui/Form', () => ({
+vi.mock('../../components/ui/Form', () => ({
   Form: ({ children, onSubmit }: { children: React.ReactNode; onSubmit?: (e: any) => void }) => (
     <form onSubmit={onSubmit} data-testid="register-range-form">
       {children}
@@ -103,11 +104,11 @@ const sampleRegisterRange: RegisterRange = {
 };
 
 describe('RegisterRangeEditor', () => {
-  const mockOnSave = jest.fn();
-  const mockOnCancel = jest.fn();
+  const mockOnSave = vi.fn();
+  const mockOnCancel = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // Test initial render with no data

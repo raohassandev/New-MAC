@@ -1,29 +1,33 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceFormContext';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import ConnectionSettings from '../../components/devices/NewDeviceForm/ConnectionSettings';
 import { FormFieldRefsContext } from '../../components/devices/NewDeviceForm/FormFieldRefsContext';
 
 // Mock UI components to simplify testing
-jest.mock('../../components/ui/Input', () => ({
-  Input: React.forwardRef(
-    ({ id, name, value, onChange, placeholder, className, type = 'text' }, ref) => (
-      <input
-        data-testid={id}
-        id={id}
-        name={name}
-        value={value || ''}
-        onChange={onChange}
-        placeholder={placeholder}
-        className={className}
-        type={type}
-        ref={ref}
-      />
-    )
-  ),
+vi.mock('../../components/ui/Input', () => ({
+  Input: {
+    render: vi.fn().mockImplementation((props, ref) => {
+      const { id, name, value, onChange, placeholder, className, type = 'text' } = props;
+      return (
+        <input
+          data-testid={id}
+          id={id}
+          name={name}
+          value={value || ''}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={className}
+          type={type}
+          ref={ref}
+        />
+      );
+    }),
+  },
 }));
 
-jest.mock('../../components/ui/Form', () => ({
+vi.mock('../../components/ui/Form', () => ({
   Form: {
     Row: ({ children }: { children: React.ReactNode }) => (
       <div data-testid="form-row">{children}</div>
@@ -64,6 +68,11 @@ const createFieldRefs = () => {
 };
 
 describe('ConnectionSettings', () => {
+  // Reset mocks before each test
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  
   // Test basic rendering
   test('renders device basics form fields', () => {
     render(
@@ -96,7 +105,11 @@ describe('ConnectionSettings', () => {
   test('renders TCP/IP connection settings when TCP is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider initialData={{ connectionSettings: { type: 'tcp' } }}>
+        <DeviceFormProvider initialData={{ 
+          connectionSettings: { 
+            type: 'tcp'
+          }
+        }}>
           <ConnectionSettings />
         </DeviceFormProvider>
       </FormFieldRefsContext.Provider>
@@ -115,7 +128,11 @@ describe('ConnectionSettings', () => {
   test('renders RTU connection settings when RTU is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider initialData={{ connectionSettings: { type: 'rtu' } }}>
+        <DeviceFormProvider initialData={{ 
+          connectionSettings: { 
+            type: 'rtu'
+          }
+        }}>
           <ConnectionSettings />
         </DeviceFormProvider>
       </FormFieldRefsContext.Provider>
@@ -130,7 +147,7 @@ describe('ConnectionSettings', () => {
   });
 
   // Test switching between connection types
-  test('switches between TCP and RTU connection settings', () => {
+  test('switches between TCP and RTU connection settings', async () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
         <DeviceFormProvider>
@@ -144,6 +161,7 @@ describe('ConnectionSettings', () => {
 
     // Find the connection type dropdown (using getElementsByTagName since we mocked select)
     const selectElement = document.getElementById('connectionType') as HTMLSelectElement;
+    expect(selectElement).toBeTruthy();
 
     // Change to RTU
     fireEvent.change(selectElement, { target: { value: 'rtu' } });

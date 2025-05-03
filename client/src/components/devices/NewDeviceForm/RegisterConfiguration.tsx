@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../../ui/Button';
-import { useDeviceForm } from './DeviceFormContext';
+import { useDeviceForm } from './DeviceformContext';
 import RegisterRangeEditor from './RegisterRangeEditor';
 import { RegisterRange } from '../../../types/form.types';
 

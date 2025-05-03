@@ -85,18 +85,28 @@ export function convertFormToDeviceData(
   // Create dataPoints array from register ranges
   const dataPoints = registerRanges.map(range => createDataPointFromRange(range, parameters));
 
-  // Create connection settings object
-  const connectionSetting = {
+  // Create connection settings object with separate TCP and RTU objects
+  const connectionSetting: ConnectionSetting = {
     connectionType: connectionSettings.type,
-    ip: connectionSettings.ip,
-    port: parseInt(connectionSettings.port),
-    slaveId: parseInt(connectionSettings.slaveId),
-    serialPort: connectionSettings.serialPort,
-    baudRate: parseInt(connectionSettings.baudRate),
-    dataBits: parseInt(connectionSettings.dataBits),
-    stopBits: parseInt(connectionSettings.stopBits),
-    parity: connectionSettings.parity,
   };
+
+  // Add the appropriate connection details based on type
+  if (connectionSettings.type === 'tcp') {
+    connectionSetting.tcp = {
+      ip: connectionSettings.ip,
+      port: parseInt(connectionSettings.port),
+      slaveId: parseInt(connectionSettings.slaveId),
+    };
+  } else if (connectionSettings.type === 'rtu') {
+    connectionSetting.rtu = {
+      serialPort: connectionSettings.serialPort,
+      baudRate: parseInt(connectionSettings.baudRate),
+      dataBits: parseInt(connectionSettings.dataBits),
+      stopBits: parseInt(connectionSettings.stopBits),
+      parity: connectionSettings.parity,
+      slaveId: parseInt(connectionSettings.slaveId),
+    };
+  }
 
   // Add user information if provided
   const createdBy = userInfo ? {

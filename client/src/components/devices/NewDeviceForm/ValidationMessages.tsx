@@ -1,6 +1,6 @@
 // client/src/components/devices/NewDeviceForm/ValidationMessages.tsx
 import React, { useContext } from 'react';
-import { useDeviceForm } from './DeviceFormContext';
+import { useDeviceForm } from './DeviceformContext';
 import { AlertCircle, XCircle, Info, ArrowRight } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
 
@@ -13,6 +13,9 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
     parameters: [],
     other: [],
   };
+
+  // CRITICAL: Log all validation errors for debugging purposes
+  console.log("All validation errors:", errors);
 
   // Map error field names to friendly messages
   const friendlyMessages: Record<string, string> = {
@@ -39,8 +42,12 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
     ) {
       grouped.connection.push(message);
     } else if (error.field.includes('range')) {
+      // Highlight register range errors
+      console.log("Register range error:", error);
       grouped.registers.push(message);
     } else if (error.field.includes('param')) {
+      // Highlight parameter errors
+      console.log("Parameter error:", error);
       grouped.parameters.push(message);
     } else {
       grouped.other.push(message);

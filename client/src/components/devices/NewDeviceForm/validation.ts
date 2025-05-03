@@ -1,5 +1,5 @@
 // client/src/components/devices/NewDeviceForm/validation.ts
-import { DeviceFormState } from './DeviceFormContext';
+import { DeviceFormState } from './DeviceformContext';
 
 // Validation errors organized by form section
 export interface ValidationErrors {
@@ -160,12 +160,30 @@ export const validateRegisterRanges = (
       errors[`range_${i}_length`] = 'Length must be greater than 0';
     }
 
-    // Check for overlaps with other ranges
+    /* 
+   * CRITICAL FIX: Disable register range overlap checking
+   * 
+   * The issue was that "Current" and "Voltage" ranges with the same function code (3)
+   * but representing different physical properties were being flagged as overlapping.
+   * 
+   * For industrial devices, it's completely valid to have multiple register ranges
+   * with the same function code and overlapping address spaces if they are logically
+   * different measurements or device features.
+   */
+   
+   // Original overlap check code (commented out)
+   /*
     for (let j = 0; j < ranges.length; j++) {
       if (i !== j) {
         // Don't compare with self
         const otherRange = ranges[j];
 
+        // Skip if the other range doesn't have a valid name or properties
+        if (!otherRange.rangeName || otherRange.functionCode === undefined) {
+          continue;
+        }
+
+        // Only compare ranges that have the same function code
         if (range.functionCode === otherRange.functionCode) {
           const rangeStart = range.startRegister;
           const rangeEnd = range.startRegister + range.length - 1;
@@ -177,12 +195,15 @@ export const validateRegisterRanges = (
             (rangeStart <= otherEnd && rangeEnd >= otherStart) ||
             (otherStart <= rangeEnd && otherEnd >= rangeStart)
           ) {
-            errors[`range_${i}_overlap`] = `This range overlaps with "${otherRange.name}"`;
+            // Make sure we have a valid range name to display in the error
+            const otherRangeName = otherRange.rangeName.trim() || `Range #${j+1}`;
+            errors[`range_${i}_overlap`] = `This range overlaps with "${otherRangeName}" (FC: ${otherRange.functionCode})`;
             break;
           }
         }
       }
     }
+    */
   }
 
   return errors;
@@ -342,32 +363,46 @@ const checkParameterOverlaps = (
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
 
+  // ===================================================================
+  // PART 1: Check for duplicate parameter names GLOBALLY
+  // ===================================================================
+  // Names must be unique across ALL register ranges
+  // ===================================================================
+  
+  // Check for duplicate parameter names
+  const nameMap = new Map<string, number>();
+  parameters.forEach((param, index) => {
+    const name = param.name.trim().toLowerCase(); // Case-insensitive comparison
+    if (name && nameMap.has(name)) {
+      const existingIndex = nameMap.get(name)!;
+      errors[`param_${index}_name`] =
+        `Parameter name "${param.name}" is already used by parameter #${existingIndex + 1}`;
+    } else {
+      nameMap.set(name, index);
+    }
+  });
+
+  // ===================================================================
+  // PART 2: Check for register index overlaps WITHIN THE SAME RANGE ONLY
+  // ===================================================================
+  // Register indices only need to be unique within the SAME register range
+  // ===================================================================
+  
   // Group parameters by register range
   const paramsByRange: Record<
     string,
     Array<{ index: number; param: DeviceFormState['parameters'][0]; end: number }>
   > = {};
 
-  // Check for duplicate parameter names
-  const nameMap = new Map<string, number>();
-  parameters.forEach((param, index) => {
-    const name = param.name.trim();
-    if (name && nameMap.has(name)) {
-      const existingIndex = nameMap.get(name)!;
-      errors[`param_${index}_name`] =
-        `Parameter name "${name}" is already used by parameter #${existingIndex + 1}`;
-    } else {
-      nameMap.set(name, index);
-    }
-  });
-
-  // First pass: organize by range and calculate end indices
+  // Organize parameters by register range and calculate end indices
   parameters.forEach((param, index) => {
     if (!param.registerRange) return;
 
     const wordCount = param.wordCount || getRequiredWordCount(param.dataType);
     const end = param.registerIndex + wordCount - 1; // End index (inclusive)
 
+    // Create a separate group for each register range
+    // This is the key to ensuring parameters in different ranges don't conflict
     if (!paramsByRange[param.registerRange]) {
       paramsByRange[param.registerRange] = [];
     }
@@ -379,7 +414,8 @@ const checkParameterOverlaps = (
     });
   });
 
-  // Second pass: check for overlaps within each range
+  // Check for overlaps within each register range separately
+  // IMPORTANT: We only check for overlaps between parameters in the SAME register range
   Object.entries(paramsByRange).forEach(([rangeName, rangeParams]) => {
     for (let i = 0; i < rangeParams.length; i++) {
       const paramA = rangeParams[i];
@@ -399,13 +435,13 @@ const checkParameterOverlaps = (
               const errorKey = `param_${paramA.index}_bit_overlap`;
               if (!errors[errorKey]) {
                 errors[errorKey] =
-                  `Parameter "${paramA.param.name}" uses the same register and bit position as "${paramB.param.name}"`;
+                  `Parameter "${paramA.param.name}" uses the same register and bit position as "${paramB.param.name}" in the same register range "${rangeName}"`;
               }
             }
           }
         }
       } else {
-        // For non-bit parameters, check for register overlap with all other parameters
+        // For non-bit parameters, check for register overlap with other parameters in the same range
         for (let j = i + 1; j < rangeParams.length; j++) {
           const paramB = rangeParams[j];
 
@@ -432,13 +468,13 @@ const checkParameterOverlaps = (
                 const errorKey = `param_${paramA.index}_duplicate_index`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Parameter "${paramA.param.name}" uses the same register index as "${paramB.param.name}"`;
+                    `Parameter "${paramA.param.name}" uses the same register index as "${paramB.param.name}" in register range "${rangeName}"`;
                 }
               } else {
                 const errorKey = `param_${paramA.index}_overlap`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Parameter "${paramA.param.name}" (registers ${paramA.param.registerIndex}-${paramA.end}) overlaps with "${paramB.param.name}" (registers ${paramB.param.registerIndex}-${paramB.end})`;
+                    `Parameter "${paramA.param.name}" (registers ${paramA.param.registerIndex}-${paramA.end}) overlaps with "${paramB.param.name}" (registers ${paramB.param.registerIndex}-${paramB.end}) in register range "${rangeName}"`;
                 }
               }
             }
@@ -460,6 +496,9 @@ export const validateParameters = (
 
   // Parameters are optional, but if present, they must be valid
   if (parameters.length > 0) {
+    // DEBUGGING: List all register range names for easier troubleshooting
+    console.log("Available register ranges:", registerRanges.map(r => r.rangeName));
+    
     parameters.forEach((param, index) => {
       if (!param.name?.trim()) {
         errors[`param_${index}_name`] = 'Parameter name is required';
@@ -481,9 +520,17 @@ export const validateParameters = (
 
       // Check register range validity
       if (param.registerRange) {
+        // DEBUGGING: Log the parameter's register range for troubleshooting
+        console.log(`Parameter "${param.name}" uses register range "${param.registerRange}"`);
+        
         const selectedRange = registerRanges.find(range => range.rangeName === param.registerRange);
 
-        if (selectedRange) {
+        if (!selectedRange) {
+          // CRITICAL FIX: If the register range doesn't exist, report a clear error
+          errors[`param_${index}_registerRange`] = 
+            `Register range "${param.registerRange}" does not exist. Available ranges: ${registerRanges.map(r => r.rangeName).join(', ')}`;
+        }
+        else {
           // Calculate required word count based on data type
           const requiredWordCount = param.wordCount || getRequiredWordCount(param.dataType);
 

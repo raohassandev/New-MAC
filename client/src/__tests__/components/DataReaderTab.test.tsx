@@ -1,31 +1,32 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceFormContext';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import DataReaderTab from '../../components/devices/NewDeviceForm/DataReaderTab';
 import { RegisterRange, ParameterConfig } from '../../types/form.types';
 
 // Mock the UI components to simplify testing
-jest.mock('../../components/ui/Button', () => ({
+vi.mock('../../components/ui/Button', () => ({
   Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
     <button onClick={onClick}>{children}</button>
   ),
 }));
 
-jest.mock('../../components/ui/Badge', () => ({
+vi.mock('../../components/ui/Badge', () => ({
   Badge: ({ children }: { children: React.ReactNode }) => (
     <span data-testid="badge">{children}</span>
   ),
 }));
 
-jest.mock('../../components/ui/Tooltip', () => ({
+vi.mock('../../components/ui/Tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="tooltip">{children}</div>
   ),
 }));
 
 // Mock the ParameterEditor component to simplify testing
-jest.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => {
-  return function MockParameterEditor({ onSave }: { onSave: (param: any) => void }) {
+vi.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => ({
+  default: ({ onSave }: { onSave: (param: any) => void }) => {
     return (
       <div data-testid="parameter-editor">
         <button
@@ -65,8 +66,8 @@ jest.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => {
         </button>
       </div>
     );
-  };
-});
+  }
+}));
 
 // Test register ranges
 const mockRegisterRanges: RegisterRange[] = [
@@ -96,6 +97,10 @@ const initialFormState = {
 };
 
 describe('DataReaderTab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('should render with no parameters', () => {
     const { container } = render(
       <DeviceFormProvider initialData={{ registerRanges: mockRegisterRanges }}>
@@ -114,7 +119,7 @@ describe('DataReaderTab', () => {
     expect(screen.getByText(/register ranges required/i)).toBeInTheDocument();
   });
 
-  test('should show error when adding parameter with duplicate register index', () => {
+  test('should show error when adding parameter with duplicate register index', async () => {
     render(
       <DeviceFormProvider initialData={initialFormState}>
         <DataReaderTab />

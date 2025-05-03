@@ -6,7 +6,7 @@ import RegisterConfiguration from './RegisterConfiguration';
 import DataReaderTab from './DataReaderTab';
 import FormTabs from './FormTabs';
 import FormFooter from './FormFooter';
-import { DeviceFormProvider, useDeviceForm } from './DeviceFormContext';
+import { DeviceFormProvider, useDeviceForm } from './DeviceformContext';
 import { validateDeviceForm, convertValidationErrorsToState } from './validation';
 import ValidationMessages from './ValidationMessages';
 import FormGuide from './FormGuide';
@@ -85,7 +85,14 @@ const DeviceFormContent: React.FC<{
 
   const handleSubmitForm = () => {
     // Run full validation before submitting and show errors
-    const isValid = validateForm(true);
+    console.log("Form submission - validating form");
+    console.log("Register ranges:", state.registerRanges);
+    console.log("Parameters:", state.parameters);
+    
+    const validationErrors = validateDeviceForm(state);
+    console.log("Validation errors:", validationErrors);
+    
+    const isValid = validationErrors.isValid;
     setHasAttemptedNextStep(true);
 
     if (!isValid) {
@@ -101,7 +108,7 @@ const DeviceFormContent: React.FC<{
       state.parameters,
       user
     );
-
+    console.log("Device data ready for submission:", deviceData);
     onSubmit(deviceData);
   };
 

@@ -73,17 +73,28 @@ export interface DeviceReading {
   rawData?: Buffer | string;
 }
 
+// TCP Connection Settings
+export interface TcpSettings {
+  ip: string;
+  port: number;
+  slaveId: number;
+}
+
+// RTU Connection Settings
+export interface RtuSettings {
+  serialPort: string;
+  baudRate: number;
+  dataBits: number;
+  stopBits: number;
+  parity: string;
+  slaveId: number;
+}
+
 // Connection Setting interface
 export interface ConnectionSetting {
   connectionType: 'tcp' | 'rtu';
-  ip?: string;
-  port?: number;
-  slaveId: number;
-  serialPort?: string;
-  baudRate?: number;
-  dataBits?: number;
-  stopBits?: number;
-  parity?: string;
+  tcp?: TcpSettings;
+  rtu?: RtuSettings;
 }
 
 // Range interface for dataPoints

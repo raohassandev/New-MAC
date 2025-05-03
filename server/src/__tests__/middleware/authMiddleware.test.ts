@@ -1,17 +1,21 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { protect, checkPermission } from '../../middleware/authMiddleware';
-import User from '../../models/User';
-
-// Mock User model
-jest.mock('../../models/User', () => ({
-  findById: jest.fn(),
-}));
 
 // Mock JWT
 jest.mock('jsonwebtoken', () => ({
   verify: jest.fn(),
 }));
+
+// Apply the mocks before importing
+jest.mock('../../models/User', () => ({
+  findById: jest.fn().mockImplementation(() => ({
+    select: jest.fn().mockReturnThis() // This allows chaining .select()
+  }))
+}));
+
+// Import after mocking
+import jwt from 'jsonwebtoken';
+import User from '../../models/User';
 
 describe('Auth Middleware', () => {
   // Mocks and setup
@@ -48,7 +52,7 @@ describe('Auth Middleware', () => {
       await protect(req as Request, res as Response, next);
       
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Not authorized' });
+      expect(res.json).toHaveBeenCalledWith({ message: 'Not authorized, no token' });
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -72,7 +76,11 @@ describe('Auth Middleware', () => {
       
       const mockUser = { _id: 'real_user_id', name: 'Real User' };
       (jwt.verify as jest.Mock).mockReturnValueOnce({ id: 'real_user_id' });
-      (User.findById as jest.Mock).mockResolvedValueOnce(mockUser);
+      
+      // Override the default mock for this specific test
+      (User.findById as jest.Mock).mockImplementationOnce(() => ({
+        select: jest.fn().mockResolvedValue(mockUser)
+      }));
       
       await protect(req as Request, res as Response, next);
       
@@ -101,7 +109,11 @@ describe('Auth Middleware', () => {
       req.headers = { authorization: 'Bearer valid.jwt.token' };
       
       (jwt.verify as jest.Mock).mockReturnValueOnce({ id: 'nonexistent_user_id' });
-      (User.findById as jest.Mock).mockResolvedValueOnce(null);
+      
+      // Return null for user not found
+      (User.findById as jest.Mock).mockImplementationOnce(() => ({
+        select: jest.fn().mockResolvedValue(null)
+      }));
       
       await protect(req as Request, res as Response, next);
       
