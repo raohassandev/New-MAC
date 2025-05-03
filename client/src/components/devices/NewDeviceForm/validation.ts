@@ -19,9 +19,14 @@ export const validateDeviceBasics = (
 
   // Required field validation
   if (!deviceBasics.name?.trim()) {
-    errors.name = 'Device name is required';
+    errors.name = 'Template name is required';
   } else if (deviceBasics.name.length < 3) {
-    errors.name = 'Device name must be at least 3 characters';
+    errors.name = 'Template name must be at least 3 characters';
+  }
+  
+  // Device Type is required
+  if (!deviceBasics.deviceType?.trim()) {
+    errors.deviceType = 'Device type is required';
   }
 
   // Make is required

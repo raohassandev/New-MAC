@@ -28,6 +28,7 @@ export const FormFieldRefsProvider: React.FC<FormFieldRefsProviderProps> = ({ ch
   const fieldRefs: FormFieldRefs = {
     // Device basic info
     name: useRef<HTMLInputElement>(null),
+    deviceType: useRef<HTMLSelectElement>(null),
     make: useRef<HTMLInputElement>(null),
     model: useRef<HTMLInputElement>(null),
     description: useRef<HTMLInputElement>(null),
@@ -53,6 +54,8 @@ export const FormFieldRefsProvider: React.FC<FormFieldRefsProviderProps> = ({ ch
       // Map validation error field names to actual ref names
       // For example, if a validation error has field "devicename", map it to "name"
       devicename: 'name',
+      templatename: 'name',
+      devicetype: 'deviceType',
       devicemake: 'make',
       devicemodel: 'model',
     };

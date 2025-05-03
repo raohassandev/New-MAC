@@ -5,6 +5,8 @@ export interface Device {
   _id: string;
   name: string;
   enabled: boolean;
+  deviceType?: string;     // Added for template categorization
+  isTemplate?: boolean;    // Flag to mark this as a template
   lastSeen?: Date | string;
   make?: string;
   model?: string;
@@ -21,6 +23,11 @@ export interface Device {
   
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  createdBy?: {
+    userId: string;
+    username: string;
+    email: string;
+  };
 }
 
 // Register range type
@@ -155,4 +162,20 @@ export interface DeviceFilter {
   type?: string;
   tags?: string[];
   groups?: string[];
+}
+
+// Device Type definition
+export interface DeviceType {
+  _id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  specifications?: Record<string, any>;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  createdBy?: {
+    userId: string;
+    username: string;
+    email: string;
+  };
 }

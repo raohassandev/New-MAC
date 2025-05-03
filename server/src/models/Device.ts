@@ -106,13 +106,13 @@ export interface IDevice extends Omit<Document, 'model'> {
 }
 
 // Schemas for the nested structures
-const RangeSchema = new Schema<IRange>({
+export const RangeSchema = new Schema<IRange>({
   startAddress: { type: Number, required: true },
   count: { type: Number, required: true },
   fc: { type: Number, required: true },
 });
 
-const ParameterSchema = new Schema<IParameter>({
+export const ParameterSchema = new Schema<IParameter>({
   name: { type: String, required: true },
   dataType: { type: String, required: true },
   scalingFactor: { type: Number, default: 1 },
@@ -132,24 +132,24 @@ const ParameterSchema = new Schema<IParameter>({
   formatString: { type: String },
 });
 
-const ParserSchema = new Schema<IParser>({
+export const ParserSchema = new Schema<IParser>({
   parameters: [ParameterSchema],
 });
 
-const DataPointSchema = new Schema<IDataPoint>({
+export const DataPointSchema = new Schema<IDataPoint>({
   range: { type: RangeSchema, required: true },
   parser: { type: ParserSchema, required: true },
 });
 
 // TCP Settings Schema
-const TcpSettingsSchema = new Schema<ITcpSettings>({
+export const TcpSettingsSchema = new Schema<ITcpSettings>({
   ip: { type: String, required: true },
   port: { type: Number, required: true },
   slaveId: { type: Number, required: true }
 });
 
 // RTU Settings Schema
-const RtuSettingsSchema = new Schema<IRtuSettings>({
+export const RtuSettingsSchema = new Schema<IRtuSettings>({
   serialPort: { type: String, required: true },
   baudRate: { type: Number, required: true },
   dataBits: { type: Number, required: true },
@@ -159,14 +159,14 @@ const RtuSettingsSchema = new Schema<IRtuSettings>({
 });
 
 // Combined Connection Setting Schema
-const ConnectionSettingSchema = new Schema<IConnectionSetting>({
+export const ConnectionSettingSchema = new Schema<IConnectionSetting>({
   connectionType: { type: String, enum: ['tcp', 'rtu'], required: true },
   tcp: { type: TcpSettingsSchema },
   rtu: { type: RtuSettingsSchema }
 });
 
 // Legacy schema
-const RegisterSchema = new Schema<IRegister>({
+export const RegisterSchema = new Schema<IRegister>({
   name: { type: String, required: true },
   address: { type: Number, required: true },
   length: { type: Number, default: 2 },

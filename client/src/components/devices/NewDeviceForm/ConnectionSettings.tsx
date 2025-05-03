@@ -1,10 +1,12 @@
 // client/src/components/devices/NewDeviceForm/ConnectionSettings.tsx
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { useDeviceForm } from './DeviceformContext';
 import { Input } from '../../ui/Input';
 import { Form } from '../../ui/Form';
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
+import NewDeviceTypeModal from '../NewDeviceTypeModal';
+import { getDeviceTypes, DeviceType } from '../../../services/templates';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -63,6 +65,28 @@ const ConnectionSettings: React.FC = () => {
   const { state, actions } = useDeviceForm();
   const { deviceBasics, connectionSettings, validationState } = state;
   const { refs } = useContext(FormFieldRefsContext);
+  
+  // State for device types and modal
+  const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>([]);
+  const [showNewDeviceTypeModal, setShowNewDeviceTypeModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Load device types
+  useEffect(() => {
+    const loadDeviceTypes = async () => {
+      try {
+        setLoading(true);
+        const data = await getDeviceTypes();
+        setDeviceTypes(data);
+      } catch (error) {
+        console.error('Error loading device types:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadDeviceTypes();
+  }, []);
 
   // Helper to get connection error message for a specific field
   const getFieldError = (fieldName: string): string | undefined => {
@@ -94,6 +118,28 @@ const ConnectionSettings: React.FC = () => {
   const handleSelectChange = (name: string) => (value: string) => {
     actions.setConnectionSettings({ [name]: value });
   };
+  
+  // Handle device type changes
+  const handleDeviceTypeChange = (value: string) => {
+    if (value === 'new') {
+      // Show the device type modal
+      setShowNewDeviceTypeModal(true);
+    } else {
+      actions.setDeviceBasics({ deviceType: value });
+    }
+  };
+  
+  // Handle new device type creation
+  const handleNewDeviceTypeSubmit = (newDeviceType: { name: string; description: string; category: string }) => {
+    // Set the form data to include the new device type
+    actions.setDeviceBasics({ 
+      deviceType: newDeviceType.name,
+      newDeviceType // This will be handled by the template service
+    });
+    
+    // Close the modal
+    setShowNewDeviceTypeModal(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -102,20 +148,43 @@ const ConnectionSettings: React.FC = () => {
       <Form.Row>
         <Form.Group>
           <Form.Label htmlFor="name" required>
-            Device Name
+            Template Name
           </Form.Label>
           <Input
             id="name"
             name="name"
             value={deviceBasics.name}
             onChange={handleDeviceBasicsChange}
-            placeholder="Production Line PLC"
+            placeholder="Energy Analyzer Template"
             className={getBasicFieldError('name') ? 'border-red-300' : ''}
             ref={refs.name as React.RefObject<HTMLInputElement>}
           />
           <FieldError message={getBasicFieldError('name')} />
         </Form.Group>
 
+        <Form.Group>
+          <Form.Label htmlFor="deviceType" required>
+            Device Type
+          </Form.Label>
+          <div className="flex gap-2">
+            <Select
+              id="deviceType"
+              value={deviceBasics.deviceType}
+              onChange={handleDeviceTypeChange}
+              options={[
+                { value: '', label: 'Select Device Type', disabled: true },
+                ...deviceTypes.map(type => ({ value: type.name, label: type.name })),
+                { value: 'new', label: '+ Add New Type' }
+              ]}
+              error={getBasicFieldError('deviceType')}
+              ref={refs.deviceType as React.RefObject<HTMLSelectElement>}
+            />
+          </div>
+          <FieldError message={getBasicFieldError('deviceType')} />
+        </Form.Group>
+      </Form.Row>
+      
+      <Form.Row>
         <Form.Group>
           <Form.Label htmlFor="make" required>
             Manufacturer/Make
@@ -131,9 +200,7 @@ const ConnectionSettings: React.FC = () => {
           />
           <FieldError message={getBasicFieldError('make')} />
         </Form.Group>
-      </Form.Row>
 
-      <Form.Row>
         <Form.Group>
           <Form.Label htmlFor="model" required>
             Model
@@ -318,6 +385,14 @@ const ConnectionSettings: React.FC = () => {
         />
         <FieldError message={getFieldError('slaveId')} />
       </Form.Group>
+      
+      {/* New Device Type Modal */}
+      {showNewDeviceTypeModal && (
+        <NewDeviceTypeModal
+          onClose={() => setShowNewDeviceTypeModal(false)}
+          onSubmit={handleNewDeviceTypeSubmit}
+        />
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { RegisterRange, ParameterConfig } from '../../../types/form.types';
 export interface DeviceFormState {
   deviceBasics: {
     name: string;
+    deviceType: string;  // New field for device type
     make: string;
     model: string;
     description: string;
@@ -61,6 +62,7 @@ type DeviceFormAction =
 const initialDeviceFormState: DeviceFormState = {
   deviceBasics: {
     name: '',
+    deviceType: '',
     make: '',
     model: '',
     description: '',

@@ -120,5 +120,6 @@ export function convertFormToDeviceData(
     connectionSetting, // Connection settings as a separate object
     dataPoints, // Data points array with range and parser
     createdBy, // Add user information
+    isTemplate: true, // Mark this as a template
   };
 }
