@@ -85,13 +85,13 @@ const InfoPanel: React.FC = () => {
 // Helper to get a visual indicator for data type
 const getDataTypeVisual = (dataType: string) => {
   if (dataType.includes('FLOAT') || dataType.includes('DOUBLE')) {
-    return <Thermometer className="h-4 w-4 text-blue-500" title="Floating point value" />;
+    return <Thermometer className="h-4 w-4 text-blue-500" aria-label="Floating point value" />;
   } else if (dataType.includes('INT') || dataType.includes('UINT')) {
-    return <Zap className="h-4 w-4 text-amber-500" title="Integer value" />;
+    return <Zap className="h-4 w-4 text-amber-500" aria-label="Integer value" />;
   } else if (dataType === 'BOOLEAN' || dataType === 'BIT') {
-    return <AlertTriangle className="h-4 w-4 text-purple-500" title="Boolean/bit value" />;
+    return <AlertTriangle className="h-4 w-4 text-purple-500" aria-label="Boolean/bit value" />;
   } else if (dataType === 'STRING' || dataType === 'ASCII') {
-    return <Copy className="h-4 w-4 text-green-500" title="String value" />;
+    return <Copy className="h-4 w-4 text-green-500" aria-label="String value" />;
   }
   return null;
 };

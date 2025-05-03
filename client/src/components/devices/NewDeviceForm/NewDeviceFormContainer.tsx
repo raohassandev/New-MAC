@@ -25,7 +25,7 @@ const DeviceFormContent: React.FC<{
   onClose: () => void;
   onSubmit: (data: any) => void;
   isEditing: boolean;
-}> = ({ onClose, onSubmit, isEditing }) => {
+}> = ({ onClose, onSubmit }) => { // Removed unused isEditing parameter
   const { state, actions } = useDeviceForm();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('connection');

@@ -48,8 +48,7 @@ const DeviceTemplate: React.FC = () => {
 
   // Permissions
   const userPermissions = user?.permissions || [];
-  const canAddDevices =
-    userPermissions.includes('manage_devices') || userPermissions.includes('add_devices');
+  // Removed unused variable canAddDevices
   const canEditDevices =
     userPermissions.includes('manage_devices') || userPermissions.includes('edit_devices');
   const canDeleteDevices =
@@ -121,7 +120,7 @@ const DeviceTemplate: React.FC = () => {
       filtered = filtered.filter(
         device =>
           device.name.toLowerCase().includes(query) ||
-          (device.ip && device.ip.toLowerCase().includes(query)) ||
+          (device.connectionSetting?.ip && device.connectionSetting.ip.toLowerCase().includes(query)) ||
           (device.make && device.make.toLowerCase().includes(query)) ||
           (device.model && device.model.toLowerCase().includes(query))
       );
@@ -366,10 +365,10 @@ const DeviceTemplate: React.FC = () => {
     const rows = filteredDevices.map(device =>
       [
         device.name,
-        device.ip || '',
-        device.port || '',
+        device.connectionSetting?.ip || '',
+        device.connectionSetting?.port || '',
         device.enabled ? 'Enabled' : 'Disabled',
-        device.slaveId,
+        device.connectionSetting?.slaveId || '',
         device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never',
         device.make || '',
         device.model || '',
@@ -880,7 +879,7 @@ const DeviceTemplate: React.FC = () => {
                       </span>
                     </Table.Cell>
                     <Table.Cell>
-                      {device.ip ? `${device.ip}:${device.port} (ID: ${device.slaveId})` : 'N/A'}
+                      {device.connectionSetting?.ip ? `${device.connectionSetting.ip}:${device.connectionSetting.port} (ID: ${device.connectionSetting.slaveId})` : 'N/A'}
                     </Table.Cell>
                     <Table.Cell>
                       {device.make && device.model
@@ -971,7 +970,7 @@ const DeviceTemplate: React.FC = () => {
 
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">
-                    {device.ip ? `${device.ip}:${device.port}` : 'No connection info'}
+                    {device.connectionSetting?.ip ? `${device.connectionSetting.ip}:${device.connectionSetting.port}` : 'No connection info'}
                   </p>
                 </div>
 
