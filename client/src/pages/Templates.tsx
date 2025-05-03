@@ -280,6 +280,15 @@ const Templates: React.FC = () => {
     }
   };
 
+  // Define form submit and close handlers
+  const onNewTemplateFormSubmit = (templateData: any) => {
+    handleAddTemplate(templateData);
+  };
+
+  const onNewTemplateFormClose = () => {
+    setIsNewTemplateFormOpen(false);
+  };
+
   // Handle view device details
   const handleViewDevice = (deviceId: string) => {
     navigate(`/devices/${deviceId}`);
@@ -388,14 +397,6 @@ const Templates: React.FC = () => {
     const offline = total - online;
 
     return { total, online, offline };
-  };
-
-  const onNewTemplateFormSubmit = (value: any) => {
-    handleAddTemplate(value);
-  };
-
-  const onNewTemplateFormClose = () => {
-    setIsNewTemplateFormOpen(false);
   };
 
   const stats = getDeviceStats();
@@ -714,7 +715,7 @@ const Templates: React.FC = () => {
                       >
                         <span>Name</span>
                         {sortField === 'name' && (
-                          <span className="ml-1">{sortDirection === 'asc' ? '‘' : '“'}</span>
+                          <span className="ml-1">{sortDirection === 'asc' ? 'ï¿½' : 'ï¿½'}</span>
                         )}
                       </button>
                     </div>
@@ -726,7 +727,7 @@ const Templates: React.FC = () => {
                     >
                       <span>Status</span>
                       {sortField === 'enabled' && (
-                        <span className="ml-1">{sortDirection === 'asc' ? '‘' : '“'}</span>
+                        <span className="ml-1">{sortDirection === 'asc' ? 'ï¿½' : 'ï¿½'}</span>
                       )}
                     </button>
                   </Table.Head>
@@ -734,7 +735,7 @@ const Templates: React.FC = () => {
                     <button className="flex items-center" onClick={() => handleSortChange('ip')}>
                       <span>Connection Info</span>
                       {sortField === 'ip' && (
-                        <span className="ml-1">{sortDirection === 'asc' ? '‘' : '“'}</span>
+                        <span className="ml-1">{sortDirection === 'asc' ? 'ï¿½' : 'ï¿½'}</span>
                       )}
                     </button>
                   </Table.Head>
@@ -742,7 +743,7 @@ const Templates: React.FC = () => {
                     <button className="flex items-center" onClick={() => handleSortChange('make')}>
                       <span>Make/Model</span>
                       {sortField === 'make' && (
-                        <span className="ml-1">{sortDirection === 'asc' ? '‘' : '“'}</span>
+                        <span className="ml-1">{sortDirection === 'asc' ? 'ï¿½' : 'ï¿½'}</span>
                       )}
                     </button>
                   </Table.Head>
@@ -753,7 +754,7 @@ const Templates: React.FC = () => {
                     >
                       <span>Last Updated</span>
                       {sortField === 'lastSeen' && (
-                        <span className="ml-1">{sortDirection === 'asc' ? '‘' : '“'}</span>
+                        <span className="ml-1">{sortDirection === 'asc' ? 'ï¿½' : 'ï¿½'}</span>
                       )}
                     </button>
                   </Table.Head>
