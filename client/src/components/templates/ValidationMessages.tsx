@@ -1,7 +1,7 @@
 // client/src/components/templates/ValidationMessages.tsx
 import React, { useContext } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
-import { AlertCircle, XCircle, Info, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
 
 // Group errors by section for better organization

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType } from '../types/deviceDriver.types';
 
 // Create api instance 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/amx/api';
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -20,14 +20,14 @@ if (token) {
 export type { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType };
 
 // Library API paths (separate database)
-const LIBRARY_API_PATH = '/library';
+const DEVICE_DRIVER = '/devicedriver';
 
 // Device Driver API functions
 export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
   try {
     // First try to get device drivers from library API path
     try {
-      const response = await api.get(`${LIBRARY_API_PATH}/device-drivers`);
+      const response = await api.get(`${DEVICE_DRIVER}/device-drivers`);
       if (response.data && response.data.length > 0) {
         return response.data;
       }
@@ -163,7 +163,7 @@ export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
 
 export const getDeviceDriverById = async (id: string): Promise<DeviceDriver> => {
   try {
-    const response = await api.get(`${LIBRARY_API_PATH}/device-drivers/${id}`);
+    const response = await api.get(`${DEVICE_DRIVER}/device-drivers/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device driver:', error);
@@ -173,7 +173,7 @@ export const getDeviceDriverById = async (id: string): Promise<DeviceDriver> => 
 
 export const getDeviceDriversByDeviceType = async (deviceType: string): Promise<DeviceDriver[]> => {
   try {
-    const response = await api.get(`${LIBRARY_API_PATH}/device-drivers/by-device-type/${deviceType}`);
+    const response = await api.get(`${DEVICE_DRIVER}/device-drivers/by-device-type/${deviceType}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device drivers by device type:', error);
@@ -191,7 +191,7 @@ export const createDeviceDriver = async (deviceDriver: DeviceDriverFormData): Pr
     
     try {
       // First try library API
-      const response = await api.post(`${LIBRARY_API_PATH}/device-drivers`, deviceDriverData);
+      const response = await api.post(`${DEVICE_DRIVER}/device-drivers`, deviceDriverData);
       return response.data;
     } catch (libraryError) {
       console.warn('Error creating device driver in library API, falling back to devices API:', libraryError);
@@ -207,7 +207,7 @@ export const createDeviceDriver = async (deviceDriver: DeviceDriverFormData): Pr
 
 export const updateDeviceDriver = async (id: string, deviceDriver: Partial<DeviceDriver>): Promise<DeviceDriver> => {
   try {
-    const response = await api.put(`${LIBRARY_API_PATH}/device-drivers/${id}`, deviceDriver);
+    const response = await api.put(`${DEVICE_DRIVER}/device-drivers/${id}`, deviceDriver);
     return response.data;
   } catch (error) {
     console.error('Error updating device driver:', error);
@@ -217,7 +217,7 @@ export const updateDeviceDriver = async (id: string, deviceDriver: Partial<Devic
 
 export const deleteDeviceDriver = async (id: string): Promise<void> => {
   try {
-    await api.delete(`${LIBRARY_API_PATH}/device-drivers/${id}`);
+    await api.delete(`${DEVICE_DRIVER}/device-drivers/${id}`);
   } catch (error) {
     console.error('Error deleting device driver:', error);
     throw error;
@@ -227,7 +227,7 @@ export const deleteDeviceDriver = async (id: string): Promise<void> => {
 // Device Type API functions
 export const getDeviceTypes = async (): Promise<DeviceType[]> => {
   try {
-    const response = await api.get(`${LIBRARY_API_PATH}/device-types`);
+    const response = await api.get(`${DEVICE_DRIVER}/device-types`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device types:', error);
@@ -237,7 +237,7 @@ export const getDeviceTypes = async (): Promise<DeviceType[]> => {
 
 export const getDeviceTypeById = async (id: string): Promise<DeviceType> => {
   try {
-    const response = await api.get(`${LIBRARY_API_PATH}/device-types/${id}`);
+    const response = await api.get(`${DEVICE_DRIVER}/device-types/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device type:', error);
@@ -247,7 +247,7 @@ export const getDeviceTypeById = async (id: string): Promise<DeviceType> => {
 
 export const createDeviceType = async (deviceType: NewDeviceType): Promise<DeviceType> => {
   try {
-    const response = await api.post(`${LIBRARY_API_PATH}/device-types`, deviceType);
+    const response = await api.post(`${DEVICE_DRIVER}/device-types`, deviceType);
     return response.data;
   } catch (error) {
     console.error('Error creating device type:', error);
@@ -257,7 +257,7 @@ export const createDeviceType = async (deviceType: NewDeviceType): Promise<Devic
 
 export const updateDeviceType = async (id: string, deviceType: Partial<DeviceType>): Promise<DeviceType> => {
   try {
-    const response = await api.put(`${LIBRARY_API_PATH}/device-types/${id}`, deviceType);
+    const response = await api.put(`${DEVICE_DRIVER}/device-types/${id}`, deviceType);
     return response.data;
   } catch (error) {
     console.error('Error updating device type:', error);
@@ -267,7 +267,7 @@ export const updateDeviceType = async (id: string, deviceType: Partial<DeviceTyp
 
 export const deleteDeviceType = async (id: string): Promise<void> => {
   try {
-    await api.delete(`${LIBRARY_API_PATH}/device-types/${id}`);
+    await api.delete(`${DEVICE_DRIVER}/device-types/${id}`);
   } catch (error) {
     console.error('Error deleting device type:', error);
     throw error;

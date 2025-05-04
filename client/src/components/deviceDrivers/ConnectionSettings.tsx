@@ -1,12 +1,12 @@
 // client/src/components/templates/ConnectionSettings.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
-import { Input } from '../../ui/Input';
-import { Form } from '../../ui/Form';
+
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
 import { createDeviceType, getDeviceTypes, NewDeviceType } from '../../services/index';
-import NewDeviceTypeModal from '../../devices/NewDeviceTypeModal';
+import { Input, Form } from '../ui';
+import NewDeviceTypeModal from '../devices/NewDeviceTypeModal';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -92,13 +92,13 @@ const DeviceDriverConnectionSettings: React.FC = () => {
 
   // Helper to get connection error message for a specific field
   const getFieldError = (fieldName: string): string | undefined => {
-    const error = validationState.connection.find(err => err.field === fieldName);
+    const error = validationState.connection.find((err: { field: string; }) => err.field === fieldName);
     return error?.message;
   };
 
   // Helper to get device basic info error message
   const getBasicFieldError = (fieldName: string): string | undefined => {
-    const error = validationState.basicInfo.find(err => err.field === fieldName);
+    const error = validationState.basicInfo.find((err: { field: string; }) => err.field === fieldName);
     return error?.message;
   };
 

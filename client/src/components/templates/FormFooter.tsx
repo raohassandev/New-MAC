@@ -1,6 +1,6 @@
 // client/src/components/templates/FormFooter.tsx
 import React from 'react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../ui/Button';
 
 interface FormFooterProps {
   onCancel: () => void;

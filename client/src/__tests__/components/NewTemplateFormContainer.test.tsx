@@ -13,15 +13,14 @@ const mockAuthContextValue = {
     name: 'Test User',
     email: 'test@example.com',
     role: 'admin',
-    permissions: ['manage_devices'],
-    token: 'test-token'
+    permissions: ['manage_devices']
   },
-  loading: false,
-  error: null,
+  token: 'test-token',
+  isLoading: false,
   isAuthenticated: true,
   login: vi.fn(),
   logout: vi.fn(),
-  register: vi.fn(),
+  updateUser: vi.fn()
 };
 
 const AuthProviderWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -97,13 +96,13 @@ vi.mock('../../components/templates/validation', () => {
   return {
     ...original,
     validateTemplateForm: vi.fn(),
-    convertValidationErrorsToState: vi.fn(errors => ({
+    convertValidationErrorsToState: vi.fn((errors: any) => ({
       isValid: errors.isValid,
-      basicInfo: errors.basicInfo.map(msg => ({ field: 'test', message: msg })),
-      connection: errors.connection.map(msg => ({ field: 'test', message: msg })),
-      registers: errors.registers.map(msg => ({ field: 'test', message: msg })),
-      parameters: errors.parameters.map(msg => ({ field: 'test', message: msg })),
-      general: errors.general.map(msg => ({ field: 'general', message: msg })),
+      basicInfo: errors.basicInfo.map((msg: string) => ({ field: 'test', message: msg })),
+      connection: errors.connection.map((msg: string) => ({ field: 'test', message: msg })),
+      registers: errors.registers.map((msg: string) => ({ field: 'test', message: msg })),
+      parameters: errors.parameters.map((msg: string) => ({ field: 'test', message: msg })),
+      general: errors.general.map((msg: string) => ({ field: 'general', message: msg })),
     })),
   };
 });
@@ -224,7 +223,7 @@ describe('NewTemplateFormContainer', () => {
 
   test('form submission blocked with invalid data', async () => {
     // Mock validation to return errors on final step
-    (validateTemplateForm as jest.Mock).mockReturnValue({
+    (validateTemplateForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: [],

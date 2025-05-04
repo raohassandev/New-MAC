@@ -1,43 +1,38 @@
 import mongoose from 'mongoose';
 
-// Create a device type schema
-const DeviceTypeModel = new mongoose.Schema({
-  name: { 
-    type: String, 
+import connectAmxToDB from '../config/db';
+/**
+ * Device Type Model Schema - Used in AMX database
+ */
+export const DeviceTypeModel = new mongoose.Schema({
+  name: {
+    type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
   },
-  description: { 
-    type: String 
+  description: {
+    type: String,
   },
-  category: { 
-    type: String 
+  category: {
+    type: String,
   },
-  specifications: { 
-    type: mongoose.Schema.Types.Mixed
+  specifications: {
+    type: mongoose.Schema.Types.Mixed,
   },
   createdBy: {
-    userId: {
-      type: String,
-      required: false, // Changed from true to false to prevent validation errors
-    },
-    username: {
-      type: String,
-      required: false, // Changed from true to false
-    },
-    email: {
-      type: String,
-      required: false, // Changed from true to false
-    },
-    organization: {
-      type: String,
-      default: '',
-    },
+    userId: { type: String },
+    username: { type: String },
+    email: { type: String },
+    organization: { type: String, default: '' },
   },
-}, { timestamps: true });
+}, { timestamps: true, collection: 'devicetypes' });
 
-// This function creates a model with the specified connection
+/**
+ * Create a DeviceType model with the specified connection
+ * @param connection Mongoose connection to use
+ * @returns Mongoose model for DeviceType
+ */
 export const createDeviceTypeModel = (connection: mongoose.Connection) => {
   try {
     // First try to get an existing model
@@ -47,6 +42,3 @@ export const createDeviceTypeModel = (connection: mongoose.Connection) => {
     return connection.model('DeviceType', DeviceTypeModel);
   }
 };
-
-// Export the schema for use elsewhere
-export { DeviceTypeModel };

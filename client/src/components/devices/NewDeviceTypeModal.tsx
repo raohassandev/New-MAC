@@ -4,6 +4,8 @@ import { Form } from '../ui/Form';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { NewDeviceType } from '../../types/deviceDriver.types';
+import { DTC,DTC_Type} from '../../../../CONSTANTS';
+import { Select } from '../ui';
 
 interface NewDeviceTypeModalProps {
   onClose: () => void;
@@ -26,7 +28,17 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
       [name]: value
     }));
   };
+const getDeviceTypeOptions = (dtc: DTC_Type, loading = false) => {
+  if (loading) {
+    return [{ value: '', label: 'Loading device types...', disabled: true }];
+  }
 
+  return [
+    { value: '', label: 'Select Device Type', disabled: true },
+    ...dtc.map(type => ({ value: type.value, label: type.label })),
+    { value: 'new', label: '+ Add New Type' },
+  ];
+};
   const validate = () => {
     const newErrors: Record<string, string> = {};
     
@@ -82,13 +94,24 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
               <Form.Label htmlFor="category">
                 Category
               </Form.Label>
-              <Input
+              {/* <Input
+              type='dropdown'
                 id="category"
                 name="category"
                 value={deviceType.category}
                 onChange={handleChange}
                 placeholder="Power Monitoring, Process Control, etc."
-              />
+              /> */}
+              <Select
+                            id="deviceType"
+                            value={deviceType.category}
+                            onChange={handleChange}
+                            options={
+                              getDeviceTypeOptions(DTC, false)
+                            }
+                            // error={getBasicFieldError('deviceType')}
+                            // ref={refs.deviceType as React.RefObject<HTMLSelectElement>}
+                          />
             </Form.Group>
             
             <Form.Group>

@@ -1,7 +1,10 @@
 import mongoose from 'mongoose';
 
-// Create a separate template schema without using the DeviceSchema.obj
-const DeviceDriverModel = new mongoose.Schema({
+/**
+ * Device Driver Model Schema - Used in AMX database
+ * This schema defines the structure for device driver templates
+ */
+export const DeviceDriverModel = new mongoose.Schema({
   // Base device fields
   name: { type: String, required: true },
   make: { type: String },
@@ -43,15 +46,15 @@ const DeviceDriverModel = new mongoose.Schema({
   createdBy: {
     userId: {
       type: String,
-      required: false, // Changed from true to false to prevent validation errors
+      required: false,
     },
     username: {
       type: String,
-      required: false, // Changed from true to false
+      required: false,
     },
     email: {
       type: String,
-      required: false, // Changed from true to false
+      required: false,
     },
     organization: {
       type: String,
@@ -72,12 +75,16 @@ const DeviceDriverModel = new mongoose.Schema({
       default: 0,
     },
   },
-}, { timestamps: true });
+}, { timestamps: true, collection: 'templates' });
 
 // Create a compound index to ensure unique templates per device type
 DeviceDriverModel.index({ name: 1, deviceType: 1 }, { unique: true });
 
-// This function creates a model with the specified connection
+/**
+ * Create a DeviceDriver model with the specified connection
+ * @param connection Mongoose connection to use
+ * @returns Mongoose model for DeviceDriver
+ */
 export const createDeviceDriverModel = (connection: mongoose.Connection) => {
   try {
     // First try to get an existing model
@@ -87,6 +94,3 @@ export const createDeviceDriverModel = (connection: mongoose.Connection) => {
     return connection.model('Template', DeviceDriverModel);
   }
 };
-
-// Export the schema for use elsewhere
-export { DeviceDriverModel };

@@ -1,8 +1,8 @@
 // client/src/components/templates/RegisterRangeEditor.tsx
 import React, { useState, useEffect } from 'react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Form } from '../../components/ui/Form';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Form } from '../ui/Form';
 import { RegisterRange } from '../../types/form.types';
 
 // Custom Select component
