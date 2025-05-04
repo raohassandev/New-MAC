@@ -41,13 +41,15 @@ export const useDevices = (): UseDevicesReturn => {
     try {
       const response = await getDevices();
 
-      // Ensure each device has required fields
-      const formattedDevices = response.map((device: Device) => ({
-        ...device,
-        tags: device.tags || [],
-        registers: device.registers || [],
-        lastSeen: device.lastSeen || undefined,
-      }));
+      // Ensure each device has required fields and filter out templates
+      const formattedDevices = response
+        .filter((device: Device) => !device.isTemplate) // Filter out templates
+        .map((device: Device) => ({
+          ...device,
+          tags: device.tags || [],
+          registers: device.registers || [],
+          lastSeen: device.lastSeen || undefined,
+        }));
 
       setDevices(formattedDevices);
     } catch (err) {

@@ -19,11 +19,22 @@ if (token) {
 // Re-export types for convenience
 export type { DeviceType, Template, TemplateFormData, NewDeviceType };
 
+// Library API paths (separate database)
+const LIBRARY_API_PATH = '/library';
+
 // Template API functions
 export const getTemplates = async (): Promise<Template[]> => {
   try {
-    const response = await api.get('/templates');
-    return response.data;
+    // First try to get templates from library API path
+    try {
+      const response = await api.get(`${LIBRARY_API_PATH}/templates`);
+      return response.data;
+    } catch (libraryError) {
+      console.warn('Error fetching from library API, falling back to devices API:', libraryError);
+      // Fallback: also fetch devices marked as templates
+      const devicesResponse = await api.get('/devices');
+      return devicesResponse.data.filter((device: any) => device.isTemplate === true);
+    }
   } catch (error) {
     console.error('Error fetching templates:', error);
     throw error;
@@ -32,7 +43,7 @@ export const getTemplates = async (): Promise<Template[]> => {
 
 export const getTemplateById = async (id: string): Promise<Template> => {
   try {
-    const response = await api.get(`/templates/${id}`);
+    const response = await api.get(`${LIBRARY_API_PATH}/templates/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching template:', error);
@@ -42,7 +53,7 @@ export const getTemplateById = async (id: string): Promise<Template> => {
 
 export const getTemplatesByDeviceType = async (deviceType: string): Promise<Template[]> => {
   try {
-    const response = await api.get(`/templates/by-device-type/${deviceType}`);
+    const response = await api.get(`${LIBRARY_API_PATH}/templates/by-device-type/${deviceType}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching templates by device type:', error);
@@ -52,8 +63,22 @@ export const getTemplatesByDeviceType = async (deviceType: string): Promise<Temp
 
 export const createTemplate = async (template: TemplateFormData): Promise<Template> => {
   try {
-    const response = await api.post('/templates', template);
-    return response.data;
+    // Ensure template has isTemplate flag
+    const templateData = {
+      ...template,
+      isTemplate: true
+    };
+    
+    try {
+      // First try library API
+      const response = await api.post(`${LIBRARY_API_PATH}/templates`, templateData);
+      return response.data;
+    } catch (libraryError) {
+      console.warn('Error creating template in library API, falling back to devices API:', libraryError);
+      // Fallback to devices API
+      const deviceResponse = await api.post('/devices', templateData);
+      return deviceResponse.data;
+    }
   } catch (error) {
     console.error('Error creating template:', error);
     throw error;
@@ -62,7 +87,7 @@ export const createTemplate = async (template: TemplateFormData): Promise<Templa
 
 export const updateTemplate = async (id: string, template: Partial<Template>): Promise<Template> => {
   try {
-    const response = await api.put(`/templates/${id}`, template);
+    const response = await api.put(`${LIBRARY_API_PATH}/templates/${id}`, template);
     return response.data;
   } catch (error) {
     console.error('Error updating template:', error);
@@ -72,7 +97,7 @@ export const updateTemplate = async (id: string, template: Partial<Template>): P
 
 export const deleteTemplate = async (id: string): Promise<void> => {
   try {
-    await api.delete(`/templates/${id}`);
+    await api.delete(`${LIBRARY_API_PATH}/templates/${id}`);
   } catch (error) {
     console.error('Error deleting template:', error);
     throw error;
@@ -82,7 +107,7 @@ export const deleteTemplate = async (id: string): Promise<void> => {
 // Device Type API functions
 export const getDeviceTypes = async (): Promise<DeviceType[]> => {
   try {
-    const response = await api.get('/device-types');
+    const response = await api.get(`${LIBRARY_API_PATH}/device-types`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device types:', error);
@@ -92,7 +117,7 @@ export const getDeviceTypes = async (): Promise<DeviceType[]> => {
 
 export const getDeviceTypeById = async (id: string): Promise<DeviceType> => {
   try {
-    const response = await api.get(`/device-types/${id}`);
+    const response = await api.get(`${LIBRARY_API_PATH}/device-types/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device type:', error);
@@ -102,7 +127,7 @@ export const getDeviceTypeById = async (id: string): Promise<DeviceType> => {
 
 export const createDeviceType = async (deviceType: NewDeviceType): Promise<DeviceType> => {
   try {
-    const response = await api.post('/device-types', deviceType);
+    const response = await api.post(`${LIBRARY_API_PATH}/device-types`, deviceType);
     return response.data;
   } catch (error) {
     console.error('Error creating device type:', error);
@@ -112,7 +137,7 @@ export const createDeviceType = async (deviceType: NewDeviceType): Promise<Devic
 
 export const updateDeviceType = async (id: string, deviceType: Partial<DeviceType>): Promise<DeviceType> => {
   try {
-    const response = await api.put(`/device-types/${id}`, deviceType);
+    const response = await api.put(`${LIBRARY_API_PATH}/device-types/${id}`, deviceType);
     return response.data;
   } catch (error) {
     console.error('Error updating device type:', error);
@@ -122,7 +147,7 @@ export const updateDeviceType = async (id: string, deviceType: Partial<DeviceTyp
 
 export const deleteDeviceType = async (id: string): Promise<void> => {
   try {
-    await api.delete(`/device-types/${id}`);
+    await api.delete(`${LIBRARY_API_PATH}/device-types/${id}`);
   } catch (error) {
     console.error('Error deleting device type:', error);
     throw error;
