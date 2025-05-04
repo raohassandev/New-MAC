@@ -5,5 +5,5 @@ import NewTemplateFormContainer from './NewTemplateFormContainer';
 export default NewTemplateFormContainer;
 
 // Also export other related components that might be needed elsewhere
-export { useDeviceForm } from '../NewDeviceForm/DeviceformContext';
-export type { DeviceFormState } from '../NewDeviceForm/DeviceformContext';
+export { useTemplateForm, useDeviceForm } from './TemplateFormContext';
+export type { TemplateFormState } from './TemplateFormContext';

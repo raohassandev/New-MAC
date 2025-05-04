@@ -1,16 +1,16 @@
 // client/src/components/devices/NewTemplateForm/NewTemplateFormContainer.tsx
 import React, { useState, useEffect } from 'react';
-import { convertFormToDeviceData } from '../../../utils/TypeAdapter';
+import { convertFormToTemplateData } from './utils/TypeAdapter';
 import ConnectionSettings from './ConnectionSettings';  // Use template-specific ConnectionSettings
-import RegisterConfiguration from '../NewDeviceForm/RegisterConfiguration';
-import DataReaderTab from '../NewDeviceForm/DataReaderTab';
-import FormTabs from '../NewDeviceForm/FormTabs';
-import FormFooter from '../NewDeviceForm/FormFooter';
-import { DeviceFormProvider, useDeviceForm } from '../NewDeviceForm/DeviceformContext';
-import { validateDeviceForm, convertValidationErrorsToState } from '../NewDeviceForm/validation';
-import ValidationMessages from '../NewDeviceForm/ValidationMessages';
+import RegisterConfiguration from './RegisterConfiguration';  // Use template-specific RegisterConfiguration
+import DataReaderTab from './DataReaderTab';  // Use template-specific DataReaderTab
+import FormTabs from './FormTabs';
+import FormFooter from './FormFooter';
+import { TemplateFormProvider, useTemplateForm } from './TemplateFormContext';
+import { validateTemplateForm, convertValidationErrorsToState } from './validation';
+import ValidationMessages from './ValidationMessages';
 import FormGuide from './FormGuide';
-import { FormFieldRefsProvider } from '../NewDeviceForm/FormFieldRefsContext';
+import { FormFieldRefsProvider } from './FormFieldRefsContext';
 import { useAuth } from '../../../context/AuthContext';
 
 interface NewTemplateFormContainerProps {
@@ -26,7 +26,7 @@ const TemplateFormContent: React.FC<{
   onSubmit: (data: any) => void;
   isEditing: boolean;
 }> = ({ onClose, onSubmit }) => { // Removed unused isEditing parameter
-  const { state, actions } = useDeviceForm();
+  const { state, actions } = useTemplateForm();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('connection');
 
@@ -42,7 +42,7 @@ const TemplateFormContent: React.FC<{
 
   // Validate the form - but only show errors when explicitly requested
   const validateForm = (showErrors = false) => {
-    const validationErrors = validateDeviceForm(state);
+    const validationErrors = validateTemplateForm(state);
     const newValidationState = convertValidationErrorsToState(validationErrors);
 
     // Only update UI with error state if showErrors is true
@@ -89,7 +89,7 @@ const TemplateFormContent: React.FC<{
     console.log("Register ranges:", state.registerRanges);
     console.log("Parameters:", state.parameters);
     
-    const validationErrors = validateDeviceForm(state);
+    const validationErrors = validateTemplateForm(state);
     console.log("Validation errors:", validationErrors);
     
     const isValid = validationErrors.isValid;
@@ -101,7 +101,7 @@ const TemplateFormContent: React.FC<{
       return;
     }
 
-    const deviceData = convertFormToDeviceData(
+    const templateData = convertFormToTemplateData(
       state.deviceBasics,
       state.connectionSettings,
       state.registerRanges,
@@ -109,12 +109,12 @@ const TemplateFormContent: React.FC<{
       user
     );
     
-    // Ensure it's marked as a template
-    deviceData.isTemplate = true;
-    console.log("Device data ready for submission:", deviceData);
+    // The template adapter already sets isTemplate=true
+    // No need to set it again
+    console.log("Template data ready for submission:", templateData);
     console.log("Calling onSubmit with data - typeof onSubmit:", typeof onSubmit);
     try {
-      onSubmit(deviceData);
+      onSubmit(templateData);
       console.log("onSubmit called successfully");
     } catch (error) {
       console.error("Error calling onSubmit:", error);
@@ -219,11 +219,11 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
     : undefined;
 
   return (
-    <DeviceFormProvider initialData={formattedInitialData}>
+    <TemplateFormProvider initialData={formattedInitialData}>
       <FormFieldRefsProvider>
         <TemplateFormContent onClose={onClose} onSubmit={onSubmit} isEditing={isEditing} />
       </FormFieldRefsProvider>
-    </DeviceFormProvider>
+    </TemplateFormProvider>
   );
 };
 

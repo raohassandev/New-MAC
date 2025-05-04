@@ -1,10 +1,10 @@
 // client/src/components/devices/NewTemplateForm/FormGuide.tsx
 import React from 'react';
 import { CheckCircle, HelpCircle, AlertCircle } from 'lucide-react';
-import { useDeviceForm } from '../NewDeviceForm/DeviceformContext';
+import { useTemplateForm } from './TemplateFormContext';
 
 const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
-  const { state } = useDeviceForm();
+  const { state } = useTemplateForm();
   const { deviceBasics, connectionSettings, registerRanges, parameters } = state;
 
   // Define completion status for each step

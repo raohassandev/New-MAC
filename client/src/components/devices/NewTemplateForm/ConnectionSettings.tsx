@@ -1,10 +1,10 @@
 // client/src/components/devices/NewTemplateForm/ConnectionSettings.tsx
 import React, { useContext, useState, useEffect } from 'react';
-import { useDeviceForm } from '../NewDeviceForm/DeviceformContext';
+import { useTemplateForm } from './TemplateFormContext';
 import { Input } from '../../ui/Input';
 import { Form } from '../../ui/Form';
 import { AlertCircle } from 'lucide-react';
-import { FormFieldRefsContext } from '../NewDeviceForm/FormFieldRefsContext';
+import { FormFieldRefsContext } from './FormFieldRefsContext';
 import NewDeviceTypeModal from '../NewDeviceTypeModal';
 import { getDeviceTypes, createDeviceType, DeviceType } from '../../../services/templates';
 
@@ -62,7 +62,7 @@ const FieldError: React.FC<{ message?: string }> = ({ message }) => {
 };
 
 const TemplateConnectionSettings: React.FC = () => {
-  const { state, actions } = useDeviceForm();
+  const { state, actions } = useTemplateForm();
   const { deviceBasics, connectionSettings, validationState } = state;
   const { refs } = useContext(FormFieldRefsContext);
   
