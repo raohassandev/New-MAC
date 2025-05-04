@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { app } from '../../server';
-import Profile from '../../models/Profile';
-import User from '../../models/User';
+import Profile from '../../client/models/Profile';
+import User from '../../client/models/User';
 import jwt from 'jsonwebtoken';
 // Import the mock mongoose
 import { mongoose } from '../mocks/mongoose.mock.js';

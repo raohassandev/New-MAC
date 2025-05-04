@@ -1,7 +1,7 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { app } from '../../server';
-import User from '../../models/User';
+import User from '../../client/models/User';
 import bcrypt from 'bcryptjs';
 
 describe('Auth API Endpoints', () => {

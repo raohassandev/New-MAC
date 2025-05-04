@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { login, register, getMe } from '../../controllers/authController';
-import User from '../../models/User';
+import User from '../../client/models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 

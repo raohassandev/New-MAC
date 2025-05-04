@@ -2,11 +2,14 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import User from './models/User';
-import routes from './routes';
+import User from './client/models/User';
 import path from 'path';
-import { connectMainDB, createLibraryDBConnection } from './config/db';
-import { initLibraryModels } from './models/library';
+import { connectClientToDB } from './client/config/db';
+import { initLibraryModels } from './amx/models';
+
+import { clientRouter } from './client/routes';
+import connectAmxToDB from './amx/config/db';
+import { amxRouter } from './amx/routes';
 
 console.log('Starting MacSys backend server initialization...');
 
@@ -59,7 +62,8 @@ const initAdminUser = async () => {
 
 // API routes
 try {
-  app.use('/api', routes);
+  app.use('/client/api', clientRouter);
+  app.use('/amx/api', amxRouter);
   app.get('/', (req, res) => {
     res.send('MacSys Backend is working');
   });
@@ -68,51 +72,6 @@ try {
   console.error('Error setting up routes:', error);
 }
 
-// Mock data for backward compatibility
-try {
-  app.get('/api/getDevices', (req: Request, res: Response) => {
-    // Temporary mock data
-    const devices = [
-      {
-        _id: '1',
-        name: 'Server Room Cooler',
-        ip: '192.168.1.100',
-        port: 502,
-        slaveId: 1,
-        enabled: true,
-        registers: [
-          {
-            name: 'Temperature',
-            address: 0,
-            length: 2,
-            unit: '°C',
-          },
-        ],
-      },
-      {
-        _id: '2',
-        name: 'Office AC',
-        ip: '192.168.1.101',
-        port: 502,
-        slaveId: 2,
-        enabled: false,
-        registers: [
-          {
-            name: 'Humidity',
-            address: 2,
-            length: 2,
-            unit: '%',
-          },
-        ],
-      },
-    ];
-
-    res.json(devices);
-  });
-  console.log('Mock data routes configured');
-} catch (error) {
-  console.error('Error setting up mock data routes:', error);
-}
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
@@ -134,17 +93,17 @@ const startServer = async () => {
   console.log('Attempting to connect to databases...');
   try {
     // Connect to main database
-    const mainDB = await connectMainDB();
+    const clientDB = await connectClientToDB();
     
     // Connect to library database
-    const libraryDB = await createLibraryDBConnection();
+    const deviceDriveDB = await connectAmxToDB();
     
     // Store connections for use in other parts of the application
-    app.locals.mainDB = mainDB;
-    app.locals.libraryDB = libraryDB;
+    app.locals.mainDB = clientDB;
+    app.locals.libraryDB = deviceDriveDB;
     
     // Initialize library models with the library database connection
-    const libraryModels = initLibraryModels(libraryDB);
+    const libraryModels = initLibraryModels(deviceDriveDB);
     
     // Add library models to app locals
     (app.locals as any).libraryModels = libraryModels;

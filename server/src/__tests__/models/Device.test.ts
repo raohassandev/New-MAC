@@ -164,7 +164,7 @@ const mockDeviceImplementation = {
 
 // Apply the mock
 jest.mock('../../models/Device', () => mockDeviceImplementation);
-import Device from '../../models/Device';
+import Device from '../../client/models/Device';
 import mongoose from 'mongoose';
 
 describe('Device Model', () => {

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { User } from '../models';
+import { User } from '../client/models';
 import jwt from 'jsonwebtoken'; 
 
 // Add custom property to Express Request

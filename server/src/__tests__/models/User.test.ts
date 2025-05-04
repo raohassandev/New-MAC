@@ -123,7 +123,7 @@ const mockUserImplementation = {
 
 // Apply the mock
 jest.mock('../../models/User', () => mockUserImplementation);
-import User from '../../models/User';
+import User from '../../client/models/User';
 import mongoose from 'mongoose';
 
 describe('User Model', () => {

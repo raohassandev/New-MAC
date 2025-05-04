@@ -32,7 +32,7 @@ jest.mock('../../models/Device', () => deviceModelMock);
 
 // Import after mocking
 import { getDevices, getDeviceById, createDevice, updateDevice, deleteDevice, testDeviceConnection, readDeviceRegisters } from '../../controllers/deviceController';
-import Device from '../../models/Device';
+import Device from '../../client/models/Device';
 
 describe('Device Controller', () => {
   let req: Partial<Request>;

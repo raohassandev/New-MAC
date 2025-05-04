@@ -15,7 +15,7 @@ jest.mock('../../models/User', () => ({
 
 // Import after mocking
 import jwt from 'jsonwebtoken';
-import User from '../../models/User';
+import User from '../../client/models/User';
 
 describe('Auth Middleware', () => {
   // Mocks and setup
