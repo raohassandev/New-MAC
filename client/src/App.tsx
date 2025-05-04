@@ -13,7 +13,7 @@ import ProfileEditor from './pages/ProfileEditor';
 import ProfileManagement from './pages/ProfileManagement';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
-import TemplatesPage from './pages/TemplateManagement';
+import TemplateManagement from './pages/TemplateManagement';
 
 // Development mode App component with simplified routing
 function App() {
@@ -38,7 +38,7 @@ function App() {
               <Route path="new" element={<ProfileEditor />} />
               <Route path=":profileId" element={<ProfileEditor />} />
             </Route>
-            <Route path="templates" element={<TemplatesPage />} />
+            <Route path="templates" element={<TemplateManagement />} />
             <Route path="system" element={<SystemMonitor />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />

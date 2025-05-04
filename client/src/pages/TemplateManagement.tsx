@@ -15,7 +15,7 @@ interface Template {
   updatedAt: string;
 }
 
-const TemplatesPage: React.FC = () => {
+const TemplateManagement: React.FC = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +145,7 @@ const TemplatesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Device Templates</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Device Template Library</h1>
         <Button
           variant="default"
           onClick={handleAddTemplate}
@@ -299,7 +299,7 @@ const TemplatesPage: React.FC = () => {
         }}>
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
             <div className="flex items-center justify-between border-b border-gray-200 p-4">
-              <h2 className="text-xl font-semibold">Add New Template</h2>
+              <h2 className="text-xl font-semibold">Create New Device Template</h2>
               <button
                 onClick={() => {
                   console.log('Close button clicked');
@@ -322,5 +322,5 @@ const TemplatesPage: React.FC = () => {
   );
 };
 
-export default TemplatesPage;
+export default TemplateManagement;
 

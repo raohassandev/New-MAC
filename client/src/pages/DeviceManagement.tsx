@@ -31,7 +31,7 @@ import Table from '../components/ui/Table';
 
 type ViewMode = 'grid' | 'list' | 'map';
 
-const DeviceTemplate: React.FC = () => {
+const DeviceManagement: React.FC = () => {
   // Hooks
   const {
     devices,
@@ -437,8 +437,8 @@ const DeviceTemplate: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Device Management</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage and monitor your Modbus devices</p>
+          <h1 className="text-2xl font-bold text-gray-800">Physical Device Management</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage and monitor your actual Modbus devices (not templates)</p>
         </div>
         {/* Export button only - Add Device button moved to Templates page */}
         <div className="flex space-x-2">
@@ -731,11 +731,11 @@ const DeviceTemplate: React.FC = () => {
       ) : filteredDevices.length === 0 ? (
         <div className="rounded-lg bg-white p-8 text-center shadow">
           <HardDrive size={48} className="mx-auto mb-4 text-gray-400" />
-          <h3 className="mb-2 text-lg font-medium text-gray-900">No devices found</h3>
+          <h3 className="mb-2 text-lg font-medium text-gray-900">No physical devices found</h3>
           <p className="mb-4 text-gray-500">
             {searchQuery || statusFilter || typeFilter || groupFilter || selectedTags.length > 0
               ? 'Try adjusting your filters'
-              : "You haven't added any devices yet. Go to Templates page to create a new device."}
+              : "You haven't added any physical devices yet. First create a template in the Template Library, then use it to create a device."}
           </p>
         </div>
       ) : viewMode === 'list' ? (
@@ -1041,7 +1041,7 @@ const DeviceTemplate: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50">
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
             <div className="flex items-center justify-between border-b border-gray-200 p-4">
-              <h2 className="text-xl font-semibold">Add New Device</h2>
+              <h2 className="text-xl font-semibold">Add New Physical Device</h2>
               <button
                 onClick={onNewDeviceFormClose}
                 className="text-gray-500 hover:text-gray-700 focus:outline-none"
@@ -1087,4 +1087,4 @@ const DeviceTemplate: React.FC = () => {
   );
 };
 
-export default DeviceTemplate;
+export default DeviceManagement;

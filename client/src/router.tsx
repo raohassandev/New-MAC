@@ -10,7 +10,7 @@ import ProfileManagement from './pages/ProfileManagement';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
-import TemplatesPage from './pages/TemplateManagement';
+import TemplateManagement from './pages/TemplateManagement';
 import { createBrowserRouter } from 'react-router-dom';
 
 // Create the router
@@ -68,7 +68,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'templates',
-        element: <TemplatesPage />,
+        element: <TemplateManagement />,
       },
       {
         path: 'system',
