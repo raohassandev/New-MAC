@@ -18,6 +18,14 @@ export interface Device {
   connectionSetting?: ConnectionSetting;
   dataPoints?: DataPoint[];
   
+  // Device driver linkage
+  deviceDriverId?: string; // Reference to the template/driver this device is based on
+  
+  // Metadata fields
+  usage?: string;           // Usage category
+  usageNotes?: string;      // Additional notes about device usage
+  location?: string;        // Physical location information
+  
   // Legacy fields for backward compatibility
   registerRanges?: RegisterRange[];
   parameterConfigs?: ParameterConfig[];

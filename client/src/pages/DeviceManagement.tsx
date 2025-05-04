@@ -21,7 +21,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import DeviceForm from '../components/devices/DeviceForm';
+import NewDeviceForm from '../components/devices/NewDeviceForm';
 import { useAuth } from '../context/AuthContext';
 import { useDevices } from '../hooks/useDevices';
 // Import Device type from one consistent source
@@ -1044,7 +1044,7 @@ const DeviceManagement: React.FC = () => {
       )}
 
       {/* New Device Modal */}
-      <DeviceForm 
+      <NewDeviceForm 
         isOpen={isNewDeviceFormOpen}
         onClose={onNewDeviceFormClose}
         onSubmit={onNewDeviceFormSubmit}

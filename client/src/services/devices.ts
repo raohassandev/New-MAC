@@ -13,6 +13,12 @@ export interface Device extends BaseDevice {
   // Ensure make and model are required for the service layer
   make: string;
   model: string;
+  // New fields for device driver integration
+  deviceDriverId: string;
+  // New metadata fields
+  usage: string; // Usage category ID
+  usageNotes: string;
+  location: string;
   // User tracking information
   createdBy?: {
     userId: string;
@@ -38,17 +44,29 @@ export function isDevice(obj: any): obj is Device {
 // Helper function to ensure all required properties are defined
 export function ensureDeviceProperties(device: BaseDevice): Device {
   // Extract connection settings from the device object
-  const connectionSetting = device.connectionSetting || {
-    connectionType: device.connectionType || 'tcp',
-    ip: device.ip || '',
-    port: device.port || 502,
-    slaveId: device.slaveId || 1,
-    serialPort: device.serialPort || '',
-    baudRate: device.baudRate || 9600,
-    dataBits: device.dataBits || 8,
-    stopBits: device.stopBits || 1,
-    parity: device.parity || 'none',
-  };
+  let connectionSetting = device.connectionSetting;
+  
+  // If connectionSetting doesn't exist or is missing required properties, create it
+  if (!connectionSetting || (!connectionSetting.tcp && !connectionSetting.rtu)) {
+    const connectionType = device.connectionType || 'tcp';
+    
+    connectionSetting = {
+      connectionType,
+      tcp: {
+        ip: device.ip || '',
+        port: device.port || 502,
+        slaveId: device.slaveId || 1
+      },
+      rtu: {
+        serialPort: device.serialPort || '',
+        baudRate: device.baudRate || 9600,
+        dataBits: device.dataBits || 8,
+        stopBits: device.stopBits || 1,
+        parity: device.parity || 'none',
+        slaveId: device.slaveId || 1
+      }
+    };
+  }
 
   // Ensure dataPoints exist
   const dataPoints = device.dataPoints || [];
@@ -61,6 +79,10 @@ export function ensureDeviceProperties(device: BaseDevice): Device {
     make: device.make || '',
     model: device.model || '',
     createdBy: device.createdBy,
+    deviceDriverId: device.deviceDriverId || '',
+    usage: device.usage || '',
+    usageNotes: device.usageNotes || '',
+    location: device.location || '',
   };
 }
 
@@ -78,6 +100,10 @@ export function convertToBaseDevice(serviceDevice: Device): BaseDevice {
     tags,
     connectionSetting,
     dataPoints,
+    deviceDriverId,
+    usage,
+    usageNotes,
+    location,
     createdBy,
     createdAt,
     updatedAt,
@@ -94,6 +120,10 @@ export function convertToBaseDevice(serviceDevice: Device): BaseDevice {
     tags,
     connectionSetting,
     dataPoints,
+    deviceDriverId,
+    usage,
+    usageNotes,
+    location,
     createdBy,
     createdAt,
     updatedAt,

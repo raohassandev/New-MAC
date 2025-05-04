@@ -67,6 +67,25 @@ const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
 );
 FormLabel.displayName = 'FormLabel';
 
+interface FormDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {
+  children: React.ReactNode;
+}
+
+const FormDescription = React.forwardRef<HTMLParagraphElement, FormDescriptionProps>(
+  ({ className, children, ...props }, ref) => {
+    return (
+      <p
+        ref={ref}
+        className={cn('mt-1 text-sm text-gray-500', className)}
+        {...props}
+      >
+        {children}
+      </p>
+    );
+  }
+);
+FormDescription.displayName = 'FormDescription';
+
 interface FormActionsProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
@@ -157,6 +176,7 @@ const FormComponent = Object.assign(Form, {
   Group: FormGroup,
   Row: FormRow,
   Label: FormLabel,
+  Description: FormDescription,
   Actions: FormActions,
   Textarea: FormTextarea,
   Select: FormSelect,
