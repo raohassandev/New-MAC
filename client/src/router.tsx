@@ -1,6 +1,7 @@
 // Pages
 import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
+import DeviceDriverDetails from './pages/DeviceDriverDetails';
 import DeviceDriverManagement from './pages/DeviceDriverManagement';
 import DeviceManagement from './pages/DeviceManagement';
 import Login from './pages/Login';
@@ -50,7 +51,16 @@ const router = createBrowserRouter([
       },
       {
         path: 'device-drivers',
-        element: <DeviceDriverManagement />,
+        children: [
+          {
+            index: true,
+            element: <DeviceDriverManagement />,
+          },
+          {
+            path: ':driverId',
+            element: <DeviceDriverDetails />,
+          },
+        ],
       },
       {
         path: 'system',

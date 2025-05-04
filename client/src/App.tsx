@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { DeviceProvider } from './context/DeviceContext';
 import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
+import DeviceDriverDetails from './pages/DeviceDriverDetails';
 import DeviceDriverManagement from './pages/DeviceDriverManagement';
 import DeviceManagement from './pages/DeviceManagement';
 import MainLayout from './layouts/MainLayout';
@@ -32,7 +33,10 @@ function App() {
               <Route index element={<DeviceManagement />} />
               <Route path=":deviceId" element={<DeviceDetails />} />
             </Route>
-            <Route path="device-drivers" element={<DeviceDriverManagement />} />
+            <Route path="device-drivers">
+              <Route index element={<DeviceDriverManagement />} />
+              <Route path=":driverId" element={<DeviceDriverDetails />} />
+            </Route>
             <Route path="system" element={<SystemMonitor />} />
             <Route path="settings" element={<Settings />} />
             <Route path="project-structure" element={<XmlStructureView />} />

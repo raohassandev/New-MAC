@@ -1,4 +1,4 @@
-import { CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react';
+import { CreditCard, Edit, Plus, Search, Trash, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewDeviceDriverForm from '../components/templates/index';
@@ -6,7 +6,8 @@ import { useDeviceDrivers } from '../hooks/useDeviceDrivers';
 import { Button } from '../components/ui/Button';
  
 interface DeviceDriver {
-  id: string;
+  id?: string;
+  _id: string;
   name: string;
   description: string;
   deviceType: string;
@@ -37,7 +38,8 @@ const DeviceDriverManagement: React.FC = () => {
     if (apiDeviceDrivers) {
       // Map the API deviceDrivers to our UI deviceDriver format
       const mappedDeviceDrivers = apiDeviceDrivers.map(deviceDriver => ({
-        id: deviceDriver._id || '',
+        _id: deviceDriver._id, // Keep the original MongoDB _id
+        id: deviceDriver._id || '', // Also store as id for backward compatibility
         name: deviceDriver.name || '',
         description: deviceDriver.description || '',
         deviceType: deviceDriver.deviceType || '',
@@ -46,6 +48,7 @@ const DeviceDriverManagement: React.FC = () => {
         updatedAt: deviceDriver.updatedAt ? new Date(deviceDriver.updatedAt).toISOString() : new Date().toISOString(),
       }));
       
+      console.log('Mapped device drivers with IDs:', mappedDeviceDrivers.map(d => ({name: d.name, _id: d._id, id: d.id})));
       setDeviceDrivers(mappedDeviceDrivers);
       setLoading(apiLoading);
     }
@@ -94,9 +97,10 @@ const DeviceDriverManagement: React.FC = () => {
   };
 
   const handleEditDeviceDriver = (deviceDriver: DeviceDriver) => {
-    // For now, just navigate to the device detail page
-    // We'll implement proper deviceDriver editing in the future
-    navigate(`/devices/${deviceDriver.id}`);
+    // Navigate to the device driver detail page
+    // Use _id from the API data instead of id from the mapped data
+    navigate(`/device-drivers/${deviceDriver._id || deviceDriver.id}`);
+    console.log('Navigating to device driver with ID:', deviceDriver._id || deviceDriver.id);
   };
 
   const handleDeleteDeviceDriver = async (id: string) => {
@@ -112,23 +116,7 @@ const DeviceDriverManagement: React.FC = () => {
     }
   };
 
-  const handleDuplicateDeviceDriver = async (deviceDriver: DeviceDriver) => {
-    try {
-      // Create a copy of the deviceDriver with a new name
-      const deviceDriverData = {
-        ...deviceDriver,
-        name: `${deviceDriver.name} (Copy)`,
-        _id: undefined, // Remove the ID so a new one will be created
-        id: undefined, // Remove the UI ID as well
-        isDeviceDriver: true
-      };
-      
-      await addDeviceDriver(deviceDriverData);
-      fetchDeviceDrivers(); // Refresh the list after duplication
-    } catch (error) {
-      console.error('Error duplicating device driver:', error);
-    }
-  };
+  // Duplicate function removed as requested
 
   const filteredDeviceDrivers = deviceDrivers.filter(
     deviceDriver =>
@@ -174,12 +162,12 @@ const DeviceDriverManagement: React.FC = () => {
 
       {loading ? (
         <div className="animate-pulse p-8 text-center text-gray-500">
-          <FileText className="mx-auto mb-4" size={32} />
+          <CreditCard className="mx-auto mb-4" size={32} />
           <p>Loading device drivers...</p>
         </div>
       ) : filteredDeviceDrivers.length === 0 ? (
         <div className="rounded-lg bg-white p-8 text-center shadow">
-          <FileText className="mx-auto mb-4 text-gray-400" size={32} />
+          <CreditCard className="mx-auto mb-4 text-gray-400" size={32} />
           <h3 className="mb-2 text-lg font-medium text-gray-900">No device drivers found</h3>
           <p className="mb-4 text-gray-500">
             {searchQuery
@@ -261,20 +249,17 @@ const DeviceDriverManagement: React.FC = () => {
                       {formatDate(deviceDriver.updatedAt)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <button
+                      <Button
                         onClick={() => handleEditDeviceDriver(deviceDriver)}
-                        className="mr-3 text-indigo-600 hover:text-indigo-900"
+                        className="mr-3 flex items-center gap-1 text-indigo-600 hover:text-indigo-900"
+                        variant="outline"
+                        size="sm"
                       >
-                        <Edit size={16} />
-                      </button>
+                        <Edit size={14} />
+                        <span>Edit</span>
+                      </Button>
                       <button
-                        onClick={() => handleDuplicateDeviceDriver(deviceDriver)}
-                        className="mr-3 text-blue-600 hover:text-blue-900"
-                      >
-                        <FileText size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDeviceDriver(deviceDriver.id)}
+                        onClick={() => handleDeleteDeviceDriver(deviceDriver._id)}
                         className="text-red-600 hover:text-red-900"
                       >
                         <Trash size={16} />

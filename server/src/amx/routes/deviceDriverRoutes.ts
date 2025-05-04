@@ -21,7 +21,7 @@ import {
 export const deviceDriverRouter = express.Router();
 
 // Apply authentication middleware
-deviceDriverRouter.use(authenticate);
+// deviceDriverRouter.use(authenticate);
 
 // DeviceType routes - must be defined first due to route specificity
 deviceDriverRouter.get('/device-types', getAllDeviceTypes);

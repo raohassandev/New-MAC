@@ -2,7 +2,8 @@ import axios from 'axios';
 import { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType } from '../types/deviceDriver.types';
 
 // Create api instance 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/amx/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+const AMX_API_PATH = '/amx/api';
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -20,14 +21,14 @@ if (token) {
 export type { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType };
 
 // Library API paths (separate database)
-const DEVICE_DRIVER = '/devicedriver';
+const DEVICE_DRIVER = `${AMX_API_PATH}/devicedriver`;
 
 // Device Driver API functions
 export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
   try {
     // First try to get device drivers from library API path
     try {
-      const response = await api.get(`${DEVICE_DRIVER}/device-drivers`);
+      const response = await api.get(`${DEVICE_DRIVER}/`);
       if (response.data && response.data.length > 0) {
         return response.data;
       }
@@ -163,17 +164,52 @@ export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
 
 export const getDeviceDriverById = async (id: string): Promise<DeviceDriver> => {
   try {
-    const response = await api.get(`${DEVICE_DRIVER}/device-drivers/${id}`);
+    const fullUrl = `${DEVICE_DRIVER}/${id}`;
+    console.log(`Fetching device driver with ID ${id} from ${API_URL}${fullUrl}`);
+    
+    // Add detailed request logging
+    console.log('Request details:', {
+      method: 'GET',
+      url: fullUrl,
+      baseURL: API_URL,
+      fullRequestUrl: `${API_URL}${fullUrl}`
+    });
+    
+    const response = await api.get(fullUrl);
+    console.log('Device driver data received:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching device driver:', error);
+    
+    // Provide more detailed error information
+    if (axios.isAxiosError(error)) {
+      console.error('API Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method,
+        }
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        throw new Error(`Device driver with ID ${id} not found`);
+      }
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required to access device driver data');
+      }
+    }
+    
     throw error;
   }
 };
 
 export const getDeviceDriversByDeviceType = async (deviceType: string): Promise<DeviceDriver[]> => {
   try {
-    const response = await api.get(`${DEVICE_DRIVER}/device-drivers/by-device-type/${deviceType}`);
+    const response = await api.get(`${DEVICE_DRIVER}/by-device-type/${deviceType}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching device drivers by device type:', error);
@@ -191,7 +227,7 @@ export const createDeviceDriver = async (deviceDriver: DeviceDriverFormData): Pr
     
     try {
       // First try library API
-      const response = await api.post(`${DEVICE_DRIVER}/device-drivers`, deviceDriverData);
+      const response = await api.post(`${DEVICE_DRIVER}`, deviceDriverData);
       return response.data;
     } catch (libraryError) {
       console.warn('Error creating device driver in library API, falling back to devices API:', libraryError);
@@ -207,17 +243,53 @@ export const createDeviceDriver = async (deviceDriver: DeviceDriverFormData): Pr
 
 export const updateDeviceDriver = async (id: string, deviceDriver: Partial<DeviceDriver>): Promise<DeviceDriver> => {
   try {
-    const response = await api.put(`${DEVICE_DRIVER}/device-drivers/${id}`, deviceDriver);
+    const fullUrl = `${DEVICE_DRIVER}/${id}`;
+    console.log(`Updating device driver with ID ${id} at ${API_URL}${fullUrl}`);
+    
+    // Add detailed request logging
+    console.log('Update request details:', {
+      method: 'PUT',
+      url: fullUrl,
+      baseURL: API_URL,
+      fullRequestUrl: `${API_URL}${fullUrl}`,
+      data: deviceDriver
+    });
+    
+    const response = await api.put(fullUrl, deviceDriver);
+    console.log('Device driver update successful:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error updating device driver:', error);
+    
+    // Provide more detailed error information
+    if (axios.isAxiosError(error)) {
+      console.error('API Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method,
+        }
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        throw new Error(`Device driver with ID ${id} not found for update`);
+      }
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required to update device driver');
+      }
+    }
+    
     throw error;
   }
 };
 
 export const deleteDeviceDriver = async (id: string): Promise<void> => {
   try {
-    await api.delete(`${DEVICE_DRIVER}/device-drivers/${id}`);
+    await api.delete(`${DEVICE_DRIVER}/${id}`);
   } catch (error) {
     console.error('Error deleting device driver:', error);
     throw error;
