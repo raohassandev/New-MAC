@@ -111,20 +111,19 @@ export async function getDevices(): Promise<Device[]> {
       return [
         {
           _id: 'sample_device_1',
-          name: 'Sample PLC Device',
+          name: 'AC Room 1',
           enabled: true,
-          make: 'Siemens',
-          model: 'S7-1200',
-          tags: ['production', 'plc'],
+          make: 'CVM',
+          model: 'C4 TPM30',
+          isTemplate: false, // Important: explicitly mark as NOT a template
+          tags: ['power', 'HVAC'],
           connectionSetting: {
             connectionType: 'tcp',
-            ip: '192.168.1.100',
-            port: 502,
-            slaveId: 1,
-            baudRate: 9600,
-            dataBits: 8,
-            stopBits: 1,
-            parity: 'none'
+            tcp: {
+              ip: '192.168.1.191',
+              port: 502,
+              slaveId: 1
+            }
           },
           dataPoints: [
             {
@@ -137,6 +136,58 @@ export async function getDevices(): Promise<Device[]> {
                 parameters: [
                   {
                     name: 'Voltage',
+                    dataType: 'FLOAT',
+                    scalingFactor: 1,
+                    decimalPoint: 1,
+                    byteOrder: 'ABCD',
+                    signed: true,
+                    registerRange: 'Main',
+                    registerIndex: 0,
+                    wordCount: 2
+                  }
+                ]
+              }
+            }
+          ],
+          createdBy: {
+            userId: 'demo_user_id',
+            username: 'Demo User',
+            email: 'demo@example.com'
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastSeen: new Date(),
+        },
+        {
+          _id: 'sample_device_2',
+          name: 'Solar Inverter',
+          enabled: true,
+          make: 'Huawei',
+          model: '110 KTL M2',
+          isTemplate: false, // Important: explicitly mark as NOT a template
+          tags: ['solar', 'power'],
+          connectionSetting: {
+            connectionType: 'rtu',
+            rtu: {
+              serialPort: 'COM2',
+              baudRate: 9600,
+              dataBits: 8,
+              stopBits: 1,
+              parity: 'none',
+              slaveId: 1
+            }
+          },
+          dataPoints: [
+            {
+              range: {
+                startAddress: 0,
+                count: 2,
+                fc: 3,
+              },
+              parser: {
+                parameters: [
+                  {
+                    name: 'DC Voltage',
                     dataType: 'FLOAT',
                     scalingFactor: 1,
                     decimalPoint: 1,

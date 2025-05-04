@@ -28,13 +28,133 @@ export const getTemplates = async (): Promise<Template[]> => {
     // First try to get templates from library API path
     try {
       const response = await api.get(`${LIBRARY_API_PATH}/templates`);
-      return response.data;
+      if (response.data && response.data.length > 0) {
+        return response.data;
+      }
     } catch (libraryError) {
       console.warn('Error fetching from library API, falling back to devices API:', libraryError);
-      // Fallback: also fetch devices marked as templates
-      const devicesResponse = await api.get('/devices');
-      return devicesResponse.data.filter((device: any) => device.isTemplate === true);
     }
+    
+    // Fallback: fetch devices marked as templates
+    try {
+      const devicesResponse = await api.get('/devices');
+      const templateDevices = devicesResponse.data.filter((device: any) => device.isTemplate === true);
+      
+      // If we have template devices, return them
+      if (templateDevices && templateDevices.length > 0) {
+        return templateDevices;
+      }
+    } catch (deviceError) {
+      console.warn('Error fetching from devices API:', deviceError);
+    }
+    
+    // If no templates are found, provide sample templates
+    console.warn('No templates found, providing sample templates');
+    return [
+      {
+        _id: 'template_1',
+        name: 'CVM C4 Power Analyzer',
+        description: 'Standard power analyzer template for CVM C4 devices',
+        deviceType: 'Power Analyzer',
+        isTemplate: true,
+        enabled: true,
+        make: 'CVM',
+        model: 'C4 TPM30',
+        tags: ['power', 'energy'],
+        connectionSetting: {
+          connectionType: 'tcp',
+          tcp: {
+            ip: '192.168.1.100',
+            port: 502,
+            slaveId: 1
+          }
+        },
+        dataPoints: [
+          {
+            range: {
+              startAddress: 0,
+              count: 2,
+              fc: 3,
+            },
+            parser: {
+              parameters: [
+                {
+                  name: 'Voltage',
+                  dataType: 'FLOAT',
+                  scalingFactor: 1,
+                  decimalPoint: 1,
+                  byteOrder: 'ABCD',
+                  signed: true,
+                  registerRange: 'Electrical',
+                  registerIndex: 0,
+                  wordCount: 2
+                }
+              ]
+            }
+          }
+        ],
+        createdBy: {
+          userId: 'demo_user_id',
+          username: 'Demo User',
+          email: 'demo@example.com'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        _id: 'template_2',
+        name: 'Huawei Solar Inverter',
+        description: 'Template for Huawei solar inverters',
+        deviceType: 'Solar Inverter',
+        isTemplate: true,
+        enabled: true,
+        make: 'Huawei',
+        model: '110 KTL M2',
+        tags: ['solar', 'energy'],
+        connectionSetting: {
+          connectionType: 'rtu',
+          rtu: {
+            serialPort: 'COM2',
+            baudRate: 9600,
+            dataBits: 8,
+            stopBits: 1,
+            parity: 'none',
+            slaveId: 1
+          }
+        },
+        dataPoints: [
+          {
+            range: {
+              startAddress: 0,
+              count: 2,
+              fc: 3,
+            },
+            parser: {
+              parameters: [
+                {
+                  name: 'DC Voltage',
+                  dataType: 'FLOAT',
+                  scalingFactor: 1,
+                  decimalPoint: 1,
+                  byteOrder: 'ABCD',
+                  signed: true,
+                  registerRange: 'Main',
+                  registerIndex: 0,
+                  wordCount: 2
+                }
+              ]
+            }
+          }
+        ],
+        createdBy: {
+          userId: 'demo_user_id',
+          username: 'Demo User',
+          email: 'demo@example.com'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
   } catch (error) {
     console.error('Error fetching templates:', error);
     throw error;
