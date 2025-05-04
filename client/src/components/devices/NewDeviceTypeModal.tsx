@@ -4,7 +4,6 @@ import { Form } from '../ui/Form';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { NewDeviceType } from '../../types/deviceDriver.types';
-import { DTC,DTC_Type} from '../../../../CONSTANTS';
 import { Select } from '../ui';
 
 interface NewDeviceTypeModalProps {
@@ -28,15 +27,24 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
       [name]: value
     }));
   };
-const getDeviceTypeOptions = (dtc: DTC_Type, loading = false) => {
+const getDeviceTypeOptions = (loading = false) => {
   if (loading) {
     return [{ value: '', label: 'Loading device types...', disabled: true }];
   }
 
+  // Default categories
+  const defaultCategories = [
+    { value: 'energy', label: 'Energy Monitoring' },
+    { value: 'hvac', label: 'HVAC' },
+    { value: 'plc', label: 'PLC' },
+    { value: 'sensor', label: 'Sensor' },
+    { value: 'other', label: 'Other' }
+  ];
+
   return [
-    { value: '', label: 'Select Device Type', disabled: true },
-    ...dtc.map(type => ({ value: type.value, label: type.label })),
-    { value: 'new', label: '+ Add New Type' },
+    { value: '', label: 'Select Category', disabled: true },
+    ...defaultCategories,
+    { value: 'custom', label: '+ Custom Category' },
   ];
 };
   const validate = () => {
@@ -103,14 +111,16 @@ const getDeviceTypeOptions = (dtc: DTC_Type, loading = false) => {
                 placeholder="Power Monitoring, Process Control, etc."
               /> */}
               <Select
-                            id="deviceType"
+                            id="category"
+                            name="category"
                             value={deviceType.category}
-                            onChange={handleChange}
-                            options={
-                              getDeviceTypeOptions(DTC, false)
-                            }
-                            // error={getBasicFieldError('deviceType')}
-                            // ref={refs.deviceType as React.RefObject<HTMLSelectElement>}
+                            onChange={(value) => {
+                              setDeviceType(prev => ({
+                                ...prev,
+                                category: value
+                              }));
+                            }}
+                            options={getDeviceTypeOptions(false)}
                           />
             </Form.Group>
             

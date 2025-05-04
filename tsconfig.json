@@ -18,6 +18,6 @@
       "~/scripts/*": ["scripts/*"]
     }
   },
-  "include": ["server/src/**/*", "scripts/**/*", "routeManager.ts"],
+  "include": ["server/src/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "client"]
 }

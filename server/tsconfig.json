@@ -24,6 +24,6 @@
       "~/utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*", "../routeManager.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "client"]
 }
