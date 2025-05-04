@@ -1,7 +1,7 @@
 // client/src/components/devices/NewTemplateForm/NewTemplateFormContainer.tsx
 import React, { useState, useEffect } from 'react';
 import { convertFormToDeviceData } from '../../../utils/TypeAdapter';
-import ConnectionSettings from '../NewDeviceForm/ConnectionSettings';
+import ConnectionSettings from './ConnectionSettings';  // Use template-specific ConnectionSettings
 import RegisterConfiguration from '../NewDeviceForm/RegisterConfiguration';
 import DataReaderTab from '../NewDeviceForm/DataReaderTab';
 import FormTabs from '../NewDeviceForm/FormTabs';
@@ -9,7 +9,7 @@ import FormFooter from '../NewDeviceForm/FormFooter';
 import { DeviceFormProvider, useDeviceForm } from '../NewDeviceForm/DeviceformContext';
 import { validateDeviceForm, convertValidationErrorsToState } from '../NewDeviceForm/validation';
 import ValidationMessages from '../NewDeviceForm/ValidationMessages';
-import FormGuide from '../NewDeviceForm/FormGuide';
+import FormGuide from './FormGuide';
 import { FormFieldRefsProvider } from '../NewDeviceForm/FormFieldRefsContext';
 import { useAuth } from '../../../context/AuthContext';
 
