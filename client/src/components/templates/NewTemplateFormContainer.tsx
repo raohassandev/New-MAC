@@ -1,6 +1,6 @@
-// client/src/components/devices/NewTemplateForm/NewTemplateFormContainer.tsx
+// client/src/components/templates/NewTemplateFormContainer.tsx
 import React, { useState, useEffect } from 'react';
-import { convertFormToTemplateData } from './utils/TypeAdapter';
+import { convertFormToTemplateData } from '../../utils/TypeAdapter';
 import ConnectionSettings from './ConnectionSettings';  // Use template-specific ConnectionSettings
 import RegisterConfiguration from './RegisterConfiguration';  // Use template-specific RegisterConfiguration
 import DataReaderTab from './DataReaderTab';  // Use template-specific DataReaderTab
@@ -11,7 +11,7 @@ import { validateTemplateForm, convertValidationErrorsToState } from './validati
 import ValidationMessages from './ValidationMessages';
 import FormGuide from './FormGuide';
 import { FormFieldRefsProvider } from './FormFieldRefsContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface NewTemplateFormContainerProps {
   onClose: () => void;

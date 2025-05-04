@@ -1,4 +1,4 @@
-// client/src/components/devices/NewTemplateForm/DataReaderTab.tsx
+// client/src/components/templates/DataReaderTab.tsx
 import React, { useState } from 'react';
 import {
   Plus,
@@ -13,12 +13,12 @@ import {
   Zap,
   Copy,
 } from 'lucide-react';
-import { Button } from '../../ui/Button';
-import { Badge } from '../../ui/Badge';
-import { Tooltip } from '../../ui/Tooltip';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Tooltip } from '../../components/ui/Tooltip';
 import { useTemplateForm } from './TemplateFormContext';
 import ParameterEditor from './ParameterEditor';
-import { ParameterConfig } from './types/form.types';
+import { ParameterConfig } from '../../types/form.types';
 
 // Helper component to display the info panel
 const TemplateInfoPanel: React.FC = () => {

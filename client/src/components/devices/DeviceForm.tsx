@@ -3,12 +3,12 @@ import { X, Save, Plus, Server, Settings, MapPin, Tag } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 // Import UI components
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Form } from '@/components/ui/Form';
-import { Tabs } from '@/components/ui/Tabs';
-import { Dialog } from '@/components/ui/Dialog';
-import { Switch } from '@/components/ui/Switch';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Form } from '../../components/ui/Form';
+import { Tabs } from '../../components/ui/Tabs';
+import { Dialog } from '../../components/ui/Dialog';
+import { Switch } from '../../components/ui/Switch';
 
 interface DeviceFormProps {
   isOpen: boolean;

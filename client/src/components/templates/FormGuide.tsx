@@ -1,4 +1,4 @@
-// client/src/components/devices/NewTemplateForm/FormGuide.tsx
+// client/src/components/templates/FormGuide.tsx
 import React from 'react';
 import { CheckCircle, HelpCircle, AlertCircle } from 'lucide-react';
 import { useTemplateForm } from './TemplateFormContext';

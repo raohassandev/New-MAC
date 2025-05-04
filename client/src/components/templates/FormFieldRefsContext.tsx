@@ -1,4 +1,4 @@
-// client/src/components/devices/NewTemplateForm/FormFieldRefsContext.tsx
+// client/src/components/templates/FormFieldRefsContext.tsx
 import React, { createContext, useRef } from 'react';
 
 // Define the type for our refs object

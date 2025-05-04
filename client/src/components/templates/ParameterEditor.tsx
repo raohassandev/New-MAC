@@ -1,12 +1,12 @@
-// client/src/components/devices/NewTemplateForm/ParameterEditor.tsx
+// client/src/components/templates/ParameterEditor.tsx
 import React, { useState, useEffect } from 'react';
 import { Info, HelpCircle } from 'lucide-react';
-import { Button } from '../../ui/Button';
-import { Input } from '../../ui/Input';
-import { Form } from '../../ui/Form';
-import { Tooltip } from '../../ui/Tooltip';
-import { Checkbox } from '../../ui/Checkbox';
-import { ParameterConfig, RegisterRange, DataType, ByteOrder } from './types/form.types';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Form } from '../../components/ui/Form';
+import { Tooltip } from '../../components/ui/Tooltip';
+import { Checkbox } from '../../components/ui/Checkbox';
+import { ParameterConfig, RegisterRange, DataType, ByteOrder } from '../../types/form.types';
 
 // Custom Select component
 interface SelectOption {

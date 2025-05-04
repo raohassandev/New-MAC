@@ -1,10 +1,10 @@
-// client/src/components/devices/NewTemplateForm/RegisterConfiguration.tsx
+// client/src/components/templates/RegisterConfiguration.tsx
 import React, { useState } from 'react';
 import { Plus, Trash, Edit, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '../../ui/Button';
+import { Button } from '../../components/ui/Button';
 import { useTemplateForm } from './TemplateFormContext';
 import RegisterRangeEditor from './RegisterRangeEditor';
-import { RegisterRange } from './types/form.types';
+import { RegisterRange } from '../../types/form.types';
 
 const TemplateRegisterConfiguration: React.FC = () => {
   const { state, actions } = useTemplateForm();

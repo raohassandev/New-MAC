@@ -1,14 +1,12 @@
-// client/src/components/devices/NewTemplateForm/ConnectionSettings.tsx
+// client/src/components/templates/ConnectionSettings.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
-import { Input } from '@/components/ui/Input';
-import { Form } from '@/components/ui/Form';
+import { Input } from '../../components/ui/Input';
+import { Form } from '../../components/ui/Form';
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
-import { createDeviceType, getDeviceTypes, NewDeviceType } from '@/services';
-import NewDeviceTypeModal from '../devices/NewDeviceTypeModal';
-// import NewDeviceTypeModal from '../../../devices/NewDeviceTypeModal';
-// import { getDeviceTypes, createDeviceType, DeviceType } from '../../../services/templates';
+import { createDeviceType, getDeviceTypes, NewDeviceType } from '../../services';
+import NewDeviceTypeModal from '../../components/devices/NewDeviceTypeModal';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -134,22 +132,29 @@ const TemplateConnectionSettings: React.FC = () => {
   };
   
   // Handle new device type creation
-  const handleNewDeviceTypeSubmit = async (newDeviceType: { name: string; description: string; category: string }) => {
+  const handleNewDeviceTypeSubmit = (deviceType: NewDeviceType) => {
     try {
       // First create the device type in the database
-      const createdDeviceType = await createDeviceType(newDeviceType);
-      console.log('Successfully created device type:', createdDeviceType);
-      
-      // Add the new device type to the local state
-      setDeviceTypes(prev => [...prev, createdDeviceType]);
-      
-      // Set the form data to include the new device type
-      actions.setDeviceBasics({ 
-        deviceType: newDeviceType.name
-      });
-      
-      // Close the modal
-      setShowNewDeviceTypeModal(false);
+      createDeviceType(deviceType)
+        .then(createdDeviceType => {
+          console.log('Successfully created device type:', createdDeviceType);
+          
+          // Add the new device type to the local state
+          setDeviceTypes(prev => [...prev, createdDeviceType]);
+          
+          // Set the form data to include the new device type
+          actions.setDeviceBasics({ 
+            deviceType: deviceType.name
+          });
+          
+          // Close the modal
+          setShowNewDeviceTypeModal(false);
+        })
+        .catch(err => {
+          console.error('Failed to create device type:', err);
+          // Show error (in a real app, you'd use a toast or other notification)
+          alert('Failed to create device type. Please try again.');
+        });
     } catch (error) {
       console.error('Failed to create device type:', error);
       // Show error (in a real app, you'd use a toast or other notification)

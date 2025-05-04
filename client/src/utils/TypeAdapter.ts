@@ -123,3 +123,23 @@ export function convertFormToDeviceData(
     isTemplate: true, // Mark this as a template
   };
 }
+
+/**
+ * Alias for convertFormToDeviceData - used by templates
+ * Converts form data to template-compatible data for submission
+ */
+export function convertFormToTemplateData(
+  deviceBasics: any,
+  connectionSettings: any,
+  registerRanges: FormRegisterRange[],
+  parameters: FormParameterConfig[],
+  userInfo?: any
+): Partial<Device> {
+  return convertFormToDeviceData(
+    deviceBasics,
+    connectionSettings,
+    registerRanges,
+    parameters,
+    userInfo
+  );
+}

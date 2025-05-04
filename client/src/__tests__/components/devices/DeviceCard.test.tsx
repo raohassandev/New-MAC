@@ -127,6 +127,8 @@ describe('DeviceCard Component', () => {
     enabled: true,
     make: 'Test Manufacturer',
     model: 'Test Model',
+    ip: '192.168.1.100',  // Add these properties for the DeviceCard to display them
+    port: 502,
     connectionSetting: {
       connectionType: 'tcp',
       tcp: {

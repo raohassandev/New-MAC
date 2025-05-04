@@ -1,4 +1,4 @@
-// client/src/components/devices/NewTemplateForm/FormTabs.tsx
+// client/src/components/templates/FormTabs.tsx
 import React from 'react';
 
 interface Tab {

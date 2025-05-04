@@ -1,6 +1,6 @@
-// client/src/components/devices/NewTemplateForm/TemplateFormContext.tsx
+// client/src/components/templates/TemplateFormContext.tsx
 import React, { createContext, useContext, useReducer, Dispatch } from 'react';
-import { RegisterRange, ParameterConfig } from './types/form.types';
+import { RegisterRange, ParameterConfig } from '../../types/form.types';
 
 // Define the state structure
 export interface TemplateFormState {

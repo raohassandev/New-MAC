@@ -35,6 +35,8 @@ describe('useDevices Hook', () => {
       enabled: true,
       tags: ['test'],
       dataPoints: [],
+      lastSeen: undefined,
+      registers: [],
     },
     {
       _id: 'device2',
@@ -50,6 +52,8 @@ describe('useDevices Hook', () => {
       enabled: false,
       tags: ['prod'],
       dataPoints: [],
+      lastSeen: undefined,
+      registers: [],
     },
   ];
 
@@ -200,7 +204,7 @@ describe('useDevices Hook', () => {
     expect(deviceService.addDevice).toHaveBeenCalledWith({
       ...newDevice,
       tags: [],
-      dataPoints: [],
+      registers: [],
     });
 
     expect(createdDevice._id).toBe('new-device-id');
