@@ -15,6 +15,21 @@ const generateObjectId = () => {
   return timestamp + machineId + processId + counter;
 };
 
+// Create Types for TypeScript compatibility
+class ObjectId {
+  constructor(id) {
+    this.id = id || generateObjectId();
+  }
+  
+  toString() {
+    return this.id;
+  }
+  
+  equals(otherId) {
+    return this.toString() === otherId.toString();
+  }
+}
+
 // Create Mongoose mock implementation
 const mongoose = {
   connect: jest.fn().mockResolvedValue({}),
@@ -23,6 +38,7 @@ const mongoose = {
       dropDatabase: jest.fn().mockResolvedValue(true),
     },
     close: jest.fn().mockResolvedValue(true),
+    readyState: 1,
   },
   Schema: jest.fn().mockReturnValue({}),
   model: jest.fn().mockImplementation((modelName) => {
@@ -37,6 +53,15 @@ const mongoose = {
         return { name: modelName };
     }
   }),
+  Types: {
+    ObjectId: ObjectId,
+    // Add other types as needed
+    String: String,
+    Number: Number,
+    Boolean: Boolean,
+    Array: Array,
+    Map: Map,
+  }
 };
 
 // Mock Document instance methods for all models
@@ -186,13 +211,26 @@ const mockDeviceModel = {
       return Promise.reject(error);
     }
     
-    // Create a proper mock device document
+    // Create a proper mock device document with updated structure
     const doc = {
       _id: generateObjectId(),
       ...data,
+      // Set defaults for new device structure
       enabled: data.enabled !== undefined ? data.enabled : true,
-      registers: data.registers || [],
+      connectionSetting: data.connectionSetting || {
+        connectionType: 'tcp',
+        tcp: {
+          ip: '192.168.1.100',
+          port: 502,
+          slaveId: 1
+        }
+      },
       dataPoints: data.dataPoints || [],
+      createdBy: data.createdBy || {
+        userId: 'test-user-id',
+        username: 'testuser',
+        email: 'test@example.com'
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
       

@@ -124,11 +124,17 @@ describe('DeviceCard Component', () => {
   const mockDevice = {
     _id: 'device123',
     name: 'Test Device',
-    ip: '192.168.1.100',
-    port: 502,
     enabled: true,
     make: 'Test Manufacturer',
     model: 'Test Model',
+    connectionSetting: {
+      connectionType: 'tcp',
+      tcp: {
+        ip: '192.168.1.100',
+        port: 502,
+        slaveId: 1
+      }
+    },
     tags: ['test', 'device'],
     lastSeen: new Date().toISOString(),
   };

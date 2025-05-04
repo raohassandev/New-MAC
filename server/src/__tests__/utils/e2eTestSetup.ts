@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { mockUser, mockRegularUser } from '../mocks/userMock';
-import { mockDevice } from '../mocks/deviceMock';
+import { mockDevice, mockDevice2 } from '../mocks/deviceMock';
 import { mockProfile } from '../mocks/profileMock';
 
 // Variable to store MongoDB memory server instance
@@ -84,7 +84,7 @@ export const setupMockData = async () => {
         exec: jest.fn().mockResolvedValue(mockDevice)
       })),
       find: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue([mockDevice])
+        exec: jest.fn().mockResolvedValue([mockDevice, mockDevice2])
       })),
       findByIdAndUpdate: jest.fn().mockImplementation(() => ({
         exec: jest.fn().mockResolvedValue({ ...mockDevice, name: 'Updated Device' })
@@ -92,7 +92,7 @@ export const setupMockData = async () => {
       findByIdAndDelete: jest.fn().mockImplementation(() => ({
         exec: jest.fn().mockResolvedValue({ _id: mockDevice._id })
       })),
-      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
     }
   }));
 

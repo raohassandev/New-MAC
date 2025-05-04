@@ -1,9 +1,10 @@
 import request from 'supertest';
-import mongoose from 'mongoose';
 import { app } from '../../server';
 import Profile from '../../models/Profile';
 import User from '../../models/User';
 import jwt from 'jsonwebtoken';
+// Import the mock mongoose
+import { mongoose } from '../mocks/mongoose.mock.js';
 
 describe('Profile API Endpoints', () => {
   let token: string;

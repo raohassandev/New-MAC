@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import ConnectionSettings from '../../components/devices/NewDeviceForm/ConnectionSettings';
@@ -7,42 +7,35 @@ import { FormFieldRefsContext } from '../../components/devices/NewDeviceForm/For
 
 // Mock UI components to simplify testing
 vi.mock('../../components/ui/Input', () => ({
-  Input: {
-    render: vi.fn().mockImplementation((props, ref) => {
-      const { id, name, value, onChange, placeholder, className, type = 'text' } = props;
-      return (
-        <input
-          data-testid={id}
-          id={id}
-          name={name}
-          value={value || ''}
-          onChange={onChange}
-          placeholder={placeholder}
-          className={className}
-          type={type}
-          ref={ref}
-        />
-      );
-    }),
-  },
+  Input: props => {
+    const { id, name, value, onChange, placeholder, className, type = 'text' } = props;
+    return (
+      <input
+        data-testid={id}
+        id={id}
+        name={name}
+        value={value || ''}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={className}
+        type={type}
+      />
+    );
+  }
 }));
 
 vi.mock('../../components/ui/Form', () => ({
   Form: {
-    Row: ({ children }: { children: React.ReactNode }) => (
+    Row: ({ children }) => (
       <div data-testid="form-row">{children}</div>
     ),
-    Group: ({ children }: { children: React.ReactNode }) => (
+    Group: ({ children }) => (
       <div data-testid="form-group">{children}</div>
     ),
     Label: ({
       children,
       htmlFor,
       required,
-    }: {
-      children: React.ReactNode;
-      htmlFor: string;
-      required?: boolean;
     }) => (
       <label htmlFor={htmlFor} data-testid={`label-${htmlFor}`}>
         {children}
@@ -52,17 +45,46 @@ vi.mock('../../components/ui/Form', () => ({
   },
 }));
 
+// Mock Select component
+vi.mock('../../components/ui/Select', () => ({
+  Select: props => {
+    const { id, options, value, onChange } = props;
+    return (
+      <select
+        data-testid={id}
+        id={id}
+        value={value || ''}
+        onChange={onChange}
+      >
+        {options?.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+}));
+
 // Create a mock FormFieldRefsContext provider
 const createFieldRefs = () => {
   const refs = {
     name: React.createRef<HTMLInputElement>(),
     make: React.createRef<HTMLInputElement>(),
     model: React.createRef<HTMLInputElement>(),
+    deviceType: React.createRef<HTMLInputElement>(),
     description: React.createRef<HTMLInputElement>(),
     connectionType: React.createRef<HTMLSelectElement>(),
+    // TCP fields
     ip: React.createRef<HTMLInputElement>(),
     port: React.createRef<HTMLInputElement>(),
     slaveId: React.createRef<HTMLInputElement>(),
+    // RTU fields
+    serialPort: React.createRef<HTMLInputElement>(),
+    baudRate: React.createRef<HTMLInputElement>(),
+    dataBits: React.createRef<HTMLInputElement>(),
+    stopBits: React.createRef<HTMLInputElement>(),
+    parity: React.createRef<HTMLInputElement>(),
   };
   return { refs };
 };
@@ -88,6 +110,7 @@ describe('ConnectionSettings', () => {
     expect(screen.getByTestId('make')).toBeInTheDocument();
     expect(screen.getByTestId('model')).toBeInTheDocument();
     expect(screen.getByTestId('description')).toBeInTheDocument();
+    expect(screen.getByTestId('deviceType')).toBeInTheDocument();
 
     // Check required field indicators
     expect(screen.getByTestId('label-name')).toContainElement(
@@ -99,6 +122,9 @@ describe('ConnectionSettings', () => {
     expect(screen.getByTestId('label-model')).toContainElement(
       screen.getByTestId('required-marker')
     );
+    expect(screen.getByTestId('label-deviceType')).toContainElement(
+      screen.getByTestId('required-marker')
+    );
   });
 
   // Test TCP/IP settings
@@ -107,7 +133,12 @@ describe('ConnectionSettings', () => {
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
         <DeviceFormProvider initialData={{ 
           connectionSettings: { 
-            type: 'tcp'
+            type: 'tcp',
+            tcp: {
+              ip: '',
+              port: '',
+              slaveId: ''
+            }
           }
         }}>
           <ConnectionSettings />
@@ -130,7 +161,15 @@ describe('ConnectionSettings', () => {
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
         <DeviceFormProvider initialData={{ 
           connectionSettings: { 
-            type: 'rtu'
+            type: 'rtu',
+            rtu: {
+              serialPort: '',
+              baudRate: '',
+              dataBits: '',
+              stopBits: '',
+              parity: '',
+              slaveId: ''
+            }
           }
         }}>
           <ConnectionSettings />
@@ -140,6 +179,7 @@ describe('ConnectionSettings', () => {
 
     // Check if RTU specific fields are present
     expect(screen.getByTestId('serialPort')).toBeInTheDocument();
+    expect(screen.getByTestId('baudRate')).toBeInTheDocument();
 
     // TCP specific fields should not be present
     expect(screen.queryByTestId('ip')).not.toBeInTheDocument();
@@ -147,7 +187,7 @@ describe('ConnectionSettings', () => {
   });
 
   // Test switching between connection types
-  test('switches between TCP and RTU connection settings', async () => {
+  test('switches between TCP and RTU connection settings', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
         <DeviceFormProvider>
@@ -159,9 +199,9 @@ describe('ConnectionSettings', () => {
     // Initial state should be TCP
     expect(screen.getByTestId('ip')).toBeInTheDocument();
 
-    // Find the connection type dropdown (using getElementsByTagName since we mocked select)
-    const selectElement = document.getElementById('connectionType') as HTMLSelectElement;
-    expect(selectElement).toBeTruthy();
+    // Find the connection type dropdown
+    const selectElement = screen.getByTestId('connectionType');
+    expect(selectElement).toBeInTheDocument();
 
     // Change to RTU
     fireEvent.change(selectElement, { target: { value: 'rtu' } });
@@ -205,7 +245,7 @@ describe('ConnectionSettings', () => {
 
   // Test input changes update the form state
   test('updates form state when inputs change', () => {
-    const { container } = render(
+    render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
         <DeviceFormProvider>
           <ConnectionSettings />

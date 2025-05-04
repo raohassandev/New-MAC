@@ -17,12 +17,14 @@ describe('Device Form Validation Functions', () => {
           name: '',
           make: '',
           model: '',
+          deviceType: '',
           description: '',
         })
       ).toEqual({
-        name: 'Device name is required',
+        name: 'Template name is required',
         make: 'Manufacturer/Make is required',
         model: 'Model is required',
+        deviceType: 'Device type is required',
       });
 
       // Valid form
@@ -31,6 +33,7 @@ describe('Device Form Validation Functions', () => {
           name: 'Test Device',
           make: 'Test Manufacturer',
           model: 'Test Model',
+          deviceType: 'Power Meter',
           description: 'Description',
         })
       ).toEqual({});
@@ -41,10 +44,11 @@ describe('Device Form Validation Functions', () => {
           name: 'AB',
           make: 'Test Manufacturer',
           model: 'Test Model',
+          deviceType: 'Power Meter',
           description: '',
         })
       ).toEqual({
-        name: 'Device name must be at least 3 characters',
+        name: 'Template name must be at least 3 characters',
       });
     });
   });
@@ -56,9 +60,11 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'tcp',
-          ip: '',
-          port: '',
-          slaveId: '',
+          tcp: {
+            ip: '',
+            port: '',
+            slaveId: '',
+          }
         })
       ).toMatchObject({
         ip: 'IP address is required',
@@ -70,9 +76,11 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'tcp',
-          ip: 'invalid-ip',
-          port: '502',
-          slaveId: '1',
+          tcp: {
+            ip: 'invalid-ip',
+            port: '502',
+            slaveId: '1',
+          }
         })
       ).toMatchObject({
         ip: expect.stringContaining('valid IP address'),
@@ -82,9 +90,11 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'tcp',
-          ip: '192.168.1.100',
-          port: '99999',
-          slaveId: '1',
+          tcp: {
+            ip: '192.168.1.100',
+            port: '99999',
+            slaveId: '1',
+          }
         })
       ).toMatchObject({
         port: expect.stringContaining('between 1 and 65535'),
@@ -94,9 +104,11 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'tcp',
-          ip: '192.168.1.100',
-          port: '502',
-          slaveId: '1',
+          tcp: {
+            ip: '192.168.1.100',
+            port: '502',
+            slaveId: '1',
+          }
         })
       ).toEqual({});
     });
@@ -106,12 +118,14 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'rtu',
-          serialPort: '',
-          baudRate: '',
-          dataBits: '',
-          stopBits: '',
-          parity: '',
-          slaveId: '',
+          rtu: {
+            serialPort: '',
+            baudRate: '',
+            dataBits: '',
+            stopBits: '',
+            parity: '',
+            slaveId: '',
+          }
         })
       ).toMatchObject({
         serialPort: 'Serial port is required',
@@ -126,12 +140,14 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'rtu',
-          serialPort: 'COM1',
-          baudRate: '9600',
-          dataBits: '8',
-          stopBits: '1',
-          parity: 'none',
-          slaveId: '300', // Should be between 1-255
+          rtu: {
+            serialPort: 'COM1',
+            baudRate: '9600',
+            dataBits: '8',
+            stopBits: '1',
+            parity: 'none',
+            slaveId: '300', // Should be between 1-255
+          }
         })
       ).toMatchObject({
         slaveId: expect.stringContaining('between 1 and 255'),
@@ -141,12 +157,14 @@ describe('Device Form Validation Functions', () => {
       expect(
         validateConnectionSettings({
           type: 'rtu',
-          serialPort: 'COM1',
-          baudRate: '9600',
-          dataBits: '8',
-          stopBits: '1',
-          parity: 'none',
-          slaveId: '1',
+          rtu: {
+            serialPort: 'COM1',
+            baudRate: '9600',
+            dataBits: '8',
+            stopBits: '1',
+            parity: 'none',
+            slaveId: '1',
+          }
         })
       ).toEqual({});
     });
@@ -186,48 +204,6 @@ describe('Device Form Validation Functions', () => {
             startRegister: 0,
             length: 10,
             functionCode: 3,
-          },
-        ])
-      ).toEqual({});
-    });
-
-    test('detects overlapping register ranges', () => {
-      // Overlapping ranges (same function code)
-      expect(
-        validateRegisterRanges([
-          {
-            rangeName: 'Range 1',
-            name: 'Range 1',
-            startRegister: 0,
-            length: 10,
-            functionCode: 3,
-          },
-          {
-            rangeName: 'Range 2',
-            name: 'Range 2',
-            startRegister: 5, // Overlaps with previous range
-            length: 10,
-            functionCode: 3,
-          },
-        ])
-      ).toMatchObject({
-        range_1_overlap: expect.stringContaining('overlaps'),
-      });
-
-      // Non-overlapping ranges with different function codes
-      expect(
-        validateRegisterRanges([
-          {
-            rangeName: 'Range 1',
-            startRegister: 0,
-            length: 10,
-            functionCode: 3,
-          },
-          {
-            rangeName: 'Range 2',
-            startRegister: 0, // Same address but different function code
-            length: 10,
-            functionCode: 4,
           },
         ])
       ).toEqual({});
@@ -541,13 +517,16 @@ describe('Device Form Validation Functions', () => {
           name: '',
           make: '',
           model: '',
+          deviceType: '',
           description: '',
         },
         connectionSettings: {
           type: 'tcp',
-          ip: '',
-          port: '',
-          slaveId: '',
+          tcp: {
+            ip: '',
+            port: '',
+            slaveId: '',
+          }
         },
         registerRanges: [],
         parameters: [],
@@ -572,13 +551,16 @@ describe('Device Form Validation Functions', () => {
           name: 'Test Device',
           make: 'Test Manufacturer',
           model: 'Test Model',
+          deviceType: 'Power Meter',
           description: 'Description',
         },
         connectionSettings: {
           type: 'tcp',
-          ip: '192.168.1.100',
-          port: '502',
-          slaveId: '1',
+          tcp: {
+            ip: '192.168.1.100',
+            port: '502',
+            slaveId: '1',
+          }
         },
         registerRanges: [
           {

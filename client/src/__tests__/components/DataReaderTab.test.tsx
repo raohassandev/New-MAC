@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import DataReaderTab from '../../components/devices/NewDeviceForm/DataReaderTab';
-import { RegisterRange, ParameterConfig } from '../../types/form.types';
+import { RegisterRange } from '../../types/form.types';
 
 // Mock the UI components to simplify testing
 vi.mock('../../components/ui/Button', () => ({
@@ -41,6 +41,7 @@ vi.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => ({
               registerRange: 'Holding Registers',
               registerIndex: 0,
               signed: true,
+              wordCount: 1,  // Added wordCount for new structure
             })
           }
         >
@@ -59,6 +60,7 @@ vi.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => ({
               // Same register index as first parameter, which should cause a validation error
               registerIndex: 0,
               signed: true,
+              wordCount: 1, // Added wordCount for new structure
             })
           }
         >
@@ -79,21 +81,44 @@ const mockRegisterRanges: RegisterRange[] = [
   },
 ];
 
-// Sample initial form state with one parameter already added
+// Create a dataPoints array with the new structure
+const dataPoints = [
+  {
+    range: {
+      startAddress: 0,
+      count: 10,
+      fc: 3,
+    },
+    parser: {
+      parameters: [
+        {
+          name: 'Existing Parameter',
+          dataType: 'INT16',
+          scalingFactor: 1,
+          decimalPoint: 0,
+          byteOrder: 'AB',
+          registerRange: 'Holding Registers',
+          registerIndex: 0,
+          signed: true,
+          wordCount: 1,
+        }
+      ]
+    }
+  }
+];
+
+// Sample initial form state with updated structure
 const initialFormState = {
   registerRanges: mockRegisterRanges,
-  parameters: [
-    {
-      name: 'Existing Parameter',
-      dataType: 'INT16',
-      scalingFactor: 1,
-      decimalPoint: 0,
-      byteOrder: 'AB',
-      registerRange: 'Holding Registers',
-      registerIndex: 0,
-      signed: true,
-    },
-  ],
+  dataPoints: dataPoints,
+  connectionSetting: {
+    connectionType: 'tcp',
+    tcp: {
+      ip: '192.168.1.100',
+      port: 502,
+      slaveId: 1
+    }
+  }
 };
 
 describe('DataReaderTab', () => {
@@ -103,7 +128,17 @@ describe('DataReaderTab', () => {
 
   test('should render with no parameters', () => {
     const { container } = render(
-      <DeviceFormProvider initialData={{ registerRanges: mockRegisterRanges }}>
+      <DeviceFormProvider initialData={{ 
+        registerRanges: mockRegisterRanges,
+        connectionSetting: {
+          connectionType: 'tcp',
+          tcp: {
+            ip: '192.168.1.100',
+            port: 502,
+            slaveId: 1
+          }
+        }
+      }}>
         <DataReaderTab />
       </DeviceFormProvider>
     );
@@ -112,7 +147,16 @@ describe('DataReaderTab', () => {
 
   test('should show message when no register ranges', () => {
     render(
-      <DeviceFormProvider>
+      <DeviceFormProvider initialData={{
+        connectionSetting: {
+          connectionType: 'tcp',
+          tcp: {
+            ip: '192.168.1.100',
+            port: 502,
+            slaveId: 1
+          }
+        }
+      }}>
         <DataReaderTab />
       </DeviceFormProvider>
     );

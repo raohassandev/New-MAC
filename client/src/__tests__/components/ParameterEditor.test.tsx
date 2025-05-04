@@ -19,10 +19,29 @@ vi.mock('lucide-react', () => ({
   Edit: () => <div>Edit Icon</div>,
 }));
 
+// Mock the Select component
+vi.mock('../../components/ui/Select', () => ({
+  Select: ({ onChange, value }: any) => (
+    <select
+      data-testid="select"
+      value={value || ''}
+      onChange={onChange}
+    >
+      <option value="INT16">INT16</option>
+      <option value="FLOAT">FLOAT</option>
+    </select>
+  ),
+  SelectGroup: ({ children }: any) => <div data-testid="select-group">{children}</div>,
+  SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+  SelectTrigger: ({ children }: any) => <div data-testid="select-trigger">{children}</div>,
+  SelectValue: ({ children }: any) => <div data-testid="select-value">{children}</div>,
+  SelectContent: ({ children }: any) => <div data-testid="select-content">{children}</div>,
+}));
+
 // Mock the UI components to simplify testing
 vi.mock('../../components/ui/Button', () => ({
   Button: ({ children, onClick, type }: { children: React.ReactNode; onClick?: () => void; type?: string }) => (
-    <button onClick={onClick} type={type}>{children}</button>
+    <button onClick={onClick} type={type} data-testid="button">{children}</button>
   ),
 }));
 
@@ -39,23 +58,31 @@ vi.mock('../../components/ui/Input', () => ({
   ),
 }));
 
-vi.mock('../../components/ui/Form', () => ({
-  Form: ({ children, onSubmit }: { children: React.ReactNode; onSubmit: any }) => (
+vi.mock('../../components/ui/Form', () => {
+  const FormComponent = ({ children, onSubmit }: { children: React.ReactNode; onSubmit: any }) => (
     <form onSubmit={onSubmit} data-testid="parameter-form">{children}</form>
-  ),
-  Group: ({ children }: { children: React.ReactNode }) => (
+  );
+  
+  FormComponent.Group = ({ children }: { children: React.ReactNode }) => (
     <div data-testid="form-group">{children}</div>
-  ),
-  Label: ({ children }: { children: React.ReactNode }) => (
+  );
+  
+  FormComponent.Label = ({ children }: { children: React.ReactNode }) => (
     <label data-testid="form-label">{children}</label>
-  ),
-  Row: ({ children }: { children: React.ReactNode }) => (
+  );
+  
+  FormComponent.Row = ({ children }: { children: React.ReactNode }) => (
     <div data-testid="form-row">{children}</div>
-  ),
-  Actions: ({ children }: { children: React.ReactNode }) => (
+  );
+  
+  FormComponent.Actions = ({ children }: { children: React.ReactNode }) => (
     <div data-testid="form-actions">{children}</div>
-  ),
-}));
+  );
+  
+  return {
+    Form: FormComponent
+  };
+});
 
 vi.mock('../../components/ui/Tooltip', () => ({
   Tooltip: ({ children, content }: { children: React.ReactNode, content: string }) => (
@@ -86,6 +113,7 @@ const MockParameterEditor = ({ onSave, onCancel, availableRanges, initialData }:
       scalingFactor: 1,
       decimalPoint: 0,
       signed: true,
+      wordCount: 1,
       ...initialData
     };
     onSave(newParam);
@@ -100,7 +128,8 @@ const MockParameterEditor = ({ onSave, onCancel, availableRanges, initialData }:
       byteOrder: "AB",
       scalingFactor: 1,
       decimalPoint: 0,
-      signed: true
+      signed: true,
+      wordCount: 1
     };
     onSave(newParam);
   };
@@ -114,7 +143,8 @@ const MockParameterEditor = ({ onSave, onCancel, availableRanges, initialData }:
       byteOrder: "AB",
       scalingFactor: 1,
       decimalPoint: 0,
-      signed: true
+      signed: true,
+      wordCount: 1
     };
     onSave(newParam);
   };
@@ -187,16 +217,19 @@ describe('ParameterEditor', () => {
         startRegister: 0,
         length: 10,
         functionCode: 3,
-        dataParser: [
-          {
-            name: 'Voltage Parameter',
-            dataType: 'INT16',
-            registerRange: 'Voltage Range',
-            registerIndex: 0,
-            byteOrder: 'AB',
-            scalingFactor: 1
-          }
-        ]
+        dataParser: {
+          parameters: [
+            {
+              name: 'Voltage Parameter',
+              dataType: 'INT16',
+              registerRange: 'Voltage Range',
+              registerIndex: 0,
+              byteOrder: 'AB',
+              scalingFactor: 1,
+              wordCount: 1
+            }
+          ]
+        }
       },
       {
         rangeName: 'Current Range',
@@ -221,15 +254,12 @@ describe('ParameterEditor', () => {
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({
       name: "Current Parameter",
       registerRange: "Current Range",
-      registerIndex: 0
+      registerIndex: 0,
+      wordCount: 1
     }));
   });
 
   test('should handle parameter validation correctly', () => {
-    // Just check that our fix doesn't break existing validation tests
-    // This is more of a placeholder test - the real validation test would be testing
-    // the actual validation logic in validation.ts, but that's already covered
-    
     // Create a mock just for this test 
     const onSave = vi.fn();
     
@@ -247,7 +277,8 @@ describe('ParameterEditor', () => {
     // Save function should be called for a valid parameter
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       name: "Test Parameter",
-      registerRange: availableRanges[0].rangeName
+      registerRange: availableRanges[0].rangeName,
+      wordCount: 1
     }));
   });
 });

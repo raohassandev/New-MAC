@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { vi } from 'vitest';
@@ -12,6 +12,21 @@ vi.mock('react-toastify', () => ({
     error: vi.fn(),
   },
 }));
+
+// Mock local storage for consistent test behavior
+const mockLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
+};
+
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage,
+  writable: true,
+});
 
 // Test component that uses the auth context
 const TestComponent = () => {
@@ -31,8 +46,10 @@ const TestComponent = () => {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear localStorage before each test
-    localStorage.clear();
+    // Reset mocks for each test
+    mockLocalStorage.clear.mockClear();
+    mockLocalStorage.getItem.mockClear();
+    mockLocalStorage.setItem.mockClear();
   });
 
   test('provides authentication context to children', () => {
@@ -47,7 +64,7 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user-info')).toHaveTextContent('Demo User (demo@example.com)');
   });
 
-  test('login function shows success toast', async () => {
+  test('login function shows success toast', () => {
     render(
       <AuthProvider>
         <TestComponent />
@@ -73,7 +90,7 @@ describe('AuthContext', () => {
     );
   });
 
-  test('updateUser function shows success toast and logs update', async () => {
+  test('updateUser function shows success toast and logs update', () => {
     // Mock console.log to track calls
     const originalConsoleLog = console.log;
     console.log = vi.fn();
@@ -93,7 +110,7 @@ describe('AuthContext', () => {
     console.log = originalConsoleLog;
   });
 
-  test('provides demo token in context', () => {
+  test('provides demo user and auth state in context', () => {
     render(
       <AuthProvider>
         <TestComponent />
@@ -104,8 +121,7 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user-info')).toHaveTextContent('Demo User');
     expect(screen.getByTestId('user-info')).toHaveTextContent('demo@example.com');
 
-    // We can't rely on localStorage in the test environment
-    // Instead, verify that the authentication state is set correctly
+    // Verify that the authentication state is set correctly
     expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
   });
 

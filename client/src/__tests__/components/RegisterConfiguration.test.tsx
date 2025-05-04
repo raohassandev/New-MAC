@@ -1,8 +1,62 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
 import RegisterConfiguration from '../../components/devices/NewDeviceForm/RegisterConfiguration';
+
+// Mock the DeviceFormContext to provide the required state and actions
+const mockActions = {
+  addRegisterRange: vi.fn(),
+  updateRegisterRange: vi.fn(),
+  deleteRegisterRange: vi.fn(),
+  updateForm: vi.fn(),
+  setFormField: vi.fn(),
+  setConnectionType: vi.fn(),
+  // Add other actions as needed
+};
+
+// Mock the DeviceFormProvider
+vi.mock('../../components/devices/NewDeviceForm/DeviceformContext', () => {
+  // Import the "useDeviceForm" with explicit type import to avoid TypeScript errors
+  const { useDeviceForm } = vi.importActual('../../components/devices/NewDeviceForm/DeviceformContext');
+  
+  return {
+    useDeviceForm: vi.fn(() => ({
+      state: {
+        registerRanges: [],
+        connectionSetting: {
+          connectionType: 'tcp',
+          tcp: {
+            ip: '192.168.1.100',
+            port: 502,
+            slaveId: 1
+          }
+        },
+        // Add other state properties as needed
+      },
+      actions: mockActions,
+    })),
+    DeviceFormProvider: ({ children, initialData = {} }: { children: React.ReactNode, initialData?: any }) => {
+      // Update the mock implementation for useDeviceForm to use initialData
+      vi.mocked(useDeviceForm).mockImplementation(() => ({
+        state: {
+          ...initialData,
+          registerRanges: initialData.registerRanges || [],
+          connectionSetting: initialData.connectionSetting || {
+            connectionType: 'tcp',
+            tcp: {
+              ip: '192.168.1.100',
+              port: 502,
+              slaveId: 1
+            }
+          },
+        },
+        actions: mockActions,
+      }));
+      
+      return <div data-testid="device-form-provider">{children}</div>;
+    },
+  };
+});
 import { RegisterRange } from '../../types/form.types';
 
 // Mock UI components for testing

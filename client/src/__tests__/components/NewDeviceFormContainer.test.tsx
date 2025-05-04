@@ -4,6 +4,31 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import NewDeviceFormContainer from '../../components/devices/NewDeviceForm/NewDeviceFormContainer';
 import { validateDeviceForm } from '../../components/devices/NewDeviceForm/validation';
+import { AuthContext } from '../../context/AuthContext';
+
+// Mock Auth Context Provider
+const mockAuthContextValue = {
+  user: {
+    _id: 'test-user-id',
+    name: 'Test User',
+    email: 'test@example.com',
+    role: 'admin',
+    permissions: ['manage_devices'],
+    token: 'test-token'
+  },
+  loading: false,
+  error: null,
+  isAuthenticated: true,
+  login: vi.fn(),
+  logout: vi.fn(),
+  register: vi.fn(),
+};
+
+const AuthProviderWrapper = ({ children }: { children: React.ReactNode }) => (
+  <AuthContext.Provider value={mockAuthContextValue}>
+    {children}
+  </AuthContext.Provider>
+);
 
 // Mock utility functions
 vi.mock('../../utils/TypeAdapter', () => ({
@@ -101,8 +126,13 @@ describe('NewDeviceFormContainer', () => {
     });
   });
 
+  // Helper function to render the component with auth context
+  const renderWithAuth = (ui: React.ReactElement) => {
+    return render(ui, { wrapper: AuthProviderWrapper });
+  };
+
   test('renders all form tabs', () => {
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Initially should show connection settings tab
     expect(screen.getByTestId('connection-settings')).toBeInTheDocument();
@@ -114,7 +144,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('navigation between tabs works correctly', async () => {
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Click Next button to move to register configuration
     fireEvent.click(screen.getByText('Next'));
@@ -136,7 +166,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('validation runs on tab change', async () => {
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Try to navigate to next tab
     fireEvent.click(screen.getByText('Next'));
@@ -156,7 +186,7 @@ describe('NewDeviceFormContainer', () => {
       general: [],
     });
 
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Try to navigate to next tab
     fireEvent.click(screen.getByText('Next'));
@@ -172,7 +202,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('form submission works with valid data', async () => {
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Navigate to the final tab
     fireEvent.click(screen.getByText('Next')); // to register config
@@ -203,7 +233,7 @@ describe('NewDeviceFormContainer', () => {
       general: [],
     });
 
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Navigate to the final tab - using a custom mock to allow navigation despite errors
     (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -245,13 +275,18 @@ describe('NewDeviceFormContainer', () => {
       name: 'Test Device',
       make: 'Test Make',
       model: 'Test Model',
+      deviceType: 'Test Type',
       description: 'Test Description',
       enabled: true,
       tags: ['test'],
-      connectionType: 'tcp',
-      ip: '192.168.1.100',
-      port: 502,
-      slaveId: 1,
+      connectionSettings: {
+        type: 'tcp',
+        tcp: {
+          ip: '192.168.1.100',
+          port: '502',
+          slaveId: '1'
+        }
+      },
       registerRanges: [
         {
           rangeName: 'Holding Registers',
@@ -260,7 +295,7 @@ describe('NewDeviceFormContainer', () => {
           functionCode: 3,
         },
       ],
-      parameterConfigs: [
+      parameters: [
         {
           name: 'Test Parameter',
           dataType: 'INT16',
@@ -274,7 +309,7 @@ describe('NewDeviceFormContainer', () => {
       ],
     };
 
-    render(
+    renderWithAuth(
       <NewDeviceFormContainer
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
@@ -298,7 +333,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('cancel button calls onClose', () => {
-    render(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(mockOnClose).toHaveBeenCalled();

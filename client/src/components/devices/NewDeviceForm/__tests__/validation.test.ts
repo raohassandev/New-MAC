@@ -9,29 +9,30 @@ describe('Parameter validation tests', () => {
       name: 'Test Device',
       make: 'Test Make',
       model: 'Test Model',
+      deviceType: 'Power Meter',
       description: '',
       tags: [],
     },
     connectionSettings: {
       type: 'tcp',
-      ip: '192.168.1.100',
-      port: '502',
-      slaveId: '1',
+      tcp: {
+        ip: '192.168.1.100',
+        port: '502',
+        slaveId: '1',
+      }
     },
     registerRanges: [
       {
         rangeName: 'Electrical',
-        functionCode: '3',
+        functionCode: 3,
         startRegister: 0,
         length: 100,
-        dataParser: [],
       },
       {
         rangeName: 'Temperature',
-        functionCode: '3',
+        functionCode: 3,
         startRegister: 100,
         length: 50,
-        dataParser: [],
       },
     ],
     parameters: [],

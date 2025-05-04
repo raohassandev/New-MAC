@@ -4,6 +4,9 @@ import { mockDevice } from '../mocks/deviceMock';
 import { mockUser } from '../mocks/userMock';
 import jwt from 'jsonwebtoken';
 
+// Import and use the mock mongoose
+import { mongoose } from '../mocks/mongoose.mock.js';
+
 jest.mock('../../server', () => ({
   app: {
     get: jest.fn(),

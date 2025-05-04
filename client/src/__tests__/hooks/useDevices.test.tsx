@@ -1,8 +1,8 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useDevices } from '../../hooks/useDevices';
 import * as deviceService from '../../services/devices';
 import * as apiService from '../../services/api';
-import { vi } from 'vitest';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 
 // Mock the device service
 vi.mock('../../services/devices', () => ({
@@ -24,64 +24,87 @@ describe('useDevices Hook', () => {
     {
       _id: 'device1',
       name: 'Device 1',
-      ip: '192.168.1.1',
-      port: 502,
-      slaveId: 1,
-      connectionType: 'tcp',
+      connectionSetting: {
+        connectionType: 'tcp',
+        tcp: {
+          ip: '192.168.1.1',
+          port: 502,
+          slaveId: 1
+        }
+      },
       enabled: true,
       tags: ['test'],
-      registers: [],
+      dataPoints: [],
     },
     {
       _id: 'device2',
       name: 'Device 2',
-      ip: '192.168.1.2',
-      port: 502,
-      slaveId: 2,
-      connectionType: 'tcp',
+      connectionSetting: {
+        connectionType: 'tcp',
+        tcp: {
+          ip: '192.168.1.2',
+          port: 502,
+          slaveId: 2
+        }
+      },
       enabled: false,
       tags: ['prod'],
-      registers: [],
+      dataPoints: [],
     },
   ];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (deviceService.getDevices as any).mockResolvedValue(mockDevices);
-    (deviceService.getDevice as any).mockImplementation(id =>
+    
+    // Setup mock API responses
+    vi.mocked(deviceService.getDevices).mockResolvedValue(mockDevices);
+    vi.mocked(deviceService.getDevice).mockImplementation(id =>
       Promise.resolve(mockDevices.find(d => d._id === id))
     );
-    (deviceService.addDevice as any).mockImplementation(device =>
+    vi.mocked(deviceService.addDevice).mockImplementation(device =>
       Promise.resolve({ ...device, _id: 'new-device-id' })
     );
-    (deviceService.updateDevice as any).mockImplementation((id, device) =>
+    vi.mocked(deviceService.updateDevice).mockImplementation((id, device) =>
       Promise.resolve({ ...device, _id: id })
     );
-    (deviceService.deleteDevice as any).mockResolvedValue(true);
-    (deviceService.testConnection as any).mockResolvedValue({
+    vi.mocked(deviceService.deleteDevice).mockResolvedValue(true);
+    vi.mocked(deviceService.testConnection).mockResolvedValue({
       success: true,
       message: 'Connected',
     });
 
     // Mock the api service readDeviceRegisters function
-    (apiService.readDeviceRegisters as any).mockResolvedValue({
+    vi.mocked(apiService.readDeviceRegisters).mockResolvedValue({
       deviceId: 'device1',
       readings: [{ name: 'Temperature', value: 25 }],
     });
   });
 
-  test('initializes with loading state and empty devices', () => {
+  test('initializes with loading state and empty devices', async () => {
     const { result } = renderHook(() => useDevices());
 
+    // Initial state should be loading=true and empty devices
     expect(result.current.loading).toBe(true);
     expect(result.current.devices).toEqual([]);
     expect(result.current.error).toBeNull();
+
+    // Wait for the hook to finish initializing
+    await act(async () => {
+      // This allows the internal promises to resolve
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // After initialization, we expect loading=false and populated devices
+    expect(result.current.loading).toBe(false);
+    expect(result.current.devices).toEqual(mockDevices);
   });
 
   test('fetches devices on init', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     expect(result.current.devices).toEqual(mockDevices);
     expect(deviceService.getDevices).toHaveBeenCalledTimes(1);
@@ -89,11 +112,13 @@ describe('useDevices Hook', () => {
 
   test('handles fetch error correctly', async () => {
     const errorMessage = 'Network error';
-    (deviceService.getDevices as any).mockRejectedValueOnce(new Error(errorMessage));
+    vi.mocked(deviceService.getDevices).mockRejectedValueOnce(new Error(errorMessage));
 
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe(errorMessage);
@@ -102,10 +127,15 @@ describe('useDevices Hook', () => {
   test('refreshes devices', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
-    (deviceService.getDevices as any).mockClear();
+    // Clear the mock to test refreshDevices specifically
+    vi.mocked(deviceService.getDevices).mockClear();
 
+    // Call refreshDevices through act()
     await act(async () => {
       await result.current.refreshDevices();
     });
@@ -116,8 +146,12 @@ describe('useDevices Hook', () => {
   test('gets device by ID', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
+    // Get a device by ID that should be in cache
     let device;
     await act(async () => {
       device = await result.current.getDevice('device1');
@@ -129,8 +163,9 @@ describe('useDevices Hook', () => {
     expect(deviceService.getDevice).not.toHaveBeenCalled();
 
     // For a non-cached device, should make an API call
+    let nonCachedDevice;
     await act(async () => {
-      device = await result.current.getDevice('device3');
+      nonCachedDevice = await result.current.getDevice('device3');
     });
 
     expect(deviceService.getDevice).toHaveBeenCalledWith('device3');
@@ -139,14 +174,21 @@ describe('useDevices Hook', () => {
   test('adds a new device', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     const newDevice = {
       name: 'New Device',
-      ip: '192.168.1.3',
-      port: 502,
-      slaveId: 3,
-      connectionType: 'tcp',
+      connectionSetting: {
+        connectionType: 'tcp',
+        tcp: {
+          ip: '192.168.1.3',
+          port: 502,
+          slaveId: 3
+        }
+      },
       enabled: true,
     };
 
@@ -158,7 +200,7 @@ describe('useDevices Hook', () => {
     expect(deviceService.addDevice).toHaveBeenCalledWith({
       ...newDevice,
       tags: [],
-      registers: [],
+      dataPoints: [],
     });
 
     expect(createdDevice._id).toBe('new-device-id');
@@ -168,7 +210,10 @@ describe('useDevices Hook', () => {
   test('updates an existing device', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     const updatedDevice = {
       ...mockDevices[0],
@@ -191,7 +236,10 @@ describe('useDevices Hook', () => {
   test('deletes a device', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     await act(async () => {
       await result.current.deleteDevice('device1');
@@ -207,7 +255,10 @@ describe('useDevices Hook', () => {
   test('tests device connection and updates lastSeen if successful', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     await act(async () => {
       await result.current.testConnection('device1');
@@ -220,14 +271,17 @@ describe('useDevices Hook', () => {
   });
 
   test('handles connection test failure', async () => {
-    (deviceService.testConnection as any).mockResolvedValueOnce({
+    vi.mocked(deviceService.testConnection).mockResolvedValueOnce({
       success: false,
       message: 'Connection failed',
     });
 
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     const originalLastSeen = result.current.devices[0].lastSeen;
 
@@ -242,7 +296,10 @@ describe('useDevices Hook', () => {
   test('reads device registers', async () => {
     const { result } = renderHook(() => useDevices());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for initial load
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     // Create a mock implementation for readDeviceRegisters that will be used in this test
     const mockReadingResult = {
