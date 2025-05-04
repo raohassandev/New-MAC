@@ -191,6 +191,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
 }) => {
   console.log('NewTemplateFormContainer rendered with props:', { onClose, onSubmit, initialData, isEditing });
   // Parse initialData into form state format if provided
+  // Parse initialData into form state format
   const formattedInitialData = initialData
     ? {
         deviceBasics: {
@@ -203,20 +204,46 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
           tags: initialData.tags || [],
         },
         connectionSettings: {
-          type: initialData.connectionType || 'tcp',
-          ip: initialData.ip || '',
-          port: initialData.port?.toString() || '502',
-          slaveId: initialData.slaveId?.toString() || '1',
-          serialPort: initialData.serialPort || '',
-          baudRate: initialData.baudRate?.toString() || '9600',
-          dataBits: initialData.dataBits?.toString() || '8',
-          stopBits: initialData.stopBits?.toString() || '1',
-          parity: initialData.parity || 'none',
+          // Handle both old direct properties and new nested connectionSetting structure
+          type: initialData.connectionSetting?.connectionType || initialData.connectionType || 'tcp',
+          // TCP settings - check both nested and direct properties
+          ip: initialData.connectionSetting?.tcp?.ip || initialData.ip || '',
+          port: (initialData.connectionSetting?.tcp?.port || initialData.port || 502).toString(),
+          slaveId: (initialData.connectionSetting?.tcp?.slaveId || initialData.slaveId || 1).toString(),
+          // RTU settings - check both nested and direct properties
+          serialPort: initialData.connectionSetting?.rtu?.serialPort || initialData.serialPort || '',
+          baudRate: (initialData.connectionSetting?.rtu?.baudRate || initialData.baudRate || 9600).toString(),
+          dataBits: (initialData.connectionSetting?.rtu?.dataBits || initialData.dataBits || 8).toString(),
+          stopBits: (initialData.connectionSetting?.rtu?.stopBits || initialData.stopBits || 1).toString(),
+          parity: initialData.connectionSetting?.rtu?.parity || initialData.parity || 'none',
         },
-        // registerRanges: initialData.registerRanges || [],
-        // parameters: initialData.parameterConfigs || [],
+        // Add register ranges and parameters from dataPoints
+        registerRanges: initialData.dataPoints 
+          ? initialData.dataPoints.map((dp: any, index: number) => ({
+              rangeName: `Range ${index + 1}`,
+              startRegister: dp.range.startAddress,
+              length: dp.range.count,
+              functionCode: dp.range.fc,
+            }))
+          : [],
+        parameters: initialData.dataPoints 
+          ? initialData.dataPoints.flatMap((dp: any, rangeIndex: number) =>
+              dp.parser.parameters.map((param: any) => ({
+                name: param.name,
+                dataType: param.dataType,
+                scalingFactor: param.scalingFactor,
+                decimalPoint: param.decimalPoint,
+                byteOrder: param.byteOrder,
+                registerRange: `Range ${rangeIndex + 1}`,
+                registerIndex: param.registerIndex || 0,
+                wordCount: param.wordCount || 1,
+              }))
+            )
+          : [],
       }
     : undefined;
+    
+  console.log('Formatted initial data for form:', formattedInitialData);
 
   return (
     <TemplateFormProvider initialData={formattedInitialData}>

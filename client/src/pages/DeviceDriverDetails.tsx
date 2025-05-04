@@ -29,7 +29,7 @@ const DeviceDriverDetails: React.FC = () => {
         setLoading(true);
         console.log(`Attempting to fetch device driver with ID: ${driverId}`);
         const data = await getDeviceDriver(driverId);
-        console.log('Device driver data received:', data);
+        console.log('Device driver data received:', JSON.stringify(data, null, 2));
         setDeviceDriver(data);
         setError(null);
       } catch (err) {
@@ -159,9 +159,10 @@ const DeviceDriverDetails: React.FC = () => {
         
         <div className="rounded-lg bg-white p-6 shadow-md">
           <NewDeviceDriverForm 
-            initialValues={deviceDriver}
+            initialData={deviceDriver} 
             onSubmit={handleSave}
             onClose={handleCancel}
+            isEditing={true}
           />
         </div>
       </div>

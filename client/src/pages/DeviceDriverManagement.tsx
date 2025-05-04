@@ -99,8 +99,9 @@ const DeviceDriverManagement: React.FC = () => {
   const handleEditDeviceDriver = (deviceDriver: DeviceDriver) => {
     // Navigate to the device driver detail page
     // Use _id from the API data instead of id from the mapped data
-    navigate(`/device-drivers/${deviceDriver._id || deviceDriver.id}`);
-    console.log('Navigating to device driver with ID:', deviceDriver._id || deviceDriver.id);
+    const driverId = deviceDriver._id || deviceDriver.id;
+    console.log('Navigating to device driver with ID:', driverId);
+    navigate(`/device-drivers/${driverId}`);
   };
 
   const handleDeleteDeviceDriver = async (id: string) => {
@@ -189,6 +190,7 @@ const DeviceDriverManagement: React.FC = () => {
         <div className="overflow-hidden rounded-lg bg-white shadow">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
+              <caption className="sr-only">Click on a row to view device driver details</caption>
               <thead className="bg-gray-50">
                 <tr>
                   <th
@@ -225,7 +227,12 @@ const DeviceDriverManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredDeviceDrivers.map(deviceDriver => (
-                  <tr key={deviceDriver.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={deviceDriver.id} 
+                    className="hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                    onClick={() => handleEditDeviceDriver(deviceDriver)}
+                    title="Click to view details"
+                  >
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center">
                         <CreditCard className="h-5 w-5 flex-shrink-0 text-gray-400" />
@@ -248,18 +255,12 @@ const DeviceDriverManagement: React.FC = () => {
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {formatDate(deviceDriver.updatedAt)}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <Button
-                        onClick={() => handleEditDeviceDriver(deviceDriver)}
-                        className="mr-3 flex items-center gap-1 text-indigo-600 hover:text-indigo-900"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Edit size={14} />
-                        <span>Edit</span>
-                      </Button>
+                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => handleDeleteDeviceDriver(deviceDriver._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDeviceDriver(deviceDriver._id);
+                        }}
                         className="text-red-600 hover:text-red-900"
                       >
                         <Trash size={16} />
