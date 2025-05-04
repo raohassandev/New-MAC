@@ -1,50 +1,24 @@
 import mongoose from 'mongoose';
-import { createDeviceDriverModel } from './Template';
-import { createDeviceTypeModel } from './DeviceType';
+import { createDeviceDriverModel } from './deviceDriverModel';
+import { createDeviceTypeModel } from './deviceTypeModel';
 
-// Models with the library database connection
-let DeviceDriver: mongoose.Model<any>;
-let DeviceType: mongoose.Model<any>;
-
-// Initialize the library models with the separate connection
-export const initLibraryModels = (connection: mongoose.Connection) => {
-  // Create models with the library connection
-  DeviceDriver = createDeviceDriverModel(connection);
-  DeviceType = createDeviceTypeModel(connection);
+/**
+ * Initialize and return all library models using the provided database connection
+ * @param connection Mongoose connection to the library database
+ * @returns Object containing all library models
+ */
+export const amxModels = (connection: mongoose.Connection) => {
+  // Create models using the provided connection
+  const DeviceDriver = createDeviceDriverModel(connection);
+  const DeviceType = createDeviceTypeModel(connection);
   
-  // Return the models for immediate use
+  // Return an object containing all models
   return {
     DeviceDriver,
     DeviceType
   };
 };
 
-// Getter functions to ensure the models are initialized
-export const getDeviceDriverModel = () => {
-  if (!DeviceDriver) {
-    throw new Error('DeviceDriver model not initialized. Call initLibraryModels first.');
-  }
-  return DeviceDriver;
-};
-
-export const getDeviceTypeModel = () => {
-  if (!DeviceType) {
-    throw new Error('DeviceType model not initialized. Call initLibraryModels first.');
-  }
-  return DeviceType;
-};
-
-// Helper to access the library DB connection from request
-export const getLibraryConnection = (req: any) => {
-  if (!req.app || !req.app.locals || !req.app.locals.libraryDB) {
-    throw new Error('Library database connection not available in request');
-  }
-  return req.app.locals.libraryDB;
-};
-
-export default {
-  initLibraryModels,
-  getDeviceDriverModel: getDeviceDriverModel,
-  getDeviceTypeModel,
-  getLibraryConnection
-};
+// Export model creation functions for individual usage
+export * from './deviceDriverModel';
+export * from './deviceTypeModel';

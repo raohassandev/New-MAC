@@ -1,16 +1,15 @@
 // Pages
 import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
+import DeviceDriverManagement from './pages/DeviceDriverManagement';
 import DeviceManagement from './pages/DeviceManagement';
 import Login from './pages/Login';
 import MainLayout from './layouts/MainLayout';
 import NotFound from './pages/NotFound';
-import ProfileEditor from './pages/ProfileEditor';
-import ProfileManagement from './pages/ProfileManagement';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
-import TemplateManagement from './pages/TemplateManagement';
+import XmlStructureView from './pages/XmlStructureView';
 import { createBrowserRouter } from 'react-router-dom';
 
 // Create the router
@@ -50,25 +49,8 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: 'profiles',
-        children: [
-          {
-            index: true,
-            element: <ProfileManagement />,
-          },
-          {
-            path: 'new',
-            element: <ProfileEditor />,
-          },
-          {
-            path: ':profileId',
-            element: <ProfileEditor />,
-          },
-        ],
-      },
-      {
-        path: 'templates',
-        element: <TemplateManagement />,
+        path: 'device-drivers',
+        element: <DeviceDriverManagement />,
       },
       {
         path: 'system',
@@ -77,6 +59,10 @@ const router = createBrowserRouter([
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'project-structure',
+        element: <XmlStructureView />,
       },
     ],
   },

@@ -13,9 +13,11 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "~/*": ["server/src/*"],
+      "~/server/*": ["server/src/*"],
+      "~/scripts/*": ["scripts/*"]
     }
   },
-  "include": ["server/src/**/*", "scripts/**/*"],
+  "include": ["server/src/**/*", "scripts/**/*", "routeManager.ts"],
   "exclude": ["node_modules", "client"]
 }

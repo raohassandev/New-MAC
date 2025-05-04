@@ -1,17 +1,39 @@
 import express from 'express';
 import { protect as authenticate } from '../../middleware/authMiddleware';
-import { createDeviceDriver, deleteDeviceDriver, getAllDeviceDrivers, getDeviceDriverById, getDeviceDriversByDeviceType, updateDeviceDriver } from '../controllers/Controller';
 
-export const deviceDriverTouter = express.Router();
+// Import from new direct database controllers instead of the old Controller
+import {
+  getAllDeviceTypes,
+  getDeviceTypeById,
+  createDeviceType,
+  updateDeviceType,
+  deleteDeviceType
+} from '../controllers/DeviceTypeController';
+
+import {
+  createDeviceDriver, 
+  deleteDeviceDriver, 
+  getAllDeviceDrivers, 
+  getDeviceDriverById, 
+  updateDeviceDriver
+} from '../controllers/DeviceDriverController';
+
+export const deviceDriverRouter = express.Router();
 
 // Apply authentication middleware
-deviceDriverTouter.use(authenticate);
+deviceDriverRouter.use(authenticate);
+
+// DeviceType routes - must be defined first due to route specificity
+deviceDriverRouter.get('/device-types', getAllDeviceTypes);
+deviceDriverRouter.post('/device-types', createDeviceType);
+deviceDriverRouter.get('/device-types/:id', getDeviceTypeById);
+deviceDriverRouter.put('/device-types/:id', updateDeviceType);
+deviceDriverRouter.delete('/device-types/:id', deleteDeviceType);
 
 // DeviceDriver routes
-deviceDriverTouter.get('/', getAllDeviceDrivers);
-deviceDriverTouter.get('/:id', getDeviceDriverById);
-deviceDriverTouter.post('/', createDeviceDriver);
-deviceDriverTouter.put('/:id', updateDeviceDriver);
-deviceDriverTouter.delete('/:id', deleteDeviceDriver);
-deviceDriverTouter.get('/by-device-type/:deviceType', getDeviceDriversByDeviceType);
+deviceDriverRouter.get('/', getAllDeviceDrivers);
+deviceDriverRouter.post('/', createDeviceDriver);
+deviceDriverRouter.get('/:id', getDeviceDriverById);
+deviceDriverRouter.put('/:id', updateDeviceDriver);
+deviceDriverRouter.delete('/:id', deleteDeviceDriver);
 

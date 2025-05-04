@@ -23,7 +23,16 @@
     /* Paths */
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"]
+      "~/*": ["*"],
+      "~/components/*": ["components/*"],
+      "~/services/*": ["services/*"],
+      "~/hooks/*": ["hooks/*"],
+      "~/utils/*": ["utils/*"],
+      "~/types/*": ["types/*"],
+      "~/context/*": ["context/*"],
+      "~/layouts/*": ["layouts/*"],
+      "~/pages/*": ["pages/*"],
+      "~/api/*": ["api/*"]
     }
   },
   "include": ["src"],

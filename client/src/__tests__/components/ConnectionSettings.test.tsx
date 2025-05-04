@@ -1,13 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { TemplateFormProvider } from '../../components/templates/TemplateFormContext';
-import ConnectionSettings from '../../components/templates/ConnectionSettings';
-import { FormFieldRefsContext } from '../../components/templates/FormFieldRefsContext';
+import { DeviceDriverFormProvider } from '../../components/deviceDrivers/TemplateFormContext';
+import ConnectionSettings from '../../components/deviceDrivers/ConnectionSettings';
+import { FormFieldRefsContext } from '../../components/deviceDrivers/FormFieldRefsContext';
 
 // Mock UI components to simplify testing
 vi.mock('../../components/ui/Input', () => ({
-  Input: props => {
+  Input: (props: any) => {
     const { id, name, value, onChange, placeholder, className, type = 'text' } = props;
     return (
       <input
@@ -26,16 +26,20 @@ vi.mock('../../components/ui/Input', () => ({
 
 vi.mock('../../components/ui/Form', () => ({
   Form: {
-    Row: ({ children }) => (
+    Row: ({ children }: { children: React.ReactNode }) => (
       <div data-testid="form-row">{children}</div>
     ),
-    Group: ({ children }) => (
+    Group: ({ children }: { children: React.ReactNode }) => (
       <div data-testid="form-group">{children}</div>
     ),
     Label: ({
       children,
       htmlFor,
       required,
+    }: {
+      children: React.ReactNode;
+      htmlFor: string;
+      required?: boolean;
     }) => (
       <label htmlFor={htmlFor} data-testid={`label-${htmlFor}`}>
         {children}
@@ -47,7 +51,7 @@ vi.mock('../../components/ui/Form', () => ({
 
 // Mock Select component
 vi.mock('../../components/ui/Select', () => ({
-  Select: props => {
+  Select: (props: any) => {
     const { id, options, value, onChange } = props;
     return (
       <select
@@ -56,7 +60,7 @@ vi.mock('../../components/ui/Select', () => ({
         value={value || ''}
         onChange={onChange}
       >
-        {options?.map(option => (
+        {options?.map((option: any) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -66,8 +70,28 @@ vi.mock('../../components/ui/Select', () => ({
   }
 }));
 
+type FormFieldRefsContextType = {
+  refs: {
+    name: React.RefObject<HTMLInputElement>;
+    make: React.RefObject<HTMLInputElement>;
+    model: React.RefObject<HTMLInputElement>;
+    deviceType: React.RefObject<HTMLInputElement>;
+    description: React.RefObject<HTMLInputElement>;
+    connectionType: React.RefObject<HTMLSelectElement>;
+    ip: React.RefObject<HTMLInputElement>;
+    port: React.RefObject<HTMLInputElement>;
+    slaveId: React.RefObject<HTMLInputElement>;
+    serialPort: React.RefObject<HTMLInputElement>;
+    baudRate: React.RefObject<HTMLSelectElement>;
+    dataBits: React.RefObject<HTMLSelectElement>;
+    stopBits: React.RefObject<HTMLSelectElement>;
+    parity: React.RefObject<HTMLSelectElement>;
+  };
+  focusField: (fieldName: string) => void;
+};
+
 // Create a mock FormFieldRefsContext provider
-const createFieldRefs = () => {
+const createFieldRefs = (): { refs: FormFieldRefsContextType['refs']; focusField: (fieldName: string) => void } => {
   const refs = {
     name: React.createRef<HTMLInputElement>(),
     make: React.createRef<HTMLInputElement>(),
@@ -86,7 +110,15 @@ const createFieldRefs = () => {
     stopBits: React.createRef<HTMLSelectElement>(),
     parity: React.createRef<HTMLSelectElement>(),
   };
-  return { refs };
+  
+  const focusField = (fieldName: string): void => {
+    const field = refs[fieldName as keyof typeof refs];
+    if (field && field.current) {
+      field.current.focus();
+    }
+  };
+  
+  return { refs, focusField };
 };
 
 describe('ConnectionSettings', () => {
@@ -99,9 +131,9 @@ describe('ConnectionSettings', () => {
   test('renders device basics form fields', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider>
+        <DeviceDriverFormProvider>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -131,18 +163,21 @@ describe('ConnectionSettings', () => {
   test('renders TCP/IP connection settings when TCP is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider initialData={{ 
+        <DeviceDriverFormProvider initialData={{ 
           connectionSettings: { 
             type: 'tcp',
-            tcp: {
-              ip: '',
-              port: '',
-              slaveId: ''
-            }
+            ip: '',
+            port: '',
+            slaveId: '',
+            serialPort: '',
+            baudRate: '',
+            dataBits: '',
+            stopBits: '',
+            parity: ''
           }
         }}>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -159,21 +194,21 @@ describe('ConnectionSettings', () => {
   test('renders RTU connection settings when RTU is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider initialData={{ 
+        <DeviceDriverFormProvider initialData={{ 
           connectionSettings: { 
             type: 'rtu',
-            rtu: {
-              serialPort: '',
-              baudRate: '9600',
-              dataBits: '8',
-              stopBits: '1',
-              parity: 'none',
-              slaveId: ''
-            }
+            ip: '',
+            port: '',
+            slaveId: '',
+            serialPort: '',
+            baudRate: '',
+            dataBits: '',
+            stopBits: '',
+            parity: ''
           }
         }}>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -194,21 +229,11 @@ describe('ConnectionSettings', () => {
       setDeviceBasics: vi.fn()
     };
 
-    // Override the useTemplateForm implementation for this test
-    vi.mocked(useTemplateForm).mockImplementation(() => ({
-      state: {
-        deviceBasics: { name: '', make: '', model: '', description: '', deviceType: '' },
-        connectionSettings: { type: 'tcp', ip: '', port: '502', slaveId: '1' },
-        validationState: { isValid: true, basicInfo: [], connection: [], registers: [], parameters: [], general: [] }
-      },
-      actions: mockedActionsSpy
-    }));
-
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider>
+        <DeviceDriverFormProvider>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -239,9 +264,9 @@ describe('ConnectionSettings', () => {
 
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider initialData={{ validationState }}>
+        <DeviceDriverFormProvider initialData={{ validationState }}>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -254,9 +279,9 @@ describe('ConnectionSettings', () => {
   test('updates form state when inputs change', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <TemplateFormProvider>
+        <DeviceDriverFormProvider>
           <ConnectionSettings />
-        </TemplateFormProvider>
+        </DeviceDriverFormProvider>
       </FormFieldRefsContext.Provider>
     );
 

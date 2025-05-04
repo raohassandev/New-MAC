@@ -5,7 +5,6 @@ import {
   Menu,
   Settings,
   Sliders,
-  Thermometer,
   Users,
   Wrench,
   User,
@@ -57,9 +56,9 @@ const MainLayout: React.FC = () => {
           <div className="px-4 py-2 text-xs font-semibold uppercase text-indigo-300">Main</div>
           <NavItem to="/dashboard" icon={<Home size={18} />} label="Dashboard" end={true} />
           <NavItem to="/devices" icon={<HardDrive size={18} />} label="Devices" />
-          <NavItem to="/profiles" icon={<Thermometer size={18} />} label="Cooling Profiles" />
-          <NavItem to="/templates" icon={<CreditCard size={18} />} label="Device Templates" />
+          <NavItem to="/device-drivers" icon={<CreditCard size={18} />} label="Device Drivers" />
           <NavItem to="/system" icon={<Activity size={18} />} label="System Monitor" />
+          <NavItem to="/project-structure" icon={<Home size={18} />} label="Project Structure" end={true} />
 
           {/* Only show admin section if user has proper permissions */}
           {hasPermission('manage_users') && (
@@ -123,7 +122,7 @@ const MainLayout: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <Link to="/profile" className="flex items-center">
+              <Link to="/settings" className="flex items-center">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white">
                   <User size={16} />
                 </div>

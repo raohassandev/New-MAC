@@ -5,13 +5,11 @@ import mongoose from 'mongoose';
 import User from './client/models/User';
 import path from 'path';
 import { connectClientToDB } from './client/config/db';
-import { initLibraryModels } from './amx/models';
-
+import { amxModels } from './amx/models';
 import { clientRouter } from './client/routes';
 import connectAmxToDB from './amx/config/db';
 import { amxRouter } from './amx/routes';
 
-console.log('Starting MacSys backend server initialization...');
 
 // Load environment variables
 dotenv.config();
@@ -30,35 +28,6 @@ try {
   console.error('Error setting up middleware:', error);
 }
 
-// Initialize admin user if none exists
-const initAdminUser = async () => {
-  try {
-    console.log('Checking for admin user...');
-    const adminExists = await User.findOne({ role: 'admin' });
-    if (!adminExists) {
-      console.log('Creating default admin user...');
-      await User.create({
-        name: 'Admin User',
-        email: 'admin@macsys.com',
-        password: 'admin123',
-        role: 'admin',
-        permissions: [
-          'manage_devices',
-          'manage_profiles',
-          'manage_users',
-          'view_analytics',
-          'view_devices',
-          'view_profiles',
-        ],
-      });
-      console.log('Default admin user created');
-    } else {
-      console.log('Admin user already exists');
-    }
-  } catch (error) {
-    console.error('Error creating admin user:', error);
-  }
-};
 
 // API routes
 try {
@@ -103,13 +72,11 @@ const startServer = async () => {
     app.locals.libraryDB = deviceDriveDB;
     
     // Initialize library models with the library database connection
-    const libraryModels = initLibraryModels(deviceDriveDB);
+    const amxDBConnection = amxModels(deviceDriveDB);
     
     // Add library models to app locals
-    (app.locals as any).libraryModels = libraryModels;
+    app.locals.libraryModels = amxDBConnection;
 
-    // Initialize admin user when MongoDB connection is established
-    await initAdminUser();
 
     // Start server after successful database connections
     app.listen(PORT, () => {

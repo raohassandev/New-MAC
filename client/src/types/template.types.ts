@@ -1,57 +1,149 @@
-// client/src/types/template.types.ts
-import { Device, ConnectionSetting, DataPoint } from './device.types';
+export interface RegisterParameter {
+  name: string;
+  dataType: string;
+  scalingFactor: number;
+  decimalPoint: number;
+  byteOrder: string;
+  signed: boolean;
+  registerRange: string;
+  registerIndex: number;
+  wordCount: number;
+  unit?: string;
+}
 
-/**
- * DeviceType interface defines the structure for device type data
- */
+export interface RegisterRange {
+  startAddress: number;
+  count: number;
+  fc: number;
+}
+
+export interface DataPoint {
+  range: RegisterRange;
+  parser: {
+    parameters: RegisterParameter[];
+  };
+}
+
+export interface ConnectionSettings {
+  type: 'tcp' | 'rtu';
+  tcp?: {
+    ip: string;
+    port: number;
+    slaveId: number;
+  };
+  rtu?: {
+    serialPort: string;
+    baudRate: number;
+    dataBits: number;
+    stopBits: number;
+    parity: string;
+    slaveId: number;
+  };
+}
+
 export interface DeviceType {
   _id: string;
   name: string;
   description?: string;
   category?: string;
-  specifications?: Record<string, any>;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-  createdBy?: {
-    userId: string;
-    username: string;
-    email: string;
-  };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/**
- * Template interface extends Device with template-specific properties
- */
-export interface Template extends Device {
-  deviceType: string;    // Required in templates, references a DeviceType
-  isTemplate: boolean;   // Always true for templates
-  // Inherited from Device:
-  // - name, make, model, description, etc.
-  // - connectionSetting, dataPoints
-}
-
-/**
- * New device type structure for creation
- */
 export interface NewDeviceType {
   name: string;
   description?: string;
   category?: string;
-  specifications?: Record<string, any>;
 }
 
-/**
- * TemplateFormState extends DeviceFormState with template-specific properties
- */
+export interface Template {
+  _id: string;
+  name: string;
+  description?: string;
+  deviceType: string;
+  isTemplate: boolean;
+  enabled: boolean;
+  make: string;
+  model: string;
+  tags: string[];
+  connectionSetting: {
+    connectionType: string;
+    tcp?: {
+      ip: string;
+      port: number;
+      slaveId: number;
+    };
+    rtu?: {
+      serialPort: string;
+      baudRate: number;
+      dataBits: number;
+      stopBits: number;
+      parity: string;
+      slaveId: number;
+    };
+  };
+  dataPoints: DataPoint[];
+  createdBy: {
+    userId: string;
+    username: string;
+    email: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TemplateFormData {
   name: string;
-  deviceType: string;
-  make?: string;
-  model?: string;
   description?: string;
-  enabled?: boolean;
+  deviceType: string;
+  make: string;
+  model: string;
   tags?: string[];
-  connectionSetting?: ConnectionSetting;
+  connectionSetting: {
+    connectionType: string;
+    tcp?: {
+      ip: string;
+      port: number;
+      slaveId: number;
+    };
+    rtu?: {
+      serialPort: string;
+      baudRate: number;
+      dataBits: number;
+      stopBits: number;
+      parity: string;
+      slaveId: number;
+    };
+  };
   dataPoints?: DataPoint[];
-  newDeviceType?: NewDeviceType; // For creating a new device type during template creation
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface ValidationState {
+  isValid: boolean;
+  basicInfo: ValidationError[];
+  connection: ValidationError[];
+  registers: ValidationError[];
+  parameters: ValidationError[];
+  general: ValidationError[];
+}
+
+export interface DeviceBasics {
+  name: string;
+  deviceType: string;
+  make: string;
+  model: string;
+  description: string;
+}
+
+export interface TemplateFormState {
+  deviceBasics: DeviceBasics;
+  connectionSettings: ConnectionSettings;
+  validationState: ValidationState;
+  registers?: any[]; // Will be defined based on specific register implementation
+  dataPoints?: DataPoint[];
 }

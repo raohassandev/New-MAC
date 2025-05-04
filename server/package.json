@@ -8,7 +8,13 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
-    "test": "jest --config jest.config.js"
+    "test": "jest --config jest.config.js",
+    "reset-db": "node scripts/reset-db.js",
+    "setup-amx": "bash scripts/setup-amx-db.sh",
+    "fix-db": "node scripts/fix-database.js",
+    "verify-db": "node verifyDBConfig.js",
+    "check-collections": "node scripts/check-collections.js",
+    "create-collections": "mongosh mongo-init.js"
   },
   "keywords": [
     "modbus",

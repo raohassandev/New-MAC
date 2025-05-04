@@ -1,12 +1,12 @@
 // client/src/components/templates/ConnectionSettings.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
-import { Input } from '../ui/Input';
-import { Form } from '../ui/Form';
+import { Input } from '../../ui/Input';
+import { Form } from '../../ui/Form';
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
-import { createDeviceType, getDeviceTypes, NewDeviceType } from '../../services/deviceDrivers';
-import NewDeviceTypeModal from '../devices/NewDeviceTypeModal';
+import { createDeviceType, getDeviceTypes, NewDeviceType } from '../../services/index';
+import NewDeviceTypeModal from '../../devices/NewDeviceTypeModal';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -61,7 +61,7 @@ const FieldError: React.FC<{ message?: string }> = ({ message }) => {
   );
 };
 
-const TemplateConnectionSettings: React.FC = () => {
+const DeviceDriverConnectionSettings: React.FC = () => {
   const { state, actions } = useTemplateForm();
   const { deviceBasics, connectionSettings, validationState } = state;
   const { refs } = useContext(FormFieldRefsContext);
@@ -434,4 +434,4 @@ const TemplateConnectionSettings: React.FC = () => {
   );
 };
 
-export default TemplateConnectionSettings;
+export default DeviceDriverConnectionSettings;

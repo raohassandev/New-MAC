@@ -18,7 +18,7 @@ describe('Profile API Endpoints', () => {
         mode: 'auto',
         enabled: true,
       },
-      isTemplate: false,
+      isDeviceDriver: false,
     },
     {
       name: 'Test Profile 2',
@@ -28,7 +28,7 @@ describe('Profile API Endpoints', () => {
         mode: 'cooling',
         enabled: false,
       },
-      isTemplate: true,
+      isDeviceDriver: true,
     },
   ];
   let profileIds: string[] = [];

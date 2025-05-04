@@ -1,19 +1,18 @@
 import './index.css';
 import 'react-toastify/dist/ReactToastify.css';
 
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { DeviceProvider } from './context/DeviceContext';
-import { Navigate, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
+import DeviceDriverManagement from './pages/DeviceDriverManagement';
 import DeviceManagement from './pages/DeviceManagement';
 import MainLayout from './layouts/MainLayout';
 import NotFound from './pages/NotFound';
-import ProfileEditor from './pages/ProfileEditor';
-import ProfileManagement from './pages/ProfileManagement';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
-import TemplateManagement from './pages/TemplateManagement';
+import XmlStructureView from './pages/XmlStructureView';
 
 // Development mode App component with simplified routing
 function App() {
@@ -33,14 +32,10 @@ function App() {
               <Route index element={<DeviceManagement />} />
               <Route path=":deviceId" element={<DeviceDetails />} />
             </Route>
-            <Route path="profiles">
-              <Route index element={<ProfileManagement />} />
-              <Route path="new" element={<ProfileEditor />} />
-              <Route path=":profileId" element={<ProfileEditor />} />
-            </Route>
-            <Route path="templates" element={<TemplateManagement />} />
+            <Route path="device-drivers" element={<DeviceDriverManagement />} />
             <Route path="system" element={<SystemMonitor />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="project-structure" element={<XmlStructureView />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 

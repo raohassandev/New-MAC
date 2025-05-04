@@ -138,7 +138,7 @@ describe('DeviceCard Component', () => {
       }
     },
     tags: ['test', 'device'],
-    lastSeen: new Date().toISOString(),
+    lastSeen: new Date(),
   };
 
   const mockHandlers = {
@@ -271,9 +271,15 @@ describe('DeviceCard Component', () => {
   });
 
   test('displays offline status when device is disabled', () => {
+    // Create a disabled device with proper Date object
+    const disabledDevice = {
+      ...mockDevice,
+      enabled: false
+    };
+    
     render(
       <DeviceCard
-        device={{ ...mockDevice, enabled: false }}
+        device={disabledDevice}
         onEdit={mockHandlers.onEdit}
         onDelete={mockHandlers.onDelete}
       />

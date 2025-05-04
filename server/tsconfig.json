@@ -11,11 +11,19 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "sourceMap": true,
-    "baseUrl": ".",
+    "baseUrl": "src",
     "paths": {
-      "@/*": ["src/*"]
+      "~/*": ["*"],
+      "~/client/*": ["client/*"],
+      "~/amx/*": ["amx/*"],
+      "~/middleware/*": ["middleware/*"],
+      "~/models/*": ["models/*"],
+      "~/controllers/*": ["controllers/*"],
+      "~/routes/*": ["routes/*"],
+      "~/types/*": ["types/*"],
+      "~/utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../routeManager.ts"],
   "exclude": ["node_modules", "client"]
 }

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { Form } from '../ui/Form';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { NewDeviceType } from '../../types/template.types';
+import { NewDeviceType } from '../../types/deviceDriver.types';
 
 interface NewDeviceTypeModalProps {
   onClose: () => void;

@@ -7,6 +7,7 @@ export interface Device {
   enabled: boolean;
   deviceType?: string;     // Added for template categorization
   isTemplate?: boolean;    // Flag to mark this as a template
+  isDeviceDriver?: boolean; // Flag to mark this as a device driver
   lastSeen?: Date | string;
   make?: string;
   model?: string;
@@ -20,7 +21,19 @@ export interface Device {
   // Legacy fields for backward compatibility
   registerRanges?: RegisterRange[];
   parameterConfigs?: ParameterConfig[];
+  registers?: any[]; // For DeviceDetails component
   
+  // Connection properties (directly on Device for backward compatibility)
+  connectionType?: string;
+  ip?: string;
+  port?: number | string;
+  slaveId?: number | string;
+  serialPort?: string;
+  baudRate?: number | string;
+  dataBits?: number | string;
+  stopBits?: number | string;
+  parity?: string;
+
   createdAt?: Date | string;
   updatedAt?: Date | string;
   createdBy?: {
@@ -78,6 +91,10 @@ export interface DeviceReading {
     [key: string]: number | boolean | string;
   };
   rawData?: Buffer | string;
+  name?: string;
+  address?: string;
+  value?: number | string | boolean;
+  unit?: string;
 }
 
 // TCP Connection Settings

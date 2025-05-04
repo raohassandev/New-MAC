@@ -111,7 +111,7 @@ const dataPoints = [
 const initialFormState = {
   registerRanges: mockRegisterRanges,
   dataPoints: dataPoints,
-  connectionSetting: {
+  connectionSettings: {
     connectionType: 'tcp',
     tcp: {
       ip: '192.168.1.100',
@@ -130,7 +130,7 @@ describe('DataReaderTab', () => {
     const { container } = render(
       <TemplateFormProvider initialData={{ 
         registerRanges: mockRegisterRanges,
-        connectionSetting: {
+        connectionSettings: {
           connectionType: 'tcp',
           tcp: {
             ip: '192.168.1.100',
@@ -148,7 +148,7 @@ describe('DataReaderTab', () => {
   test('should show message when no register ranges', () => {
     render(
       <TemplateFormProvider initialData={{
-        connectionSetting: {
+        connectionSettings: {
           connectionType: 'tcp',
           tcp: {
             ip: '192.168.1.100',
