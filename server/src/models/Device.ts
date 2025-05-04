@@ -176,7 +176,7 @@ export const RegisterSchema = new Schema<IRegister>({
   unit: { type: String },
 });
 
-const DeviceSchema = new Schema<IDevice>({
+export const DeviceSchema = new Schema<IDevice>({
   name: { type: String, required: true },
   make: { type: String },
   model: { type: String },

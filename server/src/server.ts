@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import User from './models/User';
 import routes from './routes';
 import path from 'path';
+import { connectMainDB, createLibraryDBConnection } from './config/db';
+import { initLibraryModels } from './models/library';
 
 console.log('Starting MacSys backend server initialization...');
 
@@ -127,27 +129,40 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// MongoDB Connection and Server Start
+// Database Connection and Server Start
 const startServer = async () => {
-  console.log('Attempting to connect to MongoDB...');
+  console.log('Attempting to connect to databases...');
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/macsys');
-    console.log('MongoDB connected successfully');
+    // Connect to main database
+    const mainDB = await connectMainDB();
+    
+    // Connect to library database
+    const libraryDB = await createLibraryDBConnection();
+    
+    // Store connections for use in other parts of the application
+    app.locals.mainDB = mainDB;
+    app.locals.libraryDB = libraryDB;
+    
+    // Initialize library models with the library database connection
+    const libraryModels = initLibraryModels(libraryDB);
+    
+    // Add library models to app locals
+    (app.locals as any).libraryModels = libraryModels;
 
     // Initialize admin user when MongoDB connection is established
     await initAdminUser();
 
-    // Start server after successful MongoDB connection
+    // Start server after successful database connections
     app.listen(PORT, () => {
       console.log(`MacSys Backend running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('MongoDB connection error:', err);
-    console.log('Attempting to start server without MongoDB connection...');
+    console.error('Database connection error:', err);
+    console.log('Attempting to start server without database connections...');
 
-    // Try to start server even if MongoDB connection fails
+    // Try to start server even if database connections fail
     app.listen(PORT, () => {
-      console.log(`MacSys Backend running on port ${PORT} (without MongoDB)`);
+      console.log(`MacSys Backend running on port ${PORT} (without database connections)`);
     });
   }
 };

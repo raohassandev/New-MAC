@@ -108,6 +108,9 @@ const TemplateFormContent: React.FC<{
       state.parameters,
       user
     );
+    
+    // Ensure it's marked as a template
+    deviceData.isTemplate = true;
     console.log("Device data ready for submission:", deviceData);
     console.log("Calling onSubmit with data - typeof onSubmit:", typeof onSubmit);
     try {

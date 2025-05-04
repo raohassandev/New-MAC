@@ -6,7 +6,7 @@ import { Form } from '../../ui/Form';
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
 import NewDeviceTypeModal from '../NewDeviceTypeModal';
-import { getDeviceTypes, DeviceType } from '../../../services/templates';
+import { getDeviceTypes, createDeviceType, DeviceType } from '../../../services/templates';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -71,20 +71,22 @@ const ConnectionSettings: React.FC = () => {
   const [showNewDeviceTypeModal, setShowNewDeviceTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Load device types
+  // Function to load device types
+  const loadDeviceTypes = async () => {
+    try {
+      setLoading(true);
+      const data = await getDeviceTypes();
+      console.log('Loaded device types:', data);
+      setDeviceTypes(data);
+    } catch (error) {
+      console.error('Error loading device types:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load device types on component mount and when modal is closed
   useEffect(() => {
-    const loadDeviceTypes = async () => {
-      try {
-        setLoading(true);
-        const data = await getDeviceTypes();
-        setDeviceTypes(data);
-      } catch (error) {
-        console.error('Error loading device types:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     loadDeviceTypes();
   }, []);
 
@@ -130,15 +132,27 @@ const ConnectionSettings: React.FC = () => {
   };
   
   // Handle new device type creation
-  const handleNewDeviceTypeSubmit = (newDeviceType: { name: string; description: string; category: string }) => {
-    // Set the form data to include the new device type
-    actions.setDeviceBasics({ 
-      deviceType: newDeviceType.name,
-      newDeviceType // This will be handled by the template service
-    });
-    
-    // Close the modal
-    setShowNewDeviceTypeModal(false);
+  const handleNewDeviceTypeSubmit = async (newDeviceType: { name: string; description: string; category: string }) => {
+    try {
+      // First create the device type in the database
+      const createdDeviceType = await createDeviceType(newDeviceType);
+      console.log('Successfully created device type:', createdDeviceType);
+      
+      // Add the new device type to the local state
+      setDeviceTypes(prev => [...prev, createdDeviceType]);
+      
+      // Set the form data to include the new device type
+      actions.setDeviceBasics({ 
+        deviceType: newDeviceType.name
+      });
+      
+      // Close the modal
+      setShowNewDeviceTypeModal(false);
+    } catch (error) {
+      console.error('Failed to create device type:', error);
+      // Show error (in a real app, you'd use a toast or other notification)
+      alert('Failed to create device type. Please try again.');
+    }
   };
 
   return (
@@ -171,11 +185,15 @@ const ConnectionSettings: React.FC = () => {
               id="deviceType"
               value={deviceBasics.deviceType}
               onChange={handleDeviceTypeChange}
-              options={[
-                { value: '', label: 'Select Device Type', disabled: true },
-                ...deviceTypes.map(type => ({ value: type.name, label: type.name })),
-                { value: 'new', label: '+ Add New Type' }
-              ]}
+              options={
+                loading 
+                ? [{ value: '', label: 'Loading device types...', disabled: true }]
+                : [
+                    { value: '', label: 'Select Device Type', disabled: true },
+                    ...deviceTypes.map(type => ({ value: type.name, label: type.name })),
+                    { value: 'new', label: '+ Add New Type' }
+                  ]
+              }
               error={getBasicFieldError('deviceType')}
               ref={refs.deviceType as React.RefObject<HTMLSelectElement>}
             />
@@ -389,7 +407,11 @@ const ConnectionSettings: React.FC = () => {
       {/* New Device Type Modal */}
       {showNewDeviceTypeModal && (
         <NewDeviceTypeModal
-          onClose={() => setShowNewDeviceTypeModal(false)}
+          onClose={() => {
+            setShowNewDeviceTypeModal(false);
+            // Refresh device types when modal is closed (in case user added one)
+            loadDeviceTypes();
+          }}
           onSubmit={handleNewDeviceTypeSubmit}
         />
       )}

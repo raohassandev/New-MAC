@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'user' | 'engineer' | 'admin';
+export type UserRole = 'user' | 'engineer' | 'admin' | 'template_manager';
 
 export interface IUser extends Document {
   name: string;
@@ -10,6 +10,8 @@ export interface IUser extends Document {
   password: string;
   role?: UserRole;
   permissions: string[];
+  organization?: string;
+  department?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -19,8 +21,10 @@ const UserSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'engineer', 'admin'], default: 'user' , required: false },
+  role: { type: String, enum: ['user', 'engineer', 'admin', 'template_manager'], default: 'user', required: false },
   permissions: [{ type: String }],
+  organization: { type: String, required: false },
+  department: { type: String, required: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

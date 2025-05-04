@@ -13,7 +13,7 @@ import ProfileEditor from './pages/ProfileEditor';
 import ProfileManagement from './pages/ProfileManagement';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
-import TemplatesPage from './pages/Template';
+import TemplatesPage from './pages/TemplateManagement';
 
 // Development mode App component with simplified routing
 function App() {

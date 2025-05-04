@@ -2,9 +2,9 @@ import { CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewTemplateForm from '../components/devices/NewTemplateForm/index';
-import { useDevices } from '../hooks/useDevices';
+import { useTemplates } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
-
+ 
 interface Template {
   id: string;
   name: string;
@@ -22,64 +22,41 @@ const TemplatesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewTemplateFormOpen, setIsNewTemplateFormOpen] = useState(false);
   
-  // Get devices functions from useDevices hook
-  const { addDevice, refreshDevices } = useDevices();
+  // Get templates functions from useTemplates hook
+  const { 
+    templates: apiTemplates, 
+    loading: apiLoading, 
+    error: apiError, 
+    addTemplate, 
+    refreshTemplates,
+    deleteTemplate
+  } = useTemplates();
 
-  // Define fetchTemplates function outside useEffect so it can be called elsewhere
+  // This will convert the API template format to our UI format
+  const convertApiTemplates = useEffect(() => {
+    if (apiTemplates) {
+      // Map the API templates to our UI template format
+      const mappedTemplates = apiTemplates.map(template => ({
+        id: template._id || '',
+        name: template.name || '',
+        description: template.description || '',
+        deviceType: template.deviceType || '',
+        registerCount: template.dataPoints?.length || 0,
+        createdAt: template.createdAt ? new Date(template.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: template.updatedAt ? new Date(template.updatedAt).toISOString() : new Date().toISOString(),
+      }));
+      
+      setTemplates(mappedTemplates);
+      setLoading(apiLoading);
+    }
+  }, [apiTemplates, apiLoading]);
+  
+  // Call the API to refresh templates
   const fetchTemplates = async () => {
-    setLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock template data
-      const mockTemplates: Template[] = [
-        {
-          id: '1',
-          name: 'Energy Analyzer Template',
-          description:
-            'Standard template for energy analyzer devices with voltage, current, and power readings',
-          deviceType: 'Energy Analyzer',
-          registerCount: 12,
-          createdAt: '2024-03-15T09:00:00Z',
-          updatedAt: '2024-04-10T14:23:00Z',
-        },
-        {
-          id: '2',
-          name: 'HVAC Controller Template',
-          description:
-            'Template for HVAC controllers with temperature, humidity, and fan control registers',
-          deviceType: 'HVAC Controller',
-          registerCount: 8,
-          createdAt: '2024-03-20T11:30:00Z',
-          updatedAt: '2024-04-12T09:45:00Z',
-        },
-        {
-          id: '3',
-          name: 'Temperature Sensor Template',
-          description: 'Basic template for temperature monitoring devices',
-          deviceType: 'Sensor',
-          registerCount: 4,
-          createdAt: '2024-03-25T15:20:00Z',
-          updatedAt: '2024-04-05T10:15:00Z',
-        },
-        {
-          id: '4',
-          name: 'Water Level Controller Template',
-          description:
-            'Template for water level controllers with level, flow, and pump control registers',
-          deviceType: 'Level Controller',
-          registerCount: 6,
-          createdAt: '2024-04-02T08:40:00Z',
-          updatedAt: '2024-04-15T16:30:00Z',
-        },
-      ];
-
-      setTemplates(mockTemplates);
+      await refreshTemplates();
     } catch (error) {
       console.error('Error fetching templates:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -89,7 +66,6 @@ const TemplatesPage: React.FC = () => {
   }, []);
 
   const handleAddTemplate = () => {
-    setCurrentTemplate(null);
     setIsNewTemplateFormOpen(true);
   };
   
@@ -97,8 +73,13 @@ const TemplatesPage: React.FC = () => {
   const onNewTemplateFormSubmit = async (templateData: any) => {
     console.log('Submitting template data:', templateData);
     try {
-      await addDevice(templateData);
-      await refreshDevices();
+      // Add isTemplate flag to ensure it's saved as a template
+      const templateWithFlags = {
+        ...templateData,
+        isTemplate: true
+      };
+      
+      await addTemplate(templateWithFlags);
       setIsNewTemplateFormOpen(false);
       // Refresh the templates list
       fetchTemplates();
@@ -118,23 +99,35 @@ const TemplatesPage: React.FC = () => {
     navigate(`/devices/${template.id}`);
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     if (confirm('Are you sure you want to delete this template?')) {
-      // In a real app, this would be an API call
-      setTemplates(templates.filter(template => template.id !== id));
+      try {
+        // Call the API to delete the template
+        await deleteTemplate(id);
+        // No need to update state here as it will be handled by the useTemplates hook
+        fetchTemplates(); // Refresh the list after deletion
+      } catch (error) {
+        console.error('Error deleting template:', error);
+      }
     }
   };
 
-  const handleDuplicateTemplate = (template: Template) => {
-    const newTemplate = {
-      ...template,
-      id: Date.now().toString(),
-      name: `${template.name} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setTemplates([...templates, newTemplate]);
+  const handleDuplicateTemplate = async (template: Template) => {
+    try {
+      // Create a copy of the template with a new name
+      const templateData = {
+        ...template,
+        name: `${template.name} (Copy)`,
+        _id: undefined, // Remove the ID so a new one will be created
+        id: undefined, // Remove the UI ID as well
+        isTemplate: true
+      };
+      
+      await addTemplate(templateData);
+      fetchTemplates(); // Refresh the list after duplication
+    } catch (error) {
+      console.error('Error duplicating template:', error);
+    }
   };
 
   const filteredTemplates = templates.filter(
@@ -328,9 +321,6 @@ const TemplatesPage: React.FC = () => {
     </div>
   );
 };
-2
+
 export default TemplatesPage;
-function setCurrentTemplate(arg0: null) {
-  throw new Error('Function not implemented.');
-}
 
