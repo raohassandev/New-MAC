@@ -440,8 +440,15 @@ const DeviceManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800">Physical Device Management</h1>
           <p className="mt-1 text-sm text-gray-500">Manage and monitor your actual Modbus devices (not templates)</p>
         </div>
-        {/* Export button only - Add Device button moved to Templates page */}
         <div className="flex space-x-2">
+          <Button
+            variant="default"
+            onClick={() => setIsNewDeviceFormOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Add New Device
+          </Button>
           {filteredDevices.length > 0 && (
             <Button
               variant="outline"
