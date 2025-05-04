@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
-import ConnectionSettings from '../../components/devices/NewDeviceForm/ConnectionSettings';
-import { FormFieldRefsContext } from '../../components/devices/NewDeviceForm/FormFieldRefsContext';
+import { TemplateFormProvider } from '../../components/devices/NewTemplateForm/TemplateFormContext';
+import ConnectionSettings from '../../components/devices/NewTemplateForm/ConnectionSettings';
+import { FormFieldRefsContext } from '../../components/devices/NewTemplateForm/FormFieldRefsContext';
 
 // Mock UI components to simplify testing
 vi.mock('../../components/ui/Input', () => ({
@@ -99,9 +99,9 @@ describe('ConnectionSettings', () => {
   test('renders device basics form fields', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider>
+        <TemplateFormProvider>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -131,7 +131,7 @@ describe('ConnectionSettings', () => {
   test('renders TCP/IP connection settings when TCP is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider initialData={{ 
+        <TemplateFormProvider initialData={{ 
           connectionSettings: { 
             type: 'tcp',
             tcp: {
@@ -142,7 +142,7 @@ describe('ConnectionSettings', () => {
           }
         }}>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -159,7 +159,7 @@ describe('ConnectionSettings', () => {
   test('renders RTU connection settings when RTU is selected', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider initialData={{ 
+        <TemplateFormProvider initialData={{ 
           connectionSettings: { 
             type: 'rtu',
             rtu: {
@@ -173,7 +173,7 @@ describe('ConnectionSettings', () => {
           }
         }}>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -190,9 +190,9 @@ describe('ConnectionSettings', () => {
   test('switches between TCP and RTU connection settings', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider>
+        <TemplateFormProvider>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -232,9 +232,9 @@ describe('ConnectionSettings', () => {
 
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider initialData={{ validationState }}>
+        <TemplateFormProvider initialData={{ validationState }}>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 
@@ -247,9 +247,9 @@ describe('ConnectionSettings', () => {
   test('updates form state when inputs change', () => {
     render(
       <FormFieldRefsContext.Provider value={createFieldRefs()}>
-        <DeviceFormProvider>
+        <TemplateFormProvider>
           <ConnectionSettings />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       </FormFieldRefsContext.Provider>
     );
 

@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
-import DataReaderTab from '../../components/devices/NewDeviceForm/DataReaderTab';
+import { TemplateFormProvider } from '../../components/devices/NewTemplateForm/TemplateFormContext';
+import DataReaderTab from '../../components/devices/NewTemplateForm/DataReaderTab';
 import { RegisterRange } from '../../types/form.types';
 
 // Mock the UI components to simplify testing
@@ -25,7 +25,7 @@ vi.mock('../../components/ui/Tooltip', () => ({
 }));
 
 // Mock the ParameterEditor component to simplify testing
-vi.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => ({
+vi.mock('../../components/devices/NewTemplateForm/ParameterEditor', () => ({
   default: ({ onSave }: { onSave: (param: any) => void }) => {
     return (
       <div data-testid="parameter-editor">
@@ -128,7 +128,7 @@ describe('DataReaderTab', () => {
 
   test('should render with no parameters', () => {
     const { container } = render(
-      <DeviceFormProvider initialData={{ 
+      <TemplateFormProvider initialData={{ 
         registerRanges: mockRegisterRanges,
         connectionSetting: {
           connectionType: 'tcp',
@@ -140,14 +140,14 @@ describe('DataReaderTab', () => {
         }
       }}>
         <DataReaderTab />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
     expect(container).toBeInTheDocument();
   });
 
   test('should show message when no register ranges', () => {
     render(
-      <DeviceFormProvider initialData={{
+      <TemplateFormProvider initialData={{
         connectionSetting: {
           connectionType: 'tcp',
           tcp: {
@@ -158,16 +158,16 @@ describe('DataReaderTab', () => {
         }
       }}>
         <DataReaderTab />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
     expect(screen.getByText(/register ranges required/i)).toBeInTheDocument();
   });
 
   test('should show error when adding parameter with duplicate register index', async () => {
     render(
-      <DeviceFormProvider initialData={initialFormState}>
+      <TemplateFormProvider initialData={initialFormState}>
         <DataReaderTab />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Click to add a new parameter

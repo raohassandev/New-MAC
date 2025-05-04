@@ -21,7 +21,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import NewDeviceForm from '../components/devices/NewDeviceForm/index';
+import DeviceForm from '../components/devices/DeviceForm';
 import { useAuth } from '../context/AuthContext';
 import { useDevices } from '../hooks/useDevices';
 // Import Device type from one consistent source
@@ -1037,24 +1037,12 @@ const DeviceManagement: React.FC = () => {
       )}
 
       {/* New Device Modal */}
-      {isNewDeviceFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-gray-200 p-4">
-              <h2 className="text-xl font-semibold">Add New Physical Device</h2>
-              <button
-                onClick={onNewDeviceFormClose}
-                className="text-gray-500 hover:text-gray-700 focus:outline-none"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4">
-              <NewDeviceForm onClose={onNewDeviceFormClose} onSubmit={onNewDeviceFormSubmit} />
-            </div>
-          </div>
-        </div>
-      )}
+      <DeviceForm 
+        isOpen={isNewDeviceFormOpen}
+        onClose={onNewDeviceFormClose}
+        onSubmit={onNewDeviceFormSubmit}
+        title="Add New Physical Device"
+      />
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

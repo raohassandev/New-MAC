@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import NewDeviceFormContainer from '../../components/devices/NewDeviceForm/NewDeviceFormContainer';
-import { validateDeviceForm } from '../../components/devices/NewDeviceForm/validation';
+import NewTemplateFormContainer from '../../components/devices/NewTemplateForm/NewTemplateFormContainer';
+import { validateTemplateForm } from '../../components/devices/NewTemplateForm/validation';
 import { AuthContext } from '../../context/AuthContext';
 
 // Mock Auth Context Provider
@@ -43,7 +43,7 @@ vi.mock('../../utils/TypeAdapter', () => ({
 }));
 
 // Mock sub-components to simplify testing
-vi.mock('../../components/devices/NewDeviceForm/ConnectionSettings', () => ({
+vi.mock('../../components/devices/NewTemplateForm/ConnectionSettings', () => ({
   default: () => {
     return (
       <div data-testid="connection-settings">
@@ -58,7 +58,7 @@ vi.mock('../../components/devices/NewDeviceForm/ConnectionSettings', () => ({
   }
 }));
 
-vi.mock('../../components/devices/NewDeviceForm/RegisterConfiguration', () => ({
+vi.mock('../../components/devices/NewTemplateForm/RegisterConfiguration', () => ({
   default: () => {
     return (
       <div data-testid="register-configuration">
@@ -68,7 +68,7 @@ vi.mock('../../components/devices/NewDeviceForm/RegisterConfiguration', () => ({
   }
 }));
 
-vi.mock('../../components/devices/NewDeviceForm/DataReaderTab', () => ({
+vi.mock('../../components/devices/NewTemplateForm/DataReaderTab', () => ({
   default: () => {
     return (
       <div data-testid="data-reader-tab">
@@ -78,25 +78,25 @@ vi.mock('../../components/devices/NewDeviceForm/DataReaderTab', () => ({
   }
 }));
 
-vi.mock('../../components/devices/NewDeviceForm/FormGuide', () => ({
+vi.mock('../../components/devices/NewTemplateForm/FormGuide', () => ({
   default: () => {
     return <div data-testid="form-guide"></div>;
   }
 }));
 
-vi.mock('../../components/devices/NewDeviceForm/ValidationMessages', () => ({
+vi.mock('../../components/devices/NewTemplateForm/ValidationMessages', () => ({
   default: () => {
     return <div data-testid="validation-messages"></div>;
   }
 }));
 
 // Mock validation functions to control test behavior
-vi.mock('../../components/devices/NewDeviceForm/validation', () => {
-  const original = vi.importActual('../../components/devices/NewDeviceForm/validation');
+vi.mock('../../components/devices/NewTemplateForm/validation', () => {
+  const original = vi.importActual('../../components/devices/NewTemplateForm/validation');
 
   return {
     ...original,
-    validateDeviceForm: vi.fn(),
+    validateTemplateForm: vi.fn(),
     convertValidationErrorsToState: vi.fn(errors => ({
       isValid: errors.isValid,
       basicInfo: errors.basicInfo.map(msg => ({ field: 'test', message: msg })),
@@ -108,7 +108,7 @@ vi.mock('../../components/devices/NewDeviceForm/validation', () => {
   };
 });
 
-describe('NewDeviceFormContainer', () => {
+describe('NewTemplateFormContainer', () => {
   const mockOnClose = vi.fn();
   const mockOnSubmit = vi.fn();
 
@@ -116,7 +116,7 @@ describe('NewDeviceFormContainer', () => {
     vi.clearAllMocks();
 
     // Default mock implementation for validation function - no errors
-    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    (validateTemplateForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: true,
       basicInfo: [],
       connection: [],
@@ -132,7 +132,7 @@ describe('NewDeviceFormContainer', () => {
   };
 
   test('renders all form tabs', () => {
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Initially should show connection settings tab
     expect(screen.getByTestId('connection-settings')).toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('navigation between tabs works correctly', async () => {
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Click Next button to move to register configuration
     fireEvent.click(screen.getByText('Next'));
@@ -166,18 +166,18 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('validation runs on tab change', async () => {
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Try to navigate to next tab
     fireEvent.click(screen.getByText('Next'));
 
     // Validation should have been called
-    expect(validateDeviceForm).toHaveBeenCalled();
+    expect(validateTemplateForm).toHaveBeenCalled();
   });
 
   test('shows validation errors when navigation attempted with invalid data', async () => {
     // Mock validation to return errors
-    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    (validateTemplateForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: ['IP address is required'],
@@ -186,7 +186,7 @@ describe('NewDeviceFormContainer', () => {
       general: [],
     });
 
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Try to navigate to next tab
     fireEvent.click(screen.getByText('Next'));
@@ -202,7 +202,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('form submission works with valid data', async () => {
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Navigate to the final tab
     fireEvent.click(screen.getByText('Next')); // to register config
@@ -224,7 +224,7 @@ describe('NewDeviceFormContainer', () => {
 
   test('form submission blocked with invalid data', async () => {
     // Mock validation to return errors on final step
-    (validateDeviceForm as jest.Mock).mockReturnValue({
+    (validateTemplateForm as jest.Mock).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: [],
@@ -233,10 +233,10 @@ describe('NewDeviceFormContainer', () => {
       general: [],
     });
 
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     // Navigate to the final tab - using a custom mock to allow navigation despite errors
-    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    (validateTemplateForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: true,
       basicInfo: [],
       connection: [],
@@ -249,7 +249,7 @@ describe('NewDeviceFormContainer', () => {
     fireEvent.click(screen.getByText('Next')); // to data reader
 
     // Now set validation to fail for submission
-    (validateDeviceForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    (validateTemplateForm as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       isValid: false,
       basicInfo: [],
       connection: [],
@@ -272,7 +272,7 @@ describe('NewDeviceFormContainer', () => {
 
   test('form loads initial data correctly', () => {
     const initialData = {
-      name: 'Test Device',
+      name: 'Test Template',
       make: 'Test Make',
       model: 'Test Model',
       deviceType: 'Test Type',
@@ -310,7 +310,7 @@ describe('NewDeviceFormContainer', () => {
     };
 
     renderWithAuth(
-      <NewDeviceFormContainer
+      <NewTemplateFormContainer
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialData={initialData}
@@ -333,7 +333,7 @@ describe('NewDeviceFormContainer', () => {
   });
 
   test('cancel button calls onClose', () => {
-    renderWithAuth(<NewDeviceFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
+    renderWithAuth(<NewTemplateFormContainer onClose={mockOnClose} onSubmit={mockOnSubmit} />);
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(mockOnClose).toHaveBeenCalled();
