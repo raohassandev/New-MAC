@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import RegisterRangeEditor from '../../components/devices/NewDeviceForm/RegisterRangeEditor';
+import RegisterRangeEditor from '../../components/templates/RegisterRangeEditor';
 import { RegisterRange } from '../../types/form.types';
 
 // Mock Form component and its subcomponents

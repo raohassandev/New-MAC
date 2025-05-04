@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { DeviceFormProvider } from '../../components/devices/NewDeviceForm/DeviceformContext';
-import DataReaderTab from '../../components/devices/NewDeviceForm/DataReaderTab';
-import ParameterEditor from '../../components/devices/NewDeviceForm/ParameterEditor';
-import { validateParameters } from '../../components/devices/NewDeviceForm/validation';
+import { TemplateFormProvider } from '../../components/templates/TemplateFormContext';
+import DataReaderTab from '../../components/templates/DataReaderTab';
+import ParameterEditor from '../../components/templates/ParameterEditor';
+import { validateParameters } from '../../components/templates/validation';
 import { RegisterRange, ParameterConfig } from '../../types/form.types';
 
 // Mock the UI components
@@ -55,7 +55,7 @@ const validParam: ParameterConfig = {
   signed: true,
 };
 
-describe('NewDeviceForm Parameter Validation', () => {
+describe('TemplateForm Parameter Validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -136,9 +136,9 @@ describe('NewDeviceForm Parameter Validation', () => {
     // Just to ensure the component renders and basic interactions work
     test('should render with no parameters', () => {
       const { container } = render(
-        <DeviceFormProvider initialData={{ registerRanges: mockRegisterRanges }}>
+        <TemplateFormProvider initialData={{ registerRanges: mockRegisterRanges }}>
           <DataReaderTab />
-        </DeviceFormProvider>
+        </TemplateFormProvider>
       );
       expect(container).toBeInTheDocument();
     });

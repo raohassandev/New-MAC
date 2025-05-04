@@ -1,12 +1,14 @@
 // client/src/components/devices/NewTemplateForm/ConnectionSettings.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
-import { Input } from '../../ui/Input';
-import { Form } from '../../ui/Form';
+import { Input } from '@/components/ui/Input';
+import { Form } from '@/components/ui/Form';
 import { AlertCircle } from 'lucide-react';
 import { FormFieldRefsContext } from './FormFieldRefsContext';
-import NewDeviceTypeModal from '../NewDeviceTypeModal';
-import { getDeviceTypes, createDeviceType, DeviceType } from '../../../services/templates';
+import { createDeviceType, getDeviceTypes, NewDeviceType } from '@/services';
+import NewDeviceTypeModal from '../devices/NewDeviceTypeModal';
+// import NewDeviceTypeModal from '../../../devices/NewDeviceTypeModal';
+// import { getDeviceTypes, createDeviceType, DeviceType } from '../../../services/templates';
 
 // We need to create a custom Select component for type compatibility
 interface SelectOption {
@@ -67,7 +69,7 @@ const TemplateConnectionSettings: React.FC = () => {
   const { refs } = useContext(FormFieldRefsContext);
   
   // State for device types and modal
-  const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>([]);
+  const [deviceTypes, setDeviceTypes] = useState<NewDeviceType[]>([]);
   const [showNewDeviceTypeModal, setShowNewDeviceTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   

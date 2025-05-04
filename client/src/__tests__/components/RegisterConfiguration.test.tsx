@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import RegisterConfiguration from '../../components/devices/NewDeviceForm/RegisterConfiguration';
+import RegisterConfiguration from '../../components/templates/RegisterConfiguration';
 
 // Mock the DeviceFormContext to provide the required state and actions
 const mockActions = {
@@ -14,13 +14,13 @@ const mockActions = {
   // Add other actions as needed
 };
 
-// Mock the DeviceFormProvider
-vi.mock('../../components/devices/NewDeviceForm/DeviceformContext', () => {
-  // Import the "useDeviceForm" with explicit type import to avoid TypeScript errors
-  const { useDeviceForm } = vi.importActual('../../components/devices/NewDeviceForm/DeviceformContext');
+// Mock the TemplateFormProvider
+vi.mock('../../components/templates/TemplateFormContext', () => {
+  // Import the "useTemplateForm" with explicit type import to avoid TypeScript errors
+  const { useTemplateForm } = vi.importActual('../../components/templates/TemplateFormContext');
   
   return {
-    useDeviceForm: vi.fn(() => ({
+    useTemplateForm: vi.fn(() => ({
       state: {
         registerRanges: [],
         connectionSetting: {
@@ -35,9 +35,9 @@ vi.mock('../../components/devices/NewDeviceForm/DeviceformContext', () => {
       },
       actions: mockActions,
     })),
-    DeviceFormProvider: ({ children, initialData = {} }: { children: React.ReactNode, initialData?: any }) => {
-      // Update the mock implementation for useDeviceForm to use initialData
-      vi.mocked(useDeviceForm).mockImplementation(() => ({
+    TemplateFormProvider: ({ children, initialData = {} }: { children: React.ReactNode, initialData?: any }) => {
+      // Update the mock implementation for useTemplateForm to use initialData
+      vi.mocked(useTemplateForm).mockImplementation(() => ({
         state: {
           ...initialData,
           registerRanges: initialData.registerRanges || [],
@@ -53,7 +53,7 @@ vi.mock('../../components/devices/NewDeviceForm/DeviceformContext', () => {
         actions: mockActions,
       }));
       
-      return <div data-testid="device-form-provider">{children}</div>;
+      return <div data-testid="template-form-provider">{children}</div>;
     },
   };
 });
@@ -88,7 +88,7 @@ vi.mock('../../components/ui/Button', () => ({
 }));
 
 // Mock RegisterRangeEditor component
-vi.mock('../../components/devices/NewDeviceForm/RegisterRangeEditor', () => ({
+vi.mock('../../components/templates/RegisterRangeEditor', () => ({
   default: ({
     initialData,
     onSave,
@@ -155,9 +155,9 @@ describe('RegisterConfiguration', () => {
   // Test initial render with no ranges
   test('renders empty state when no register ranges exist', () => {
     render(
-      <DeviceFormProvider>
+      <TemplateFormProvider>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Should show empty state message
@@ -170,9 +170,9 @@ describe('RegisterConfiguration', () => {
   // Test with existing ranges
   test('renders existing register ranges', () => {
     render(
-      <DeviceFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
+      <TemplateFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Should show all range names
@@ -187,9 +187,9 @@ describe('RegisterConfiguration', () => {
   // Test adding a new range
   test('allows adding a new register range', async () => {
     render(
-      <DeviceFormProvider>
+      <TemplateFormProvider>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Initially no ranges
@@ -216,9 +216,9 @@ describe('RegisterConfiguration', () => {
   // Test editing a range
   test('allows editing an existing register range', async () => {
     render(
-      <DeviceFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
+      <TemplateFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Find and click edit button on first range
@@ -240,9 +240,9 @@ describe('RegisterConfiguration', () => {
   // Test deleting a range
   test('allows deleting a register range', async () => {
     render(
-      <DeviceFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
+      <TemplateFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Initially should have 2 ranges
@@ -263,9 +263,9 @@ describe('RegisterConfiguration', () => {
   // Test expanding/collapsing a range
   test('allows expanding and collapsing a register range', async () => {
     render(
-      <DeviceFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
+      <TemplateFormProvider initialData={{ registerRanges: sampleRegisterRanges }}>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Initially ranges are collapsed
@@ -291,9 +291,9 @@ describe('RegisterConfiguration', () => {
   // Test canceling add/edit operations
   test('cancels add operation correctly', async () => {
     render(
-      <DeviceFormProvider>
+      <TemplateFormProvider>
         <RegisterConfiguration />
-      </DeviceFormProvider>
+      </TemplateFormProvider>
     );
 
     // Click add range

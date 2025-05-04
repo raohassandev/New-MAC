@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { TemplateFormProvider } from '../../components/devices/NewTemplateForm/TemplateFormContext';
-import DataReaderTab from '../../components/devices/NewTemplateForm/DataReaderTab';
+import { TemplateFormProvider } from '../../components/templates/TemplateFormContext';
+import DataReaderTab from '../../components/templates/DataReaderTab';
 import { RegisterRange } from '../../types/form.types';
 
 // Mock the UI components to simplify testing
@@ -25,7 +25,7 @@ vi.mock('../../components/ui/Tooltip', () => ({
 }));
 
 // Mock the ParameterEditor component to simplify testing
-vi.mock('../../components/devices/NewTemplateForm/ParameterEditor', () => ({
+vi.mock('../../components/templates/ParameterEditor', () => ({
   default: ({ onSave }: { onSave: (param: any) => void }) => {
     return (
       <div data-testid="parameter-editor">

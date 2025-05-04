@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import NewTemplateFormContainer from '../../components/devices/NewTemplateForm/NewTemplateFormContainer';
-import { validateTemplateForm } from '../../components/devices/NewTemplateForm/validation';
+import NewTemplateFormContainer from '../../components/templates/NewTemplateFormContainer';
+import { validateTemplateForm } from '../../components/templates/validation';
 import { AuthContext } from '../../context/AuthContext';
 
 // Mock Auth Context Provider
@@ -43,7 +43,7 @@ vi.mock('../../utils/TypeAdapter', () => ({
 }));
 
 // Mock sub-components to simplify testing
-vi.mock('../../components/devices/NewTemplateForm/ConnectionSettings', () => ({
+vi.mock('../../components/templates/ConnectionSettings', () => ({
   default: () => {
     return (
       <div data-testid="connection-settings">
@@ -58,7 +58,7 @@ vi.mock('../../components/devices/NewTemplateForm/ConnectionSettings', () => ({
   }
 }));
 
-vi.mock('../../components/devices/NewTemplateForm/RegisterConfiguration', () => ({
+vi.mock('../../components/templates/RegisterConfiguration', () => ({
   default: () => {
     return (
       <div data-testid="register-configuration">
@@ -68,7 +68,7 @@ vi.mock('../../components/devices/NewTemplateForm/RegisterConfiguration', () => 
   }
 }));
 
-vi.mock('../../components/devices/NewTemplateForm/DataReaderTab', () => ({
+vi.mock('../../components/templates/DataReaderTab', () => ({
   default: () => {
     return (
       <div data-testid="data-reader-tab">
@@ -78,21 +78,21 @@ vi.mock('../../components/devices/NewTemplateForm/DataReaderTab', () => ({
   }
 }));
 
-vi.mock('../../components/devices/NewTemplateForm/FormGuide', () => ({
+vi.mock('../../components/templates/FormGuide', () => ({
   default: () => {
     return <div data-testid="form-guide"></div>;
   }
 }));
 
-vi.mock('../../components/devices/NewTemplateForm/ValidationMessages', () => ({
+vi.mock('../../components/templates/ValidationMessages', () => ({
   default: () => {
     return <div data-testid="validation-messages"></div>;
   }
 }));
 
 // Mock validation functions to control test behavior
-vi.mock('../../components/devices/NewTemplateForm/validation', () => {
-  const original = vi.importActual('../../components/devices/NewTemplateForm/validation');
+vi.mock('../../components/templates/validation', () => {
+  const original = vi.importActual('../../components/templates/validation');
 
   return {
     ...original,

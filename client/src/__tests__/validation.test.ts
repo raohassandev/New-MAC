@@ -3,9 +3,9 @@ import {
   validateConnectionSettings,
   validateRegisterRanges,
   validateParameters,
-  validateDeviceForm,
+  validateTemplateForm as validateDeviceForm,
   convertValidationErrorsToState,
-} from '../components/devices/NewDeviceForm/validation';
+} from '../components/templates/validation';
 
 describe('Device Form Validation Functions', () => {
   // Device Basics Validation Tests

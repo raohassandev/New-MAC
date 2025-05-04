@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { RegisterRange } from '../../types/form.types';
-import ParameterEditor from '../../components/devices/NewDeviceForm/ParameterEditor';
+import ParameterEditor from '../../components/templates/ParameterEditor';
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
@@ -168,7 +168,7 @@ const MockParameterEditor = ({ onSave, onCancel, availableRanges, initialData }:
 };
 
 // Mock the ParameterEditor component
-vi.mock('../../components/devices/NewDeviceForm/ParameterEditor', () => ({
+vi.mock('../../components/templates/ParameterEditor', () => ({
   default: (props: any) => MockParameterEditor(props)
 }));
 

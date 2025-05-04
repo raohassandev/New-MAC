@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
-import { TemplateFormProvider } from '../../components/devices/NewTemplateForm/TemplateFormContext';
-import ConnectionSettings from '../../components/devices/NewTemplateForm/ConnectionSettings';
-import { FormFieldRefsContext } from '../../components/devices/NewTemplateForm/FormFieldRefsContext';
+import { TemplateFormProvider } from '../../components/templates/TemplateFormContext';
+import ConnectionSettings from '../../components/templates/ConnectionSettings';
+import { FormFieldRefsContext } from '../../components/templates/FormFieldRefsContext';
 
 // Mock UI components to simplify testing
 vi.mock('../../components/ui/Input', () => ({

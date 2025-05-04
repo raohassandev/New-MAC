@@ -1,7 +1,7 @@
 import { CreditCard, Edit, FileText, Plus, Search, Trash, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NewTemplateForm from '../components/devices/NewTemplateForm/index';
+import NewTemplateForm from '../components/templates/index';
 import { useTemplates } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
  
