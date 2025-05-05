@@ -95,6 +95,7 @@ export interface IDevice extends Omit<Document, 'model'> {
   usage?: string;
   usageNotes?: string;
   location?: string;
+  pollingInterval?: number;
   
   // Legacy fields for backward compatibility
   ip?: string;
@@ -210,6 +211,7 @@ export const DeviceSchema = new Schema<IDevice>({
   usage: { type: String },
   usageNotes: { type: String },
   location: { type: String },
+  pollingInterval: { type: Number, default: 30000 }, // Default to 30 seconds
   
   // Legacy fields for backward compatibility
   ip: { type: String },

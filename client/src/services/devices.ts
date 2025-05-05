@@ -354,13 +354,57 @@ export async function deleteDevice(id: string): Promise<boolean> {
   }
 }
 
-export async function testConnection(id: string): Promise<{ success: boolean; message: string }> {
+export async function testConnection(id: string): Promise<{ 
+  success: boolean; 
+  message: string; 
+  error?: string; 
+  errorType?: string;
+  troubleshooting?: string;
+  deviceInfo?: any 
+}> {
   try {
     // Use the deviceApi from endpoints.ts
     const response = await deviceApi.testConnection(id);
     return response.data || response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error testing device connection via API:', error);
-    return { success: false, message: 'Connection test failed' };
+    
+    // Extract detailed error message from response if available
+    let errorMessage = 'Connection test failed';
+    let errorDetails = null;
+    let deviceInfo = null;
+    let errorType = null;
+    let troubleshooting = null;
+    
+    if (error.response && error.response.data) {
+      // API returned an error response with data
+      if (error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      if (error.response.data.error) {
+        errorDetails = error.response.data.error;
+      }
+      if (error.response.data.deviceInfo) {
+        deviceInfo = error.response.data.deviceInfo;
+      }
+      if (error.response.data.errorType) {
+        errorType = error.response.data.errorType;
+      }
+      if (error.response.data.troubleshooting) {
+        troubleshooting = error.response.data.troubleshooting;
+      }
+    } else if (error.message) {
+      // Network or client-side error
+      errorMessage = `Connection test failed: ${error.message}`;
+    }
+    
+    return { 
+      success: false, 
+      message: errorMessage,
+      error: errorDetails,
+      errorType: errorType,
+      troubleshooting: troubleshooting,
+      deviceInfo: deviceInfo
+    };
   }
 }

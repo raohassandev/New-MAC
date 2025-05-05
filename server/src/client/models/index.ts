@@ -2,10 +2,11 @@ import Alert from './Alert';
 import Device, { createDeviceModel } from './Device';
 import Profile from './Profile';
 import User from './User';
+import HistoricalData from './HistoricalData';
 import mongoose from 'mongoose';
 
 // Export models
-export { User, Device, Profile, Alert, createDeviceModel };
+export { User, Device, Profile, Alert, HistoricalData, createDeviceModel };
 
 /**
  * Initialize and return all client models using the provided database connection
@@ -24,11 +25,16 @@ export const clientModels = (connection: mongoose.Connection) => {
     // Create models using the provided client connection
     const DeviceModel = createDeviceModel(connection);
     
+    // Create HistoricalData model
+    const HistoricalDataSchema = HistoricalData.schema;
+    const HistoricalDataModel = connection.model('HistoricalData', HistoricalDataSchema);
+    
     console.log('Client models initialized successfully with specific connection');
     
     // Return an object containing all models
     return {
-      Device: DeviceModel
+      Device: DeviceModel,
+      HistoricalData: HistoricalDataModel
     };
   } catch (error) {
     console.error('Error initializing client models:', error);
@@ -51,3 +57,4 @@ export type {
 } from './Device';
 export type { IProfile, ISchedule, IScheduleTime } from './Profile';
 export type { IAlert } from './Alert';
+export type { IHistoricalData } from './HistoricalData';

@@ -59,7 +59,12 @@ api.interceptors.response.use(
         default:
           // Other errors
           if (response.data?.message) {
-            toast.error(response.data.message);
+            // Special handling for connection test and device read operations
+            // Don't show toast notifications since we'll display them in the component UI
+            if (!response.config.url?.includes('/test') && !response.config.url?.includes('/read')) {
+              // For other errors without specific handling, show toast notification
+              toast.error(response.data.message);
+            }
           } else {
             toast.error('An error occurred. Please try again.');
           }
@@ -69,6 +74,8 @@ api.interceptors.response.use(
       toast.error('Cannot connect to the server. Please check your internet connection.');
     }
 
+    // Ensure we preserve the full error response for component handling
+    // This allows components to access the troubleshooting guides and other details
     return Promise.reject(error);
   }
 );

@@ -128,9 +128,11 @@ const DeviceManagement: React.FC = () => {
 
     // Apply status filter
     if (statusFilter) {
-      filtered = filtered.filter(device =>
-        statusFilter === 'online' ? device.enabled : !device.enabled
-      );
+      filtered = filtered.filter(device => {
+        // Check if device is online based on both enabled and lastSeen
+        const isOnline = device.enabled && device.lastSeen;
+        return statusFilter === 'online' ? isOnline : !isOnline;
+      });
     }
 
     // Apply type filter
@@ -387,10 +389,11 @@ const DeviceManagement: React.FC = () => {
   // Get device statistics
   const getDeviceStats = () => {
     const total = filteredDevices.length;
-    const online = filteredDevices.filter(device => device.enabled).length;
-    const offline = total - online;
+    const online = filteredDevices.filter(device => device.enabled && device.lastSeen).length;
+    const warning = filteredDevices.filter(device => device.enabled && !device.lastSeen).length;
+    const offline = total - online - warning;
 
-    return { total, online, offline };
+    return { total, online, offline, warning };
   };
 
   const onNewDeviceFormSubmit = (value: any) => {
@@ -802,7 +805,7 @@ const DeviceManagement: React.FC = () => {
                         >
                           <div
                             className={`mr-2 h-2.5 w-2.5 rounded-full ${
-                              device.enabled ? 'bg-green-500' : 'bg-red-500'
+                              device.enabled && device.lastSeen ? 'bg-green-500' : 'bg-red-500'
                             }`}
                           ></div>
                           <div className="font-medium text-gray-900">{device.name}</div>
@@ -826,10 +829,10 @@ const DeviceManagement: React.FC = () => {
                     <Table.Cell>
                       <span
                         className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-5 ${
-                          device.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          device.enabled && device.lastSeen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {device.enabled ? 'Online' : 'Offline'}
+                        {device.enabled && device.lastSeen ? 'Online' : 'Offline'}
                       </span>
                     </Table.Cell>
                     <Table.Cell>
@@ -921,8 +924,10 @@ const DeviceManagement: React.FC = () => {
                   </div>
                   <div
                     className={`h-3 w-3 rounded-full ${
-                      device.enabled ? 'bg-green-500' : 'bg-red-500'
+                      device.enabled && device.lastSeen ? 'bg-green-500' : 
+                      device.enabled ? 'bg-yellow-500' : 'bg-red-500'
                     }`}
+                    title={device.enabled ? (device.lastSeen ? 'Online' : 'Enabled but not connected') : 'Offline'}
                   ></div>
                 </div>
 

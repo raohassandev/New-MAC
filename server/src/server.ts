@@ -10,6 +10,7 @@ import { clientModels } from './client/models';
 import { clientRouter } from './client/routes';
 import connectAmxToDB from './amx/config/db';
 import { amxRouter } from './amx/routes';
+import { initializeDevicePolling } from './client/services/deviceInitializer';
 
 // Load environment variables
 dotenv.config();
@@ -99,10 +100,26 @@ const startServer = async () => {
     app.locals.clientModels = clientDBModels;
 
     // Start server after successful database connections
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
       console.log(`MACSYS Backend running on port ${PORT}`);
       console.log(`- Client DB: connected (${process.env.MONGO_URI || 'mongodb://localhost:27017/client'})`);
       console.log(`- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`);
+      
+      // Initialize device polling (default 30 second interval)
+      try {
+        // Check environment to determine if we should enable developer mode
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        const developerMode = isDevelopment && process.env.ENABLE_DEVELOPER_MODE === 'true';
+        
+        // Enable developer mode if in development environment and the environment variable is set
+        await initializeDevicePolling(30000, developerMode);
+        
+        if (developerMode) {
+          console.log('Developer mode enabled: Some physical devices may be skipped to prevent errors');
+        }
+      } catch (err) {
+        console.error('Failed to initialize device polling:', err);
+      }
     });
   } catch (err) {
     console.error('Database connection error:', err);

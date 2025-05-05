@@ -494,13 +494,78 @@ export const testDeviceConnection = async (req: Request, res: Response) => {
       });
     } catch (modbusError: any) {
       console.error('Modbus connection error:', modbusError);
+      
+      // Create a more detailed error message based on error type
+      let errorMessage = 'Connection failed';
+      let errorType = 'UNKNOWN_ERROR';
+      let troubleshooting = 'Verify your device configuration and try again.';
+      
+      // Store the connection type in local variable
+      const deviceConnectionType = device.connectionSetting?.connectionType || device.connectionType || 'tcp';
+      
+      // Store connection info locally for error messages to avoid scope issues
+      const deviceIp = deviceConnectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : (device.ip || '');
+      const devicePort = deviceConnectionType === 'tcp' ? device.connectionSetting?.tcp?.port : (device.port || 0);
+      const deviceSerialPort = deviceConnectionType === 'rtu' ? device.connectionSetting?.rtu?.serialPort : (device.serialPort || '');
+      
+      if (modbusError.code === 'ECONNREFUSED') {
+        errorType = 'CONNECTION_REFUSED';
+        errorMessage = `Connection refused at ${deviceIp}:${devicePort}. The device may be offline or unreachable.`;
+        troubleshooting = 'Please check:\n• Device is powered on and network is connected\n• IP address and port are correct\n• Any firewalls or network security is allowing the connection\n• The device is properly configured to accept Modbus TCP connections';
+      } else if (modbusError.code === 'ETIMEDOUT') {
+        errorType = 'CONNECTION_TIMEOUT';
+        errorMessage = `Connection timed out when connecting to ${deviceIp}:${devicePort}. The device is not responding.`;
+        troubleshooting = 'Please check:\n• Network connectivity to the device\n• Device is powered on and functioning\n• Device is not in a busy state or overloaded\n• Network latency is not too high';
+      } else if (modbusError.message.includes('No such file or directory')) {
+        errorType = 'PORT_NOT_FOUND';
+        errorMessage = `Serial port ${deviceSerialPort} does not exist on this system.`;
+        troubleshooting = 'Please check:\n• Serial port name is correct (COM ports on Windows, /dev/tty* on Linux/Mac)\n• Serial device is properly connected to the computer\n• Serial-to-USB adapter drivers are installed if applicable\n• The port is not being used by another application';
+      } else if (modbusError.message.includes('Access denied')) {
+        errorType = 'PERMISSION_DENIED';
+        errorMessage = `Permission denied for serial port ${deviceSerialPort}.`;
+        troubleshooting = 'Please check:\n• Your account has permissions to access serial ports\n• On Linux/Mac, you may need to add your user to the "dialout" group\n• Serial port is not locked by another process\n• Try running the application with administrator/root privileges';
+      } else if (modbusError.message.includes('Port is opening')) {
+        errorType = 'PORT_BUSY';
+        errorMessage = 'The serial port is in use by another process.';
+        troubleshooting = 'Please check:\n• Close any other applications that might be using the serial port\n• Restart the device to release any locked port connections\n• On Windows, check Device Manager to see if the port has any conflicts';
+      } else if (modbusError.message.includes('Received no valid response')) {
+        errorType = 'DEVICE_NO_RESPONSE';
+        errorMessage = 'The device did not respond correctly to the Modbus request.';
+        troubleshooting = 'Please check:\n• The slave/unit ID is correct\n• The Modbus device is configured to respond to the function code being used\n• The device supports the Modbus commands being sent\n• The register address is within the valid range for this device';
+      } else if (modbusError.message.includes('Illegal function')) {
+        errorType = 'ILLEGAL_FUNCTION';
+        errorMessage = 'The device does not support the Modbus function being used.';
+        troubleshooting = 'Please check:\n• The device documentation for supported Modbus function codes\n• Verify the correct function code is being used for this device\n• Some devices only support a subset of Modbus functions';
+      } else if (modbusError.message.includes('Illegal data address')) {
+        errorType = 'ILLEGAL_ADDRESS';
+        errorMessage = 'The register address requested does not exist on this device.';
+        troubleshooting = 'Please check:\n• The register address map documentation for your device\n• Address mapping (e.g., some devices start at 0, others at 1)\n• Address offsets and ranges for this specific device model';
+      } else if (modbusError.message) {
+        errorMessage = `${errorMessage}: ${modbusError.message}`;
+        troubleshooting = 'Review device documentation and Modbus specifications for more specific guidance.';
+      }
+      
       res.status(400).json({
         success: false,
-        message: `Connection failed: ${modbusError.message}`,
+        message: errorMessage,
+        error: modbusError.message,
+        troubleshooting: troubleshooting,
+        errorType: errorType,
+        deviceInfo: {
+          name: device.name,
+          connectionType: deviceConnectionType,
+          address: deviceConnectionType === 'tcp' ? `${deviceIp}:${devicePort}` : deviceSerialPort,
+        }
       });
     } finally {
-      // Close the connection
-      client.close();
+      // Close the connection if open
+      try {
+        if (client.isOpen) {
+          await client.close();
+        }
+      } catch (closeError) {
+        console.warn('Error closing Modbus connection:', closeError);
+      }
     }
   } catch (error: any) {
     console.error('Test connection error:', error);

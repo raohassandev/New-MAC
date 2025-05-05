@@ -34,8 +34,10 @@ afterAll(async () => {
 });
 
 // Mocks for environment variables
-jest.mock('../config/db', () => ({
-  connectDB: jest.fn().mockResolvedValue({}),
+jest.mock('../client/config/db', () => ({
+  connectClientToDB: jest.fn().mockResolvedValue({}),
+  __esModule: true,
+  default: jest.fn().mockResolvedValue({})
 }));
 
 // Mock JWT for testing
@@ -59,19 +61,19 @@ jest.mock('bcryptjs', () => ({
 // Model mocks are imported at the top of the file
 
 // Mock the User model
-jest.mock('../models/User', () => ({
+jest.mock('../client/models/User', () => ({
   __esModule: true,
   default: UserMock
 }));
 
 // Mock the Device model
-jest.mock('../models/Device', () => ({
+jest.mock('../client/models/Device', () => ({
   __esModule: true,
   default: DeviceMock
 }));
 
 // Mock the Profile model
-jest.mock('../models/Profile', () => ({
+jest.mock('../client/models/Profile', () => ({
   __esModule: true,
   default: ProfileMock
 }));

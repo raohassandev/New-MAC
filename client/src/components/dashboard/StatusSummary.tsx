@@ -70,6 +70,7 @@ const StatusSummary: React.FC<StatusSummaryProps> = ({
               <span className="text-sm text-gray-600">Online</span>
             </div>
             <span className="text-2xl font-semibold text-green-600">{data.online}</span>
+            <div className="mt-1 text-xs text-gray-500">Devices with successful connections</div>
           </div>
 
           <div className="flex flex-col items-center justify-center rounded-lg bg-red-50 p-3">
