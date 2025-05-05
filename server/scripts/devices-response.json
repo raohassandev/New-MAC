@@ -1,0 +1,137 @@
+{
+  "devices": [
+    {
+      "_id": "6818b9e68c23935240fb1089",
+      "name": "A8 IoT PLC",
+      "make": "CVM",
+      "model": "C4 TPM30",
+      "description": "Standard power analyzer device driver for CVM C4 devices",
+      "enabled": true,
+      "tags": [
+        "hjhd"
+      ],
+      "connectionSetting": {
+        "connectionType": "tcp",
+        "tcp": {
+          "ip": "192.168.1.112",
+          "port": 502,
+          "slaveId": 1,
+          "_id": "6818b9e68c23935240fb108b"
+        },
+        "rtu": {
+          "serialPort": "N/A",
+          "baudRate": 9600,
+          "dataBits": 8,
+          "stopBits": 1,
+          "parity": "none",
+          "slaveId": 1,
+          "_id": "6818b9e68c23935240fb108c"
+        },
+        "_id": "6818b9e68c23935240fb108a"
+      },
+      "dataPoints": [
+        {
+          "range": {
+            "startAddress": 0,
+            "count": 2,
+            "fc": 3,
+            "_id": "6818b9e68c23935240fb108e"
+          },
+          "parser": {
+            "parameters": [
+              {
+                "name": "Voltage",
+                "dataType": "FLOAT",
+                "scalingFactor": 1,
+                "decimalPoint": 1,
+                "byteOrder": "ABCD",
+                "signed": true,
+                "registerRange": "Electrical",
+                "registerIndex": 0,
+                "wordCount": 2,
+                "_id": "6818b9e68c23935240fb1090"
+              }
+            ],
+            "_id": "6818b9e68c23935240fb108f"
+          },
+          "_id": "6818b9e68c23935240fb108d"
+        }
+      ],
+      "deviceDriverId": "deviceDriver_1",
+      "usage": "pressure",
+      "usageNotes": "thisbis tgee bire",
+      "location": "Lahore",
+      "pollingInterval": 30000,
+      "registers": [],
+      "registerRanges": [],
+      "parameterConfigs": [],
+      "createdAt": "2025-05-05T13:15:18.712Z",
+      "updatedAt": "2025-05-05T13:15:18.721Z",
+      "__v": 0
+    },
+    {
+      "_id": "6818bb69ecc857db0d8e3e77",
+      "name": "Test Siemens S7 PLC",
+      "description": "Test device for development",
+      "enabled": true,
+      "make": "Siemens",
+      "model": "S7-1200",
+      "connectionSetting": {
+        "connectionType": "tcp",
+        "tcp": {
+          "ip": "192.168.1.100",
+          "port": 502,
+          "slaveId": 1
+        },
+        "rtu": {
+          "serialPort": "",
+          "baudRate": 9600,
+          "dataBits": 8,
+          "stopBits": 1,
+          "parity": "none",
+          "slaveId": 1
+        }
+      },
+      "dataPoints": [
+        {
+          "range": {
+            "startAddress": 0,
+            "count": 10,
+            "fc": 3
+          },
+          "parser": {
+            "parameters": [
+              {
+                "name": "Temperature",
+                "dataType": "FLOAT",
+                "registerIndex": 0,
+                "scalingFactor": 0.1,
+                "unit": "°C",
+                "_id": "6818bb69ecc857db0d8e3e79"
+              },
+              {
+                "name": "Pressure",
+                "dataType": "FLOAT",
+                "registerIndex": 2,
+                "scalingFactor": 0.01,
+                "unit": "Bar",
+                "_id": "6818bb69ecc857db0d8e3e7a"
+              }
+            ]
+          },
+          "_id": "6818bb69ecc857db0d8e3e78"
+        }
+      ],
+      "lastSeen": "2025-05-05T13:21:45.532Z",
+      "createdAt": "2025-05-05T13:21:45.535Z",
+      "updatedAt": "2025-05-05T13:21:45.535Z",
+      "__v": 0
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "page": 1,
+    "limit": 100,
+    "pages": 1
+  }
+}

@@ -8,13 +8,14 @@ import express from 'express';
 const router: Router = express.Router();
 
 // Apply authentication middleware to all routes
-// router.use(protect as express.RequestHandler);
+// Comment out during development/testing, but should be enabled in production
+router.use(protect as express.RequestHandler);
 
 router
   .route('/')
   .get(deviceController.getDevices as express.RequestHandler)
   .post(
-    // checkPermission(['manage_devices']) as express.RequestHandler,
+    checkPermission(['manage_devices']) as express.RequestHandler,
     deviceController.createDevice as express.RequestHandler
   );
 

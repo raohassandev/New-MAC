@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export type UserRole = 'user' | 'engineer' | 'admin' | 'template_manager';
 
