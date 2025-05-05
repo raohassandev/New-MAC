@@ -34,10 +34,14 @@ afterAll(async () => {
 });
 
 // Mocks for environment variables
-jest.mock('../client/config/db', () => ({
+jest.mock('../config/database', () => ({
   connectClientToDB: jest.fn().mockResolvedValue({}),
+  connectAmxToDB: jest.fn().mockResolvedValue({}),
   __esModule: true,
-  default: jest.fn().mockResolvedValue({})
+  default: { 
+    connectClientToDB: jest.fn().mockResolvedValue({}),
+    connectAmxToDB: jest.fn().mockResolvedValue({})
+  }
 }));
 
 // Mock JWT for testing

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { connectAmxToDB } from '../config/database';
 
 // Load environment variables
 dotenv.config();
@@ -9,25 +10,25 @@ async function checkDatabase() {
     console.log('Checking AMX database connection...');
     
     // Get MongoDB URI from environment or use default
-    const AMX_MONGO_URI = process.env.AMX_MONGO_URI || 'mongodb://localhost:27017/amx';
+    const AMX_MONGO_URI = process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx';
     console.log('Connecting to:', AMX_MONGO_URI);
     
-    // Connect to MongoDB
-    await mongoose.connect(AMX_MONGO_URI);
+    // Connect to MongoDB using centralized config
+    const connection = await connectAmxToDB();
     console.log('Connected to AMX MongoDB!');
-    console.log('Connection state:', mongoose.connection.readyState);
+    console.log('Connection state:', connection.readyState);
     
     // List all collections
-    const collections = await mongoose.connection.db.listCollections().toArray();
+    const collections = await connection.db.listCollections().toArray();
     console.log('Available collections:', collections.map(c => c.name));
     
     // Check registered models
-    const modelNames = mongoose.modelNames();
+    const modelNames = connection.modelNames();
     console.log('Registered models:', modelNames);
     
     // Check for devicedrivers collection
     if (collections.some(c => c.name === 'devicedrivers')) {
-      const drivers = await mongoose.connection.db.collection('devicedrivers').find({}).toArray();
+      const drivers = await connection.db.collection('devicedrivers').find({}).toArray();
       console.log(`Found ${drivers.length} device drivers in AMX database:`);
       console.log(JSON.stringify(drivers.map(d => ({ _id: d._id, name: d.name })), null, 2));
     } else {
@@ -36,7 +37,7 @@ async function checkDatabase() {
     
     // Check for devicetypes collection
     if (collections.some(c => c.name === 'devicetypes')) {
-      const types = await mongoose.connection.db.collection('devicetypes').find({}).toArray();
+      const types = await connection.db.collection('devicetypes').find({}).toArray();
       console.log(`Found ${types.length} device types in AMX database:`);
       console.log(JSON.stringify(types.map(t => ({ _id: t._id, name: t.name })), null, 2));
     } else {
@@ -45,7 +46,7 @@ async function checkDatabase() {
     
     // Check for devices collection (not expected in AMX db, but checking anyway)
     if (collections.some(c => c.name === 'devices')) {
-      const devices = await mongoose.connection.db.collection('devices').find({}).toArray();
+      const devices = await connection.db.collection('devices').find({}).toArray();
       console.log(`Found ${devices.length} devices in AMX database:`);
       console.log(JSON.stringify(devices.map(d => ({ _id: d._id, name: d.name })), null, 2));
     } else {
@@ -53,7 +54,7 @@ async function checkDatabase() {
     }
     
     // Close the connection
-    await mongoose.connection.close();
+    await connection.close();
     console.log('AMX database connection closed');
   } catch (error) {
     console.error('Error:', error);

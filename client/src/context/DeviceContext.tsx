@@ -80,22 +80,25 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      // Attempt to fetch from the actual API
-      let response;
-      try {
-        response = await API.get('/devices');
-      } catch (apiError) {
-        // If that fails, try the backwards compatibility endpoint
-        response = await API.get('/getDevices');
-      }
+      // Use the correct endpoint for getting devices
+      const response = await API.get('/client/api/devices');
 
       // Process the response data to ensure all required fields
-      const formattedDevices = response.data.map((device: Device) => ({
-        ...device,
-        tags: device.tags || [],
-        registers: device.registers || [],
-        lastSeen: device.enabled ? device.lastSeen || new Date() : undefined,
-      }));
+      const formattedDevices = Array.isArray(response.data) 
+        ? response.data.map((device: Device) => ({
+            ...device,
+            tags: device.tags || [],
+            registers: device.registers || [],
+            lastSeen: device.enabled ? device.lastSeen || new Date() : undefined,
+          }))
+        : response.data.devices 
+          ? response.data.devices.map((device: Device) => ({
+              ...device,
+              tags: device.tags || [],
+              registers: device.registers || [],
+              lastSeen: device.enabled ? device.lastSeen || new Date() : undefined,
+            }))
+          : [];
 
       setDevices(formattedDevices);
     } catch (err) {
@@ -148,14 +151,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
         registers: device.registers || [],
       };
 
-      // Try posting to the actual API first
-      let response;
-      try {
-        response = await API.post('/devices', deviceToAdd);
-      } catch (apiError) {
-        // If that fails, try the backwards compatibility endpoint
-        response = await API.post('/addDevice', deviceToAdd);
-      }
+      // Use the correct endpoint for physical devices
+      const response = await API.post('/client/api/devices', deviceToAdd);
 
       // Update local state with new device
       setDevices(prevDevices => [...prevDevices, response.data]);
@@ -179,14 +176,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
         registers: device.registers || [],
       };
 
-      // Try the standard API endpoint first
-      let response;
-      try {
-        response = await API.put(`/devices/${device._id}`, deviceToUpdate);
-      } catch (apiError) {
-        // If that fails, try the backwards compatibility endpoint
-        response = await API.put(`/updateDevice/${device._id}`, deviceToUpdate);
-      }
+      // Use the correct endpoint for updating physical devices
+      const response = await API.put(`/client/api/devices/${device._id}`, deviceToUpdate);
 
       // Update local state
       setDevices(prev => prev.map(d => (d._id === device._id ? response.data : d)));
@@ -203,13 +194,8 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
   // Function to delete a device
   const deleteDevice = async (id: string) => {
     try {
-      // Try the standard API endpoint first
-      try {
-        await API.delete(`/devices/${id}`);
-      } catch (apiError) {
-        // If that fails, try the backwards compatibility endpoint
-        await API.delete(`/deleteDevice/${id}`);
-      }
+      // Use the correct endpoint for deleting physical devices
+      await API.delete(`/client/api/devices/${id}`);
 
       // Update local state
       setDevices(prev => prev.filter(d => d._id !== id));
@@ -228,7 +214,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
   // Function to test device connection
   const testConnection = async (id: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await API.post(`/devices/${id}/test`);
+      const response = await API.post(`/client/api/devices/${id}/test`);
 
       // If successful, update the device's lastSeen timestamp in local state
       if (response.data.success) {
@@ -263,7 +249,7 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
   // Function to read registers from a device
   const readRegisters = async (id: string): Promise<any> => {
     try {
-      const response = await API.get(`/devices/${id}/read`);
+      const response = await API.get(`/client/api/devices/${id}/read`);
 
       // Update the device's lastSeen timestamp in local state
       setDevices(prev =>

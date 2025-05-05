@@ -171,6 +171,8 @@ export const useDevices = (): UseDevicesReturn => {
   // Add a new device
   const addDevice = async (device: Omit<Device, '_id'>): Promise<Device> => {
     try {
+      console.log('[useDevices] addDevice started with:', device);
+      
       // Ensure required fields
       const deviceToAdd = {
         ...device,
@@ -178,16 +180,21 @@ export const useDevices = (): UseDevicesReturn => {
         registers: device.registers || [],
       };
 
+      console.log('[useDevices] Calling addDeviceService with:', deviceToAdd);
+      
       // Use our updated addDeviceService that handles auth issues
       const newDevice = await addDeviceService(deviceToAdd);
+      
+      console.log('[useDevices] Device created successfully:', newDevice);
 
       // Update local state
       setDevices(prev => [...prev, newDevice]);
 
       return newDevice;
     } catch (err) {
-      console.error('Error adding device:', err);
-      throw err instanceof Error ? err : new Error('Failed to add device');
+      console.error('[useDevices] Error adding device:', err);
+      // Rethrow the original error to preserve the error details
+      throw err;
     }
   };
 

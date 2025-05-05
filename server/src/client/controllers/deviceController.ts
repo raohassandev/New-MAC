@@ -12,7 +12,8 @@ interface AuthRequest extends Request {
 }
 import mongoose from 'mongoose';
 
-import { Device, createDeviceModel, IDevice, getClientDeviceModel, getClientDbConnection } from '../models';
+import { Device, createDeviceModel, IDevice, clientModels } from '../models';
+import { getClientDbConnection } from '../models/index';
 import ModbusRTU from 'modbus-serial';
 
 // @desc    Get all devices
@@ -118,15 +119,174 @@ import ModbusRTU from 'modbus-serial';
 // };
 
 
+// export const getDevices = async (req: AuthRequest, res: Response) => {
+//   try {
+//     console.log('[deviceController] getDevices: Starting retrieval of devices');
+    
+//     // Try to get the cached client device model first
+//     // Try a different approach since getClientDeviceModel() is causing issues
+//     let DeviceModel: mongoose.Model<IDevice> = Device;
+    
+//     // Always try to get it from other sources
+//       console.log('[deviceController] No cached device model, trying alternatives');
+      
+//       // Get the client database connection and models
+//       const clientModels = req.app.locals.clientModels;
+//       const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
+      
+//       // Check if we have client models
+//       if (clientModels && clientModels.Device) {
+//         DeviceModel = clientModels.Device;
+//         console.log('[deviceController] Using client-specific Device model from app.locals');
+//       } else if (mainDBConnection && mainDBConnection.readyState === 1) {
+//         // Check if mainDBConnection (client connection) is available even if clientModels isn't set up
+//         console.log('[deviceController] Creating Device model with client connection');
+//         try {
+//           DeviceModel = createDeviceModel(mainDBConnection);
+//         } catch (err) {
+//           console.error('[deviceController] Error creating Device model with client connection:', err);
+//           console.warn('[deviceController] Falling back to default Device model');
+//         }
+//       } else {
+//         console.warn('[deviceController] No client database connection available');
+//       }
+//     } else {
+//       console.log('[deviceController] Using cached client device model');
+//     }
+    
+//     // Safety check to ensure we only use client database models
+//     if (DeviceModel && DeviceModel.db?.name !== 'client') {
+//       console.error(`[deviceController] ERROR: Model connected to wrong database: ${DeviceModel.db?.name || 'unknown'}`);
+//       console.log('[deviceController] Forcing reconnection to client database');
+      
+//       // Try to force create a new model with the client DB
+//       const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
+//       if (mainDBConnection && mainDBConnection.readyState === 1 && mainDBConnection.name === 'client') {
+//         try {
+//           DeviceModel = createDeviceModel(mainDBConnection);
+//           console.log(`[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`);
+//         } catch (reconnectError) {
+//           console.error('[deviceController] Could not reconnect to client database:', reconnectError);
+//         }
+//       }
+//     }
+    
+//     // Make sure we have a valid model
+//     if (!DeviceModel) {
+//       console.error('[deviceController] Failed to get a valid Device model');
+//       return res.status(500).json({ 
+//         message: 'Database connection error', 
+//         error: 'Could not initialize database model'
+//       });
+//     }
+    
+//     // Enhanced diagnostic logging
+//     // console.log(`[deviceController] Database connection details:
+//     //   - Connection state: ${DeviceModel.db?.readyState || 'unknown'}
+//     //   - Database name: ${DeviceModel.db?.name || 'unknown'}
+//     //   - Collection name: ${DeviceModel.collection.name || 'unknown'}
+//     //   - Using client connection: ${DeviceModel.db?.name === 'client'}
+//     // `);
+    
+//     // Set up pagination properly
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 50;
+//     const skip = (page - 1) * limit;
+    
+//     // Build filter for MongoDB query
+//     const filter: Record<string, any> = {};
+    
+//     // Filter by enabled status (online/offline)
+//     if (req.query.status) {
+//       filter.enabled = req.query.status === 'online' ? true : false;
+//     }
+    
+//     // Filter by device type/make
+//     if (req.query.type) {
+//       filter.make = req.query.type;
+//     }
+    
+//     // Filter by device driver
+//     if (req.query.deviceDriver) {
+//       filter.deviceDriverId = req.query.deviceDriver;
+//     }
+    
+//     // Filter by usage category
+//     if (req.query.usage) {
+//       filter.usage = req.query.usage;
+//     }
+    
+//     // Exclude templates unless specifically requested
+//     if (!req.query.includeTemplates) {
+//       filter.isTemplate = { $ne: true };
+//     }
+    
+//     // Text search on multiple fields
+//     if (req.query.search) {
+//       const searchString = String(req.query.search);
+//       filter.$or = [
+//         { name: { $regex: searchString, $options: 'i' } },
+//         { description: { $regex: searchString, $options: 'i' } },
+//         { make: { $regex: searchString, $options: 'i' } },
+//         { model: { $regex: searchString, $options: 'i' } },
+//         { 'connectionSetting.tcp.ip': { $regex: searchString, $options: 'i' } }
+//       ];
+//     }
+    
+//     // Set up sorting
+//     let sortOptions: Record<string, 1 | -1> = { updatedAt: -1 }; // Default sort by last updated
+    
+//     if (req.query.sort) {
+//       const sortField = String(req.query.sort);
+//       const sortOrder = req.query.order === 'asc' ? 1 : -1;
+//       sortOptions = { [sortField]: sortOrder };
+//     }
+    
+//     console.log(`[deviceController] Executing find with filter: ${JSON.stringify(filter)}`);
+//     console.log(`[deviceController] Pagination: page=${page}, limit=${limit}, skip=${skip}`);
+    
+//     // Execute query with pagination and use lean() for better performance
+//     const devices = await DeviceModel.find(filter)
+//       .sort(sortOptions)
+//       .skip(skip)
+//       .limit(limit)
+//       .lean();
+    
+//     // Get total count for pagination metadata
+//     const totalDevices = await DeviceModel.countDocuments(filter);
+    
+//     console.log(`[deviceController] Retrieved ${devices.length} devices from ${DeviceModel.db?.name || 'unknown'} database (total: ${totalDevices})`);
+      
+//     return res.json({
+//       devices,
+//       pagination: {
+//         total: totalDevices,
+//         page,
+//         limit,
+//         pages: Math.ceil(totalDevices / limit)
+//       }
+//     });
+//   } catch (error: any) {
+//     console.error('Get devices error:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
+
+// @desc    Get a single device
+// @route   GET /api/devices/:id
+// @access  Private
+
 export const getDevices = async (req: AuthRequest, res: Response) => {
   try {
     console.log('[deviceController] getDevices: Starting retrieval of devices');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> = getClientDeviceModel() || Device;
+    let DeviceModel: mongoose.Model<IDevice> = Device;
     
-    // If no cached model, try to get it from other sources
-    if (!DeviceModel || DeviceModel === Device) {
+    // Check if we need to get the model from other sources
+    const cachedModel = req.app.locals.cachedDeviceModel;
+    if (!cachedModel) {
       console.log('[deviceController] No cached device model, trying alternatives');
       
       // Get the client database connection and models
@@ -137,11 +297,11 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
       if (clientModels && clientModels.Device) {
         DeviceModel = clientModels.Device;
         console.log('[deviceController] Using client-specific Device model from app.locals');
-      } else if (mainDB && mainDB.readyState === 1) {
-        // Check if mainDB (client connection) is available even if clientModels isn't set up
+      } else if (mainDBConnection && mainDBConnection.readyState === 1) {
+        // Check if mainDBConnection (client connection) is available even if clientModels isn't set up
         console.log('[deviceController] Creating Device model with client connection');
         try {
-          DeviceModel = createDeviceModel(mainDB);
+          DeviceModel = createDeviceModel(mainDBConnection);
         } catch (err) {
           console.error('[deviceController] Error creating Device model with client connection:', err);
           console.warn('[deviceController] Falling back to default Device model');
@@ -151,6 +311,7 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
       }
     } else {
       console.log('[deviceController] Using cached client device model');
+      DeviceModel = cachedModel;
     }
     
     // Safety check to ensure we only use client database models
@@ -178,14 +339,6 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
         error: 'Could not initialize database model'
       });
     }
-    
-    // Enhanced diagnostic logging
-    console.log(`[deviceController] Database connection details:
-      - Connection state: ${DeviceModel.db?.readyState || 'unknown'}
-      - Database name: ${DeviceModel.db?.name || 'unknown'}
-      - Collection name: ${DeviceModel.collection.name || 'unknown'}
-      - Using client connection: ${DeviceModel.db?.name === 'client'}
-    `);
     
     // Set up pagination properly
     const page = parseInt(req.query.page as string) || 1;
@@ -271,15 +424,12 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Get a single device
-// @route   GET /api/devices/:id
-// @access  Private
 export const getDeviceById = async (req: AuthRequest, res: Response) => {
   try {
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for getDeviceById, trying alternatives');
       
@@ -292,11 +442,11 @@ export const getDeviceById = async (req: AuthRequest, res: Response) => {
         // Use the client-specific model from app.locals if available
         DeviceModel = clientModels.Device;
         console.log('[deviceController] Using client-specific Device model from app.locals');
-      } else if (mainDB && mainDB.readyState === 1) {
+      } else if (mainDBConnection && mainDBConnection.readyState === 1) {
         // If we have a valid client connection but no model, create one
         console.log('[deviceController] Creating Device model with client connection');
         try {
-          DeviceModel = createDeviceModel(mainDB);
+          DeviceModel = createDeviceModel(mainDBConnection);
         } catch (modelError) {
           console.error('[deviceController] Error creating Device model with client connection:', modelError);
           DeviceModel = Device; // Fall back to default
@@ -317,9 +467,9 @@ export const getDeviceById = async (req: AuthRequest, res: Response) => {
       
       // Try to force create a new model with the client DB
       const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-      if (mainDB && mainDB.readyState === 1 && mainDB.name === 'client') {
+      if (mainDBConnection && mainDBConnection.readyState === 1 && mainDBConnection.name === 'client') {
         try {
-          DeviceModel = createDeviceModel(mainDB);
+          DeviceModel = createDeviceModel(mainDBConnection);
           console.log(`[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`);
         } catch (reconnectError) {
           console.error('[deviceController] Could not reconnect to client database:', reconnectError);
@@ -327,6 +477,14 @@ export const getDeviceById = async (req: AuthRequest, res: Response) => {
       }
     }
     
+    // Check if DeviceModel is null and handle it
+    if (!DeviceModel) {
+      return res.status(500).json({ 
+        message: 'Database connection error', 
+        error: 'Device model is null' 
+      });
+    }
+
     // Check which database we're actually connected to
     const dbName = DeviceModel.db?.name || 'unknown';
     const connectionState = DeviceModel.db?.readyState || 0;
@@ -386,6 +544,7 @@ export const getDeviceById = async (req: AuthRequest, res: Response) => {
       }
     } else {
       // No population needed, just get and return the device
+      // DeviceModel was already checked for null above
       const device = await DeviceModel.findById(req.params.id);
       
       if (!device) {
@@ -449,10 +608,10 @@ export const createDevice = async (req: AuthRequest, res: Response) => {
       }
     }
     
-    // Try to get the cached client device model first
-    let DeviceModel = getClientDeviceModel();
+    // Try to get the device model
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for createDevice, trying alternatives');
       
@@ -465,11 +624,11 @@ export const createDevice = async (req: AuthRequest, res: Response) => {
         DeviceModel = clientModels.Device;
         console.log('[deviceController] Using client-specific Device model from clientModels');
       } 
-      // If client models aren't available but mainDB is, create model with client connection
-      else if (mainDB && mainDB.readyState === 1) {
-        console.log('[deviceController] mainDB found but clientModels not available - creating Device model with client connection');
+      // If client models aren't available but mainDBConnection is, create model with client connection
+      else if (mainDBConnection && mainDBConnection.readyState === 1) {
+        console.log('[deviceController] mainDBConnection found but clientModels not available - creating Device model with client connection');
         try {
-          DeviceModel = createDeviceModel(mainDB);
+          DeviceModel = createDeviceModel(mainDBConnection);
           console.log('[deviceController] Successfully created Device model with client connection');
         } catch (modelError: any) {
           console.error(`[deviceController] ERROR: Failed to create Device model with client connection: ${modelError.message}`);
@@ -498,9 +657,9 @@ export const createDevice = async (req: AuthRequest, res: Response) => {
       
       // Try to force create a new model with the client DB
       const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-      if (mainDB && mainDB.readyState === 1 && mainDB.name === 'client') {
+      if (mainDBConnection && mainDBConnection.readyState === 1 && mainDBConnection.name === 'client') {
         try {
-          DeviceModel = createDeviceModel(mainDB);
+          DeviceModel = createDeviceModel(mainDBConnection);
           console.log(`[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`);
         } catch (reconnectError) {
           console.error('[deviceController] Could not reconnect to client database:', reconnectError);
@@ -523,7 +682,7 @@ export const createDevice = async (req: AuthRequest, res: Response) => {
       - Database name: ${DeviceModel?.db?.name || 'unknown'}
       - Collection name: ${DeviceModel?.collection?.name || 'unknown'}
       - Connection ID: ${DeviceModel?.db?.id || 'unknown'}
-      - Using client DB: ${Boolean(mainDBConnection || (clientModels && clientModels.Device))}
+      - Using client DB: ${Boolean(req.app.locals.mainDB || (req.app.locals.clientModels && req.app.locals.clientModels.Device))}
     `);
     
     // Create the device with all provided data
@@ -575,9 +734,9 @@ export const updateDevice = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] updateDevice: Starting device update process');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for updateDevice, trying alternatives');
       
@@ -714,9 +873,9 @@ export const deleteDevice = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] deleteDevice: Starting device deletion process');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for deleteDevice, trying alternatives');
       
@@ -796,9 +955,9 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] testDeviceConnection: Starting device connection test');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for testDeviceConnection, trying alternatives');
       
@@ -1040,9 +1199,9 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] readDeviceRegisters: Starting device register read');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for readDeviceRegisters, trying alternatives');
       
@@ -1321,9 +1480,9 @@ export const getDevicesByDriverId = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] getDevicesByDriverId: Starting retrieval of devices by driver ID');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for getDevicesByDriverId, trying alternatives');
       
@@ -1433,9 +1592,9 @@ export const getDevicesByUsage = async (req: AuthRequest, res: Response) => {
     console.log('[deviceController] getDevicesByUsage: Starting retrieval of devices by usage category');
     
     // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = getClientDeviceModel();
+    let DeviceModel: mongoose.Model<IDevice> | null = null;
     
-    // If no cached model, try to get it from other sources
+    // Always try to get it from other sources
     if (!DeviceModel) {
       console.log('[deviceController] No cached device model for getDevicesByUsage, trying alternatives');
       

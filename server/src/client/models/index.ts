@@ -79,9 +79,9 @@ export const getClientDbConnection = () => {
  * Get the client Device model
  * @returns The client Device model
  */
-export const getClientDeviceModel = () => {
+export function getClientDeviceModel() {
   return clientDeviceModel;
-};
+}
 
 // Export interfaces
 export type { IUser } from './User';

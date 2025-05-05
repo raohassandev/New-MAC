@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-import connectAmxToDB from '../config/db';
+import { connectAmxToDB } from '../../config/database';
 /**
  * Device Type Model Schema - Used in AMX database
  */

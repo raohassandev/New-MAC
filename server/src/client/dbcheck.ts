@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { Device, createDeviceModel, clientModels, getClientDeviceModel, getClientDbConnection } from './models';
 import dotenv from 'dotenv';
-import { connectClientToDB } from './config/db'; 
+import { connectClientToDB } from '../config/database'; 
 import { ensureClientDeviceModel } from './utils/dbHelper';
 
 // Load environment variables

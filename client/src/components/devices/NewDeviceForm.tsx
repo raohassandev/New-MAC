@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle } from 'lucide-react';
+import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 // Import UI components
@@ -276,10 +276,16 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[NewDeviceForm] Form submission started');
+    setSubmissionError(null);
+    
     if (!validateForm()) {
+      console.log('[NewDeviceForm] Form validation failed', errors);
       toast.error('Please fill in all required fields');
       // Automatically switch to first tab with errors
       if (errors.name || errors.deviceDriverId) {
@@ -293,8 +299,12 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       return;
     }
 
+    console.log('[NewDeviceForm] Form validation successful');
+    setIsSubmitting(true);
+
     // Prepare data for submission with proper type conversion
     try {
+      console.log('[NewDeviceForm] Preparing submission data');
       const submissionData = {
         ...deviceData,
         // Ensure numeric values with proper conversions
@@ -326,11 +336,31 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       submissionData.tags = submissionData.tags || [];
       submissionData.dataPoints = submissionData.dataPoints || [];
 
+      console.log('[NewDeviceForm] Final submission data:', submissionData);
+
       // Call the onSubmit handler with the prepared data
-      onSubmit(submissionData);
+      console.log('[NewDeviceForm] Calling onSubmit handler');
+      
+      try {
+        await onSubmit(submissionData);
+        // If we get here, submission was successful
+        console.log('[NewDeviceForm] Submission successful');
+      } catch (error: any) {
+        console.error('[NewDeviceForm] Error during form submission:', error);
+        
+        // Set error message to display to user
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create device';
+        setSubmissionError(errorMessage);
+        toast.error(errorMessage);
+        
+        // Do not close the form - keep it open so user can see the error and try again
+      } finally {
+        setIsSubmitting(false);
+      }
     } catch (error) {
-      console.error('Error preparing device data for submission:', error);
+      console.error('[NewDeviceForm] Error preparing device data for submission:', error);
       toast.error('There was an error processing your form data. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
@@ -746,13 +776,38 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             )}
           </Tabs>
 
+          {submissionError && (
+            <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error creating device</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>{submissionError}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="mt-6 flex justify-end space-x-2 border-t pt-4">
-            <Button variant="outline" type="button" onClick={onClose}>
+            <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">
-              <Save size={16} className="mr-2" />
-              {isEditing ? 'Update Device' : 'Create Device'}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  {isEditing ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                <>
+                  <Save size={16} className="mr-2" />
+                  {isEditing ? 'Update Device' : 'Create Device'}
+                </>
+              )}
             </Button>
           </div>
         </Form>

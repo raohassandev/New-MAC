@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 import NewDeviceForm from '../components/devices/NewDeviceForm';
 import { useAuth } from '../context/AuthContext';
@@ -277,11 +278,23 @@ const DeviceManagement: React.FC = () => {
   // Handle adding new device
   const handleAddDevice = async (deviceData: any) => {
     try {
+      console.log('[DeviceManagement] Handling add device:', deviceData);
+      // Don't close the form until we know the request was successful
       const newDevice = await addDevice(deviceData);
+      console.log('[DeviceManagement] Device added successfully:', newDevice);
+      
+      // Only close the form after successful creation
       setIsNewDeviceFormOpen(false);
       await refreshDevices();
+      
+      // Show success message
+      toast.success('Device created successfully');
+      return newDevice;
     } catch (error) {
-      console.error('Error adding device:', error);
+      console.error('[DeviceManagement] Error adding device:', error);
+      
+      // Propagate the error to the form component for display
+      throw error;
     }
   };
 
@@ -401,7 +414,7 @@ const DeviceManagement: React.FC = () => {
   };
 
   const onNewDeviceFormClose = () => {
-    setIsNewDeviceFormOpen(false);
+    // setIsNewDeviceFormOpen(false);
   };
 
   const stats = getDeviceStats();

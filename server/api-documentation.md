@@ -2,6 +2,46 @@
 
 This documentation provides details on the available API endpoints for frontend developers to interact with the server.
 
+## Database Architecture
+
+The system uses a centralized database configuration for managing connections to both databases:
+
+### Key Features
+
+- **Centralized Configuration**: Single source of truth for all database connections in `/src/config/database.ts`
+- **Multiple Database Connections**: Manages connections to both Client and AMX databases
+- **Connection Caching**: Caches database connections to improve performance
+- **Model Management**: Creates and manages database models with appropriate connections
+- **Middleware Integration**: Automatically provides database access to all routes via middleware
+
+### Database Connection Architecture
+
+```
+┌───────────────────────────────────────┐
+│           Server Application          │
+└───────────────┬───────────────────────┘
+                │
+                ▼
+┌───────────────────────────────────────┐
+│       Centralized DB Configuration    │
+│        /src/config/database.ts        │
+└─────────┬─────────────────────┬───────┘
+          │                     │
+          ▼                     ▼
+┌──────────────────┐   ┌──────────────────┐
+│  Client Database │   │   AMX Database   │
+│ MongoDB Instance │   │ MongoDB Instance │
+└──────────────────┘   └──────────────────┘
+          │                     │
+          ▼                     ▼
+┌──────────────────┐   ┌──────────────────┐
+│  Client Models   │   │    AMX Models    │
+│ - Device         │   │ - DeviceDriver   │
+│ - Profile        │   │ - DeviceType     │
+│ - User, etc.     │   │                  │
+└──────────────────┘   └──────────────────┘
+```
+
 ## Base URLs
 - `/client/api` - Main client API
 - `/amx/api` - AMX library API 
@@ -477,3 +517,65 @@ All API endpoints may return the following error responses:
   "message": "An unexpected error occurred"
 }
 ```
+
+## Key Components of the Database Architecture
+
+| Component | Description |
+|-----------|-------------|
+| `initializeDatabases()` | Main function to establish connections to both databases and initialize models |
+| `connectClientToDB()` | Function to connect to the client database |
+| `connectAmxToDB()` | Function to connect to the AMX database |
+| `getClientConnection()` | Returns the current client database connection |
+| `getAmxConnection()` | Returns the current AMX database connection |
+| `getClientModels()` | Returns all models for the client database |
+| `getAmxModels()` | Returns all models for the AMX database |
+
+### Usage In Controllers
+
+Controllers access database models through the centralized configuration:
+
+```typescript
+// Example: Device controller accessing database model
+export const getDeviceById = async (req: Request, res: Response) => {
+  try {
+    // Get Device model from centralized configuration
+    let DeviceModel = req.app.locals.cachedDeviceModel || 
+                     (req.app.locals.clientModels && 
+                      req.app.locals.clientModels.Device);
+    
+    // If no model in app.locals, create it using connection
+    if (!DeviceModel) {
+      const mainDBConnection = req.app.locals.mainDB;
+      if (mainDBConnection && mainDBConnection.readyState === 1) {
+        DeviceModel = createDeviceModel(mainDBConnection);
+      } else {
+        return res.status(500).json({ 
+          message: 'Database connection error' 
+        });
+      }
+    }
+    
+    // Use model to query database
+    const device = await DeviceModel.findById(req.params.id);
+    
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+    
+    return res.json(device);
+  } catch (error) {
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+};
+```
+
+## Benefits of the Centralized Database Architecture
+
+1. **Improved Reliability**: Centralized error handling and connection management
+2. **Better Performance**: Connection caching and model reuse
+3. **Simplified Maintenance**: Single point of configuration for all database connections
+4. **Consistent Data Access**: Standardized way to access data models throughout the application
+5. **Enhanced Diagnostics**: Improved logging and error reporting for database issues

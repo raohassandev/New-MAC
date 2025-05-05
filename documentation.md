@@ -5,6 +5,15 @@ This document provides comprehensive information about the MACSYS backend API, w
 1. **Client API** (`/client/api/`): For user-specific data, devices, and profiles.
 2. **AMX API** (`/amx/api/`): For device driver templates and related data.
 
+## Database Architecture
+
+The system uses a centralized database configuration for managing connections to both databases:
+
+- **Configuration Location**: `/server/src/config/database.ts`
+- **Multiple Database Support**: The system supports concurrent connections to both Client and AMX databases
+- **Connection Caching**: Database connections are cached to improve performance and reduce connection overhead
+- **Model Management**: Database models are created and managed through the centralized configuration
+
 ## Base URLs
 
 - **Development**: `http://localhost:3333`
@@ -878,7 +887,7 @@ The token is obtained from the login endpoint and is valid for 30 days.
 
 ## Database Structure
 
-The system uses two MongoDB databases:
+The system uses two MongoDB databases with centralized configuration in `src/config/database.ts`:
 
 1. **Client Database** (default: `mongodb://localhost:27017/client`):
    - User data

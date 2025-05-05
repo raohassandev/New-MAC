@@ -34,6 +34,14 @@ api.interceptors.response.use(
   },
   error => {
     const { response } = error;
+    console.log('[API client] Error intercepted:', error);
+    
+    // Always log the error response for debugging
+    if (response) {
+      console.log('[API client] Response status:', response.status);
+      console.log('[API client] Response data:', response.data);
+      console.log('[API client] Request URL:', response.config?.url);
+    }
 
     // Handle different error response statuses
     if (response) {
@@ -42,7 +50,13 @@ api.interceptors.response.use(
           // Unauthorized - Token expired or invalid
           localStorage.removeItem('token');
           toast.error('Your session has expired. Please log in again.');
-          window.location.href = '/login';
+          
+          // Prevent automatic redirection for device creation actions
+          // to allow debugging errors from the device form
+          if (!response.config?.url?.includes('/client/api/devices') || 
+              !response.config?.method?.toLowerCase() === 'post') {
+            window.location.href = '/login';
+          }
           break;
         case 403:
           // Forbidden - User doesn't have permission
@@ -59,9 +73,15 @@ api.interceptors.response.use(
         default:
           // Other errors
           if (response.data?.message) {
-            // Special handling for connection test and device read operations
-            // Don't show toast notifications since we'll display them in the component UI
-            if (!response.config.url?.includes('/test') && !response.config.url?.includes('/read')) {
+            // Special handling for connection test, device read operations, and device creation
+            // Don't show toast notifications for these since we'll display them in the component UI
+            const isSpecialEndpoint = 
+              response.config.url?.includes('/test') || 
+              response.config.url?.includes('/read') || 
+              (response.config.url?.includes('/client/api/devices') && 
+               response.config.method?.toLowerCase() === 'post');
+            
+            if (!isSpecialEndpoint) {
               // For other errors without specific handling, show toast notification
               toast.error(response.data.message);
             }
@@ -75,7 +95,7 @@ api.interceptors.response.use(
     }
 
     // Ensure we preserve the full error response for component handling
-    // This allows components to access the troubleshooting guides and other details
+    // This allows components to access the error details for display
     return Promise.reject(error);
   }
 );

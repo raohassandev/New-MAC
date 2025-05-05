@@ -313,16 +313,24 @@ export async function getDevice(id: string): Promise<Device> {
 
 export async function addDevice(device: BaseDevice): Promise<Device> {
   try {
+    console.log('[devices.ts] addDevice called with:', device);
+    
     // Ensure all required properties are present
     const preparedDevice = ensureDeviceProperties(device);
+    
+    console.log('[devices.ts] Prepared device data:', preparedDevice);
 
     // Use the deviceApi from endpoints.ts
+    console.log('[devices.ts] Calling deviceApi.createDevice');
     const response = await deviceApi.createDevice(preparedDevice);
+    
+    console.log('[devices.ts] Device created successfully:', response);
     
     // Return response data or response itself
     return response.data || response;
-  } catch (error) {
-    console.error('Error adding device to API:', error);
+  } catch (error: any) {
+    console.error('[devices.ts] Error adding device to API:', error);
+    console.error('[devices.ts] Error details:', error.response?.data || error.message);
     throw error;
   }
 }
