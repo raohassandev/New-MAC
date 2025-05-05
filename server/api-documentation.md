@@ -174,29 +174,106 @@ Authorization: Bearer <your-token>
 - **Request Body**:
 ```json
 {
-  "name": "string",
-  "description": "string",
-  "make": "string",
-  "model": "string",
-  "deviceDriver": "string (ID)",
-  "location": "string",
-  "connectionSettings": {
-    "protocol": "string",
-    "address": "string",
-    "port": "number",
-    "unitId": "number"
+  "name": "string",                  // Required - unique device name
+  "deviceDriverId": "string (ID)",   // Required - ID of the device driver
+  "make": "string",                  // Optional - manufacturer name
+  "model": "string",                 // Optional - model number
+  "description": "string",           // Optional - device description
+  "enabled": true,                   // Optional - whether device is enabled (default: true)
+  "tags": ["string"],                // Optional - array of tags for categorization
+  "usage": "string",                 // Required - device usage category (e.g., "energy_analysis")
+  "usageNotes": "string",            // Optional - additional usage information
+  "location": "string",              // Optional - physical location information
+  
+  "connectionSetting": {             // Required - connection configuration
+    "connectionType": "tcp|rtu",     // Required - connection type (tcp or rtu)
+    
+    "tcp": {                         // Required for TCP connections
+      "ip": "string",                // Required - IP address
+      "port": "number",              // Required - port number (default: 502)
+      "slaveId": "number"            // Required - Modbus slave/unit ID (default: 1)
+    },
+    
+    "rtu": {                         // Required for RTU connections
+      "serialPort": "string",        // Required - serial port path
+      "baudRate": "number",          // Optional - baud rate (default: 9600)
+      "dataBits": "number",          // Optional - data bits (default: 8)
+      "stopBits": "number",          // Optional - stop bits (default: 1)
+      "parity": "string",            // Optional - parity (default: "none")
+      "slaveId": "number"            // Required - Modbus slave/unit ID (default: 1)
+    }
   },
-  "dataPoints": [
+  
+  "dataPoints": [                    // Optional - typically inherited from device driver
     {
-      "name": "string",
-      "registerType": "string",
-      "registerIndex": "number",
-      "dataType": "string"
+      "range": {
+        "startAddress": "number",    // Required - starting address of register range
+        "count": "number",           // Required - number of registers to read
+        "fc": "number"               // Required - Modbus function code (1, 2, 3, 4)
+      },
+      "parser": {
+        "parameters": [
+          {
+            "name": "string",        // Required - parameter name
+            "dataType": "string",    // Required - data type (FLOAT, INT, UINT, etc.)
+            "scalingFactor": "number", // Optional - scaling factor (default: 1)
+            "decimalPoint": "number",  // Optional - decimal points (default: 2)
+            "byteOrder": "string",     // Optional - byte order (default: "ABCD")
+            "signed": "boolean",       // Optional - whether value is signed
+            "registerIndex": "number", // Required - offset from start address
+            "wordCount": "number"      // Optional - number of words for this parameter
+          }
+        ]
+      }
     }
   ]
 }
 ```
-- **Response**: Created device object
+
+- **Response**: Created device object with MongoDB-assigned ID
+```json
+{
+  "_id": "string",
+  "name": "string",
+  "deviceDriverId": "string",
+  "make": "string",
+  "model": "string",
+  "description": "string",
+  "enabled": "boolean",
+  "tags": ["string"],
+  "usage": "string",
+  "usageNotes": "string",
+  "location": "string",
+  "connectionSetting": {
+    "connectionType": "tcp|rtu",
+    "tcp": { "ip": "string", "port": "number", "slaveId": "number" },
+    "rtu": { "serialPort": "string", "baudRate": "number", ... }
+  },
+  "dataPoints": [...],
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
+}
+```
+
+- **Error Response Examples**:
+```json
+{
+  "message": "Validation error",
+  "errors": {
+    "name": "Device name is required",
+    "deviceDriverId": "Please select a device driver",
+    "tcp.ip": "IP address is required"
+  }
+}
+```
+
+```json
+{
+  "message": "Device with this name already exists",
+  "code": "DUPLICATE_KEY"
+}
+```
+
 - **Authentication**: Required (`manage_devices` permission)
 
 ### Update Device
@@ -482,7 +559,12 @@ All API endpoints may return the following error responses:
 ```json
 {
   "error": "Bad Request",
-  "message": "Description of the validation error"
+  "message": "Description of the validation error",
+  "errors": {
+    "fieldName1": "Error message for this field",
+    "fieldName2": "Error message for this field",
+    "connectionSetting.tcp.ip": "Field-specific error messages can be nested"
+  }
 }
 ```
 
@@ -510,13 +592,47 @@ All API endpoints may return the following error responses:
 }
 ```
 
+### 409 Conflict
+```json
+{
+  "error": "Conflict",
+  "message": "A resource with this identifier already exists",
+  "code": "DUPLICATE_KEY"
+}
+```
+
 ### 500 Internal Server Error
 ```json
 {
   "error": "Internal Server Error", 
-  "message": "An unexpected error occurred"
+  "message": "An unexpected error occurred",
+  "stack": "Error stack trace (only in development mode)"
 }
 ```
+
+### Common Validation Errors for Device Creation
+
+When creating or updating devices, these are common validation errors you might encounter:
+
+#### Device Basic Information
+- **name**: "Device name is required", "Device name must be at least 3 characters"
+- **deviceDriverId**: "Please select a device driver", "Device driver not found"
+- **usage**: "Please select a device usage category"
+
+#### TCP Connection Settings
+- **connectionSetting.tcp.ip**: "IP address is required", "Invalid IP address format"
+- **connectionSetting.tcp.port**: "Port must be a valid number between 1-65535"
+- **connectionSetting.tcp.slaveId**: "Slave ID must be a valid number between 1-255"
+
+#### RTU Connection Settings
+- **connectionSetting.rtu.serialPort**: "Serial port is required"
+- **connectionSetting.rtu.baudRate**: "Baud rate must be a valid number"
+- **connectionSetting.rtu.slaveId**: "Slave ID must be a valid number between 1-255"
+
+#### Data Points
+- **dataPoints.range.startAddress**: "Start address must be a valid number"
+- **dataPoints.range.count**: "Count must be a positive number"
+- **dataPoints.parser.parameters.name**: "Parameter name is required"
 
 ## Key Components of the Database Architecture
 

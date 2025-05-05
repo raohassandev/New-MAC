@@ -209,36 +209,60 @@ All API endpoints except for registration, login, and health check require authe
 - **Request Body**:
   ```json
   {
-    "name": "New Device",
-    "make": "Manufacturer",
-    "model": "Model Number",
-    "description": "Device Description",
-    "enabled": true,
-    "tags": ["tag1", "tag2"],
+    "name": "New Device",                 // Required - device name
+    "deviceDriverId": "driver_id_string", // Required - ID of the device driver this device is based on
+    "make": "Manufacturer",               // Optional - manufacturer name
+    "model": "Model Number",              // Optional - model number
+    "description": "Device Description",  // Optional - device description
+    "enabled": true,                      // Optional - whether device is enabled, defaults to true
+    "tags": ["tag1", "tag2"],             // Optional - array of tags for categorization
+    "usage": "energy_analysis",           // Required - device usage category
+    "usageNotes": "Usage notes",          // Optional - additional usage information
+    "location": "Building A, Floor 1",    // Optional - physical location information
+    
+    // Required - connection settings with type-specific parameters
     "connectionSetting": {
-      "connectionType": "tcp",
+      "connectionType": "tcp",            // Required - either "tcp" or "rtu"
+      
+      // TCP connection settings (required if connectionType is "tcp")
       "tcp": {
-        "ip": "192.168.1.100",
-        "port": 502,
-        "slaveId": 1
+        "ip": "192.168.1.100",            // Required - IP address
+        "port": 502,                      // Required - port number (default: 502)
+        "slaveId": 1                      // Required - Modbus slave/unit ID (default: 1)
+      },
+      
+      // RTU connection settings (required if connectionType is "rtu")
+      "rtu": {
+        "serialPort": "/dev/ttyS0",       // Required for RTU - serial port path
+        "baudRate": 9600,                 // Optional - baud rate (default: 9600)
+        "dataBits": 8,                    // Optional - data bits (default: 8)
+        "stopBits": 1,                    // Optional - stop bits (default: 1)
+        "parity": "none",                 // Optional - parity ("none", "even", "odd")
+        "slaveId": 1                      // Required - Modbus slave/unit ID (default: 1)
       }
     },
+    
+    // Optional - data points for register reading, typically inherited from device driver
     "dataPoints": [
       {
         "range": {
-          "startAddress": 0,
-          "count": 2,
-          "fc": 3
+          "startAddress": 0,              // Required - starting address of register range
+          "count": 2,                     // Required - number of registers to read
+          "fc": 3                         // Required - Modbus function code (1, 2, 3, 4)
         },
         "parser": {
           "parameters": [
             {
-              "name": "Parameter Name",
-              "dataType": "FLOAT",
-              "scalingFactor": 1,
-              "decimalPoint": 2,
-              "byteOrder": "ABCD",
-              "registerIndex": 0
+              "name": "Parameter Name",   // Required - parameter name
+              "dataType": "FLOAT",        // Required - data type (FLOAT, INT, UINT, etc.)
+              "scalingFactor": 1,         // Optional - scaling factor (default: 1)
+              "decimalPoint": 2,          // Optional - decimal points (default: 2)
+              "byteOrder": "ABCD",        // Optional - byte order (default: "ABCD")
+              "signed": true,             // Optional - whether value is signed (default: false)
+              "registerIndex": 0,         // Required - offset from start address
+              "wordCount": 2,             // Optional - number of words for this parameter
+              "unit": "V",                // Optional - unit of measurement
+              "description": "Voltage"    // Optional - parameter description
             }
           ]
         }
@@ -246,9 +270,74 @@ All API endpoints except for registration, login, and health check require authe
     ]
   }
   ```
+
+- **Required Fields**:
+  - `name`: String - A unique, descriptive name for the device
+  - `deviceDriverId`: String - The MongoDB ObjectID of the device driver this device is based on
+  - `connectionSetting`: Object - Connection settings with proper type-specific parameters:
+    - For TCP: `ip`, `port`, and `slaveId` fields are required
+    - For RTU: `serialPort` and `slaveId` fields are required
+  - `usage`: String - Device usage category (e.g., "energy_analysis", "power_source", etc.)
+
+- **Common Validation Errors**:
+  - `"Device name is required"`: The name field is missing or empty
+  - `"Please select a device driver"`: The deviceDriverId field is missing
+  - `"IP address is required"`: For TCP connections, the ip field is missing
+  - `"Port must be a valid number between 1-65535"`: For TCP connections, the port is invalid
+  - `"Serial port is required"`: For RTU connections, the serialPort field is missing
+  - `"Please select a device usage category"`: The usage field is missing
+  - `"Device name already exists"`: A device with the same name already exists
+
 - **Success Response**:
   - **Code**: 201
-  - **Content**: Created device object
+  - **Content**: Created device object including MongoDB-generated _id
+
+- **Error Responses**:
+  - **Code**: 400 Bad Request
+    - **Content**:
+      ```json
+      {
+        "message": "Validation error",
+        "errors": {
+          "name": "Device name is required",
+          "deviceDriverId": "Please select a device driver"
+        }
+      }
+      ```
+  - **Code**: 401 Unauthorized
+    - **Content**:
+      ```json
+      {
+        "message": "Not authorized, no token"
+      }
+      ```
+  - **Code**: 403 Forbidden
+    - **Content**:
+      ```json
+      {
+        "message": "Not authorized to manage devices"
+      }
+      ```
+  - **Code**: 409 Conflict
+    - **Content**:
+      ```json
+      {
+        "message": "Device with this name already exists"
+      }
+      ```
+  - **Code**: 500 Server Error
+    - **Content**:
+      ```json
+      {
+        "message": "Server error while creating device: [specific error details]"
+      }
+      ```
+
+- **Notes**:
+  - When creating a device based on a device driver, many fields will be auto-populated from the device driver's data
+  - The connection settings should be customized for the specific physical device
+  - The API performs validation to ensure all required fields are present
+  - Error responses include specific validation errors to help troubleshoot form submission issues
 
 ### Update Device
 
@@ -871,9 +960,34 @@ All error responses have the following format:
 ```json
 {
   "message": "Error message describing what went wrong",
-  "stack": "Stack trace (only in development environment)"
+  "errors": {                         // Optional - field-specific validation errors
+    "field1": "Error message for field1",
+    "field2": "Error message for field2"
+  },
+  "stack": "Stack trace (only in development environment)",
+  "troubleshooting": "Troubleshooting steps"   // Optional - for certain operations like device connection tests
 }
 ```
+
+### Common Validation Errors
+
+When creating or updating resources, the API performs validation to ensure data integrity. Here are common validation errors:
+
+#### Device Creation/Update
+- **Name**: "Device name is required", "Device name must be at least 3 characters"
+- **Device Driver**: "Please select a device driver" 
+- **Connection Settings**: 
+  - TCP: "IP address is required", "Port must be a valid number between 1-65535"
+  - RTU: "Serial port is required", "Baud rate must be a valid number"
+- **Usage**: "Please select a device usage category"
+
+#### Authentication
+- **Login**: "Invalid credentials", "User not found"
+- **Registration**: "Email already in use", "Password must be at least 6 characters"
+
+#### Device Connection Testing
+- **Connection**: "Failed to connect: Connection timed out", "Failed to connect: Invalid slave ID"
+- **Communication**: "Failed to read registers: CRC error", "Failed to read registers: Invalid response"
 
 ## Authentication
 
@@ -1069,6 +1183,8 @@ interface DeviceType {
    ```json
    {
      "name": "New Device Instance",
+     "deviceDriverId": "device_driver_id", // Reference to the device driver
+     "usage": "energy_analysis",           // Required usage category
      "connectionSetting": {
        "connectionType": "tcp",
        "tcp": {
@@ -1081,10 +1197,42 @@ interface DeviceType {
      "make": "...",
      "model": "...",
      "dataPoints": [...],
+     "location": "Building A, Room 101", // Add installation location
      ...
    }
    ```
 3. Create a new device with `/client/api/devices`
+
+### Troubleshooting Device Creation Issues
+
+If you encounter issues when creating a device, follow these steps:
+
+1. **Check Browser Console**: Look for error messages in the browser console to identify API errors
+2. **Validate Required Fields**: Ensure all required fields are provided:
+   - `name`: Must be unique and not empty
+   - `deviceDriverId`: Must be a valid MongoDB ObjectId
+   - `usage`: Must be one of the predefined usage categories
+   - `connectionSetting`: Must contain proper connection details for the selected type
+  
+3. **Validate Connection Settings**:
+   - For TCP connections:
+     - `ip` must be a valid IP address
+     - `port` must be between 1-65535
+     - `slaveId` must be between 1-255
+   - For RTU connections:
+     - `serialPort` must be a valid serial port path
+     - `baudRate` must be a valid baud rate (typically 9600, 19200, etc.)
+     - `slaveId` must be between 1-255
+
+4. **Check Network Connectivity**:
+   - Ensure the API server is reachable
+   - Check token validity for authentication issues
+   - Verify network connectivity from client to server
+
+5. **Server-Side Validation**:
+   - If the request reaches the server but fails validation, detailed error messages will be returned
+   - Check for field-specific validation errors in the response
+   - Look for uniqueness constraints (e.g., device name already exists)
 
 ### Managing User Permissions
 
