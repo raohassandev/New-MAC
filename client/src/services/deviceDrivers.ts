@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType } from '../types/deviceDriver.types';
+import { endpoints } from '../../../CONSTANTS';
 
 // Create api instance 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333';
-const AMX_API_PATH = '/amx/api';
+const API_URL = import.meta.env.VITE_API_URL || endpoints.baseUrl;
+const AMX_API_PATH = endpoints.frontend.amxPrefix;
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -21,7 +22,7 @@ if (token) {
 export type { DeviceType, DeviceDriver, DeviceDriverFormData, NewDeviceType };
 
 // Library API paths (separate database)
-const DEVICE_DRIVER = `${AMX_API_PATH}/devicedriver`;
+const DEVICE_DRIVER = endpoints.frontend.deviceDriver.baseUrl;
 
 // Device Driver API functions
 export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
@@ -38,7 +39,7 @@ export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
     
     // Fallback: fetch devices marked as device drivers
     try {
-      const devicesResponse = await api.get('/devices');
+      const devicesResponse = await api.get(endpoints.frontend.deviceDriver.get);
       const deviceDrivers = devicesResponse.data.filter((device: any) => device.isDeviceDriver === true);
       
       // If we have device drivers, return them

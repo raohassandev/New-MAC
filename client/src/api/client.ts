@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 // Define API base URL based on environment
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333';
 
 // Create an axios instance with default configuration
 const api = axios.create({

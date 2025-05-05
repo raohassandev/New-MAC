@@ -1,7 +1,7 @@
 import axios from 'axios';
-
+import {endpoints} from '../../../CONSTANTS'
 // Use environment variable for the API URL instead of hardcoding
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
+const API_URL = import.meta.env.VITE_API_URL || endpoints.authUrl;
 
 // Create the axios instance with the correct base URL
 const api = axios.create({
@@ -33,7 +33,7 @@ if (token) {
 // Authentication API calls
 export const login = async (email: string, password: string) => {
   try {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post(endpoints.frontend.auth.login, { email, password });
     return response.data;
   } catch (error) {
     console.error('Login error:', error);
@@ -43,7 +43,7 @@ export const login = async (email: string, password: string) => {
 
 export const getMe = async () => {
   try {
-    const response = await api.get('/auth/me');
+    const response = await api.get(endpoints.frontend.auth.me);
     return response.data;
   } catch (error) {
     console.error('Get user error:', error);
@@ -54,16 +54,34 @@ export const getMe = async () => {
 // Device API calls
 export const getDevices = async () => {
   try {
-    // For development/demo purposes, if we're getting a 404 from the real API,
-    // fall back to the mock endpoint
+    // First try with correct API path
     try {
-      const response = await api.get('/devices');
+      const response = await api.get('/client/api/devices');
+      
+      // Check if we have a new paginated response format
+      if (response.data && response.data.devices) {
+        return response.data.devices;
+      }
+      
+      // Check if we have a direct array response format
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      // If we have some other data format, return it directly
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        // Fall back to mock endpoint
-        const mockResponse = await api.get('/getDevices');
-        return mockResponse.data;
+        // If 404, try legacy path
+        try {
+          const legacyResponse = await api.get('/devices');
+          return legacyResponse.data;
+        } catch (legacyError) {
+          // If both fail, fall back to mock endpoint
+          console.warn('Using mock device data, API endpoints not found');
+          const mockResponse = await api.get('/getDevices');
+          return mockResponse.data;
+        }
       }
       throw error;
     }
@@ -75,8 +93,18 @@ export const getDevices = async () => {
 
 export const getDeviceById = async (id: string) => {
   try {
-    const response = await api.get(`/devices/${id}`);
-    return response.data;
+    // Try with correct API path
+    try {
+      const response = await api.get(`/client/api/devices/${id}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // If 404, try legacy path
+        const legacyResponse = await api.get(`/devices/${id}`);
+        return legacyResponse.data;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error fetching device:', error);
     throw error;
@@ -85,27 +113,32 @@ export const getDeviceById = async (id: string) => {
 
 export const createDevice = async (deviceData: any) => {
   try {
-    // Try to use the real API endpoint
+    // Try with correct API path
     try {
-      const response = await api.post('/devices', deviceData);
+      const response = await api.post('/client/api/devices', deviceData);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        // If the real endpoint doesn't exist yet (during development),
-        // simulate a successful response for demo purposes
-        console.warn('Using mock device creation response');
-
-        // Generate a random ID
-        const mockId = Math.random().toString(36).substring(2, 15);
-
-        // Return a mock response
-        return {
-          ...deviceData,
-          _id: mockId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastSeen: deviceData.enabled ? new Date().toISOString() : null,
-        };
+        // If 404, try legacy path
+        try {
+          const legacyResponse = await api.post('/devices', deviceData);
+          return legacyResponse.data;
+        } catch (legacyError) {
+          // If both fail, return a mock response for development
+          console.warn('Using mock device creation response - API endpoints not found');
+          
+          // Generate a random ID
+          const mockId = Math.random().toString(36).substring(2, 15);
+          
+          // Return a mock response
+          return {
+            ...deviceData,
+            _id: mockId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastSeen: deviceData.enabled ? new Date().toISOString() : null,
+          };
+        }
       }
       throw error;
     }
@@ -117,8 +150,18 @@ export const createDevice = async (deviceData: any) => {
 
 export const updateDevice = async (id: string, deviceData: any) => {
   try {
-    const response = await api.put(`/devices/${id}`, deviceData);
-    return response.data;
+    // Try with correct API path
+    try {
+      const response = await api.put(`/client/api/devices/${id}`, deviceData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // If 404, try legacy path
+        const legacyResponse = await api.put(`/devices/${id}`, deviceData);
+        return legacyResponse.data;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error updating device:', error);
     throw error;
@@ -127,8 +170,18 @@ export const updateDevice = async (id: string, deviceData: any) => {
 
 export const deleteDevice = async (id: string) => {
   try {
-    const response = await api.delete(`/devices/${id}`);
-    return response.data;
+    // Try with correct API path
+    try {
+      const response = await api.delete(`/client/api/devices/${id}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // If 404, try legacy path
+        const legacyResponse = await api.delete(`/devices/${id}`);
+        return legacyResponse.data;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error deleting device:', error);
     throw error;
@@ -137,8 +190,18 @@ export const deleteDevice = async (id: string) => {
 
 export const testDevice = async (id: string) => {
   try {
-    const response = await api.post(`/devices/${id}/test`);
-    return response.data;
+    // Try with correct API path
+    try {
+      const response = await api.post(`/client/api/devices/${id}/test`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // If 404, try legacy path
+        const legacyResponse = await api.post(`/devices/${id}/test`);
+        return legacyResponse.data;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error testing device:', error);
     throw error;
@@ -147,8 +210,18 @@ export const testDevice = async (id: string) => {
 
 export const readDeviceRegisters = async (id: string) => {
   try {
-    const response = await api.get(`/devices/${id}/read`);
-    return response.data;
+    // Try with correct API path
+    try {
+      const response = await api.get(`/client/api/devices/${id}/read`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // If 404, try legacy path
+        const legacyResponse = await api.get(`/devices/${id}/read`);
+        return legacyResponse.data;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error reading device registers:', error);
     throw error;

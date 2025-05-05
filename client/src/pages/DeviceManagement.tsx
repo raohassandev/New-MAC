@@ -150,35 +150,6 @@ const DeviceManagement: React.FC = () => {
       // This would filter by device group once implemented
     }
 
-    // Apply sorting with type safety
-    // filtered.sort((a, b) => {
-    //   // Check if the property exists on both devices
-    //   if (!(sortField in a) || !(sortField in b)) {
-    //     return 0; // Skip comparison if property doesn't exist
-    //   }
-
-    //   let valueA = a[sortField as keyof Device];
-    //   let valueB = b[sortField as keyof Device];
-
-    //   // Handle special cases
-    //   if (sortField === 'lastSeen') {
-    //     valueA = valueA
-    //       ? new Date(valueA as string | number | Date).getTime()
-    //       : 0;
-    //     valueB = valueB
-    //       ? new Date(valueB as string | number | Date).getTime()
-    //       : 0;
-    //   }
-
-    //   // Handle undefined values
-    //   if (valueA === undefined) valueA = '';
-    //   if (valueB === undefined) valueB = '';
-
-    //   // Perform comparison
-    //   if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
-    //   if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
-    //   return 0;
-    // });
     filtered.sort((a, b) => {
       // Check if the property exists on both devices
       if (!(sortField in a) || !(sortField in b)) {
@@ -304,7 +275,7 @@ const DeviceManagement: React.FC = () => {
   // Handle adding new device
   const handleAddDevice = async (deviceData: any) => {
     try {
-      await addDevice(deviceData);
+      const newDevice = await addDevice(deviceData);
       setIsNewDeviceFormOpen(false);
       await refreshDevices();
     } catch (error) {

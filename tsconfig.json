@@ -15,9 +15,10 @@
     "paths": {
       "~/*": ["server/src/*"],
       "~/server/*": ["server/src/*"],
-      "~/scripts/*": ["scripts/*"]
+      "~/scripts/*": ["scripts/*"],
+      "~/CONSTANT/*": ["CONSTANTS/*"]
     }
   },
-  "include": ["server/src/**/*", "scripts/**/*"],
+  "include": ["server/src/**/*", "scripts/**/*", "CONSTANTS"],
   "exclude": ["node_modules", "client"]
 }

@@ -40,18 +40,91 @@ export const useDevices = (): UseDevicesReturn => {
 
     try {
       const response = await getDevices();
+      
+      // First check if we have a paginated response from MongoDB
+      if (response && response.devices) {
+        // Transform MongoDB cursor result to proper array with needed properties
+        const devicesArray = Array.isArray(response.devices) 
+          ? response.devices 
+          : (response.devices.toArray ? await response.devices.toArray() : []);
+        
+        // Ensure each device has required fields and filter out templates
+        const formattedDevices = devicesArray
+          .filter((device: any) => device && !device.isTemplate) // Filter out templates and ensure device exists
+          .map((device: any) => ({
+            ...device,
+            _id: device._id?.toString() || device._id, // Ensure _id is a string
+            tags: device.tags || [],
+            registers: device.registers || [],
+            dataPoints: device.dataPoints || [], // Ensure dataPoints is an array
+            lastSeen: device.lastSeen || undefined,
+            // Make sure connectionSetting is properly structured
+            connectionSetting: device.connectionSetting ? {
+              ...device.connectionSetting,
+              connectionType: device.connectionSetting.connectionType || 'tcp',
+              tcp: device.connectionSetting.tcp || {
+                ip: device.ip || '',
+                port: device.port || 502,
+                slaveId: device.slaveId || 1
+              },
+              rtu: device.connectionSetting.rtu || {
+                serialPort: device.serialPort || '',
+                baudRate: device.baudRate || 9600,
+                dataBits: device.dataBits || 8,
+                stopBits: device.stopBits || 1,
+                parity: device.parity || 'none',
+                slaveId: device.slaveId || 1
+              }
+            } : {
+              connectionType: 'tcp',
+              tcp: {
+                ip: device.ip || '',
+                port: device.port || 502,
+                slaveId: device.slaveId || 1
+              },
+              rtu: {
+                serialPort: device.serialPort || '',
+                baudRate: device.baudRate || 9600,
+                dataBits: device.dataBits || 8,
+                stopBits: device.stopBits || 1,
+                parity: device.parity || 'none',
+                slaveId: device.slaveId || 1
+              }
+            },
+            // Ensure description exists
+            description: device.description || ''
+          }));
 
-      // Ensure each device has required fields and filter out templates
-      const formattedDevices = response
-        .filter((device: Device) => !device.isTemplate) // Filter out templates
-        .map((device: Device) => ({
-          ...device,
-          tags: device.tags || [],
-          registers: device.registers || [],
-          lastSeen: device.lastSeen || undefined,
-        }));
+        setDevices(formattedDevices);
+        return;
+      }
+      
+      // If response itself is an array (direct device list)
+      if (Array.isArray(response)) {
+        const formattedDevices = response
+          .filter((device: any) => device && !device.isTemplate)
+          .map((device: any) => ({
+            ...device,
+            tags: device.tags || [],
+            registers: device.registers || [],
+            dataPoints: device.dataPoints || [],
+            description: device.description || '',
+            connectionSetting: device.connectionSetting || {
+              connectionType: 'tcp',
+              tcp: { ip: '', port: 502, slaveId: 1 },
+              rtu: { serialPort: '', baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none', slaveId: 1 }
+            }
+          }));
 
-      setDevices(formattedDevices);
+        setDevices(formattedDevices);
+        return;
+      }
+      
+      // If no recognizable format, use sample devices
+      console.error('Expected array or pagination object but got:', response);
+      setDevices([]); // Set empty array instead of throwing error to avoid crashes
+      setError(new Error('Unexpected response format from device service'));
+      
     } catch (err) {
       console.error('Error fetching devices:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch devices'));
@@ -121,14 +194,49 @@ export const useDevices = (): UseDevicesReturn => {
   // Update an existing device
   const updateDevice = async (device: Device): Promise<Device> => {
     try {
-      // Ensure required fields
+      // Ensure required fields and consistent structure
       const deviceToUpdate = {
         ...device,
         tags: device.tags || [],
         registers: device.registers || [],
+        dataPoints: device.dataPoints || [],
+        // Ensure connectionSetting is properly structured
+        connectionSetting: device.connectionSetting ? {
+          ...device.connectionSetting,
+          connectionType: device.connectionSetting.connectionType || 'tcp',
+          tcp: device.connectionSetting.tcp || {
+            ip: device.ip || '',
+            port: (typeof device.port === 'number') ? device.port : 502,
+            slaveId: (typeof device.slaveId === 'number') ? device.slaveId : 1
+          },
+          rtu: device.connectionSetting.rtu || {
+            serialPort: device.serialPort || '',
+            baudRate: (typeof device.baudRate === 'number') ? device.baudRate : 9600,
+            dataBits: (typeof device.dataBits === 'number') ? device.dataBits : 8,
+            stopBits: (typeof device.stopBits === 'number') ? device.stopBits : 1,
+            parity: device.parity || 'none',
+            slaveId: (typeof device.slaveId === 'number') ? device.slaveId : 1
+          }
+        } : {
+          connectionType: 'tcp',
+          tcp: {
+            ip: device.ip || '',
+            port: (typeof device.port === 'number') ? device.port : 502,
+            slaveId: (typeof device.slaveId === 'number') ? device.slaveId : 1
+          },
+          rtu: {
+            serialPort: device.serialPort || '',
+            baudRate: (typeof device.baudRate === 'number') ? device.baudRate : 9600,
+            dataBits: (typeof device.dataBits === 'number') ? device.dataBits : 8,
+            stopBits: (typeof device.stopBits === 'number') ? device.stopBits : 1,
+            parity: device.parity || 'none',
+            slaveId: (typeof device.slaveId === 'number') ? device.slaveId : 1
+          }
+        }
       };
 
-      const updatedDevice = await updateDeviceApi(device._id, deviceToUpdate);
+      // Make the API call
+      const updatedDevice = await updateDeviceApi(deviceToUpdate);
 
       // Update local state
       setDevices(prev => prev.map(d => (d._id === device._id ? updatedDevice : d)));

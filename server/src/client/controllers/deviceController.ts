@@ -1,15 +1,138 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 
-import { Device } from '../models';
+import { Device, createDeviceModel } from '../models';
 import ModbusRTU from 'modbus-serial';
 
 // @desc    Get all devices
 // @route   GET /api/devices
 // @access  Private
+// export const getDevices = async (req: Request, res: Response) => {
+//   try {
+//     // Build filter for MongoDB query
+//     const filter: Record<string, any> = {};
+    
+//     // Filter by enabled status (online/offline)
+//     if (req.query.status) {
+//       filter.enabled = req.query.status === 'online' ? true : false;
+//     }
+    
+//     // Filter by device type/make
+//     if (req.query.type) {
+//       filter.make = req.query.type;
+//     }
+    
+//     // Filter by device driver
+//     if (req.query.deviceDriver) {
+//       filter.deviceDriverId = req.query.deviceDriver;
+//     }
+    
+//     // Filter by usage category
+//     if (req.query.usage) {
+//       filter.usage = req.query.usage;
+//     }
+    
+//     // Filter by location
+//     if (req.query.location) {
+//       filter.location = { $regex: req.query.location, $options: 'i' };
+//     }
+    
+//     // Exclude templates unless specifically requested
+//     if (!req.query.includeTemplates) {
+//       filter.isTemplate = { $ne: true };
+//     }
+    
+//     // Text search on multiple fields
+//     if (req.query.search) {
+//       const searchString = String(req.query.search);
+//       filter.$or = [
+//         { name: { $regex: searchString, $options: 'i' } },
+//         { description: { $regex: searchString, $options: 'i' } },
+//         { make: { $regex: searchString, $options: 'i' } },
+//         { model: { $regex: searchString, $options: 'i' } },
+//         { 'connectionSetting.tcp.ip': { $regex: searchString, $options: 'i' } }
+//       ];
+//     }
+    
+//     // Filter by tags (support multiple tags)
+//     if (req.query.tags) {
+//       const tags = Array.isArray(req.query.tags) 
+//         ? req.query.tags 
+//         : String(req.query.tags).split(',');
+        
+//       if (tags.length > 0) {
+//         filter.tags = { $in: tags };
+//       }
+//     }
+    
+//     // Set up pagination
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 50;
+//     const skip = (page - 1) * limit;
+    
+//     // Set up sorting
+//     let sortOptions: Record<string, 1 | -1> = { updatedAt: -1 }; // Default sort by last updated
+    
+//     if (req.query.sort) {
+//       const sortField = String(req.query.sort);
+//       const sortOrder = req.query.order === 'asc' ? 1 : -1;
+//       sortOptions = { [sortField]: sortOrder };
+//     }
+    
+//     // Execute query with pagination and sorting using the MongoDB native approach
+//     const devices = await Device.collection.find(filter)
+//       .sort(sortOptions)
+//       .skip(skip)
+//       .limit(limit)
+//       .toArray();
+    
+//     // Get total count for pagination metadata
+//     const totalDevices = await Device.collection.countDocuments(filter);
+
+
+
+//     res.json({
+//       devices,
+//       pagination: {
+//         total: totalDevices,
+//         page,
+//         limit,
+//         pages: Math.ceil(totalDevices / limit)
+//       }
+//     });
+//   } catch (error: any) {
+//     console.error('Get devices error:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
+
 export const getDevices = async (req: Request, res: Response) => {
   try {
-    const devices = await Device.find();
-    res.json(devices);
+    // Get the client database connection and models
+    const clientModels = req.app.locals.clientModels;
+    
+    // Use the connection-specific Device model if available, otherwise fall back to default
+    let DeviceModel = Device;
+    if (clientModels && clientModels.Device) {
+      DeviceModel = clientModels.Device;
+      console.log('[deviceController] Using client-specific Device model for getDevices');
+    } else {
+      console.warn('[deviceController] Client-specific Device model not found for getDevices, using default');
+    }
+    
+    const formattedDevices = await DeviceModel.find({});
+    console.log(`[deviceController] Retrieved ${formattedDevices.length} devices from ${DeviceModel.db?.name || 'unknown'} database`);
+      
+    return res.json({
+      devices: formattedDevices,
+      // pagination: {
+      //   total: formattedDevices.length,
+      //   page: 1,
+      //   limit: 100,
+      //   pages: 1
+      // }
+    });
   } catch (error: any) {
     console.error('Get devices error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -21,13 +144,70 @@ export const getDevices = async (req: Request, res: Response) => {
 // @access  Private
 export const getDeviceById = async (req: Request, res: Response) => {
   try {
-    const device = await Device.findById(req.params.id);
-
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
+    // Get the client database connection and models
+    const clientModels = req.app.locals.clientModels;
+    
+    // Use the connection-specific Device model if available, otherwise fall back to default
+    let DeviceModel = Device;
+    if (clientModels && clientModels.Device) {
+      DeviceModel = clientModels.Device;
+      console.log('[deviceController] Using client-specific Device model for getDeviceById');
+    } else {
+      console.warn('[deviceController] Client-specific Device model not found for getDeviceById, using default');
     }
-
-    res.json(device);
+    
+    // Check if we should populate the device driver data
+    const populateDriver = req.query.includeDriver === 'true';
+    
+    // Use separate approach for population to avoid TypeScript errors
+    if (populateDriver && mongoose.models.DeviceDriver) {
+      // First get the device
+      const device = await DeviceModel.findById(req.params.id);
+      
+      if (!device) {
+        return res.status(404).json({ message: 'Device not found' });
+      }
+      
+      // Then manually populate if there's a deviceDriverId
+      if (device.deviceDriverId) {
+        try {
+          // Get DeviceDriver model from AMX models
+          let DeviceDriver;
+          if (req.app.locals.libraryModels && req.app.locals.libraryModels.DeviceDriver) {
+            DeviceDriver = req.app.locals.libraryModels.DeviceDriver;
+            console.log('[deviceController] Using AMX-specific DeviceDriver model');
+          } else {
+            DeviceDriver = mongoose.model('DeviceDriver');
+            console.warn('[deviceController] AMX-specific DeviceDriver model not found, using default');
+          }
+          
+          const deviceDriver = await DeviceDriver.findById(device.deviceDriverId);
+          
+          // Create a response object with the populated data
+          const populatedDevice = device.toObject();
+          // Add the device driver data using the property defined in our interface
+          populatedDevice.driverData = deviceDriver;
+          
+          return res.json(populatedDevice);
+        } catch (populateError) {
+          // If population fails, just return the device without population
+          console.warn('Could not populate device driver:', populateError);
+          return res.json(device);
+        }
+      } else {
+        // No deviceDriverId to populate
+        return res.json(device);
+      }
+    } else {
+      // No population needed, just get and return the device
+      const device = await DeviceModel.findById(req.params.id);
+      
+      if (!device) {
+        return res.status(404).json({ message: 'Device not found' });
+      }
+      
+      return res.json(device);
+    }
   } catch (error: any) {
     console.error('Get device error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -39,10 +219,80 @@ export const getDeviceById = async (req: Request, res: Response) => {
 // @access  Private (Admin/Engineer)
 export const createDevice = async (req: Request, res: Response) => {
   try {
-    const device = await Device.create(req.body);
+    // Add user information to the created device if authenticated
+    if (req.user) {
+      req.body.createdBy = {
+        userId: req.user._id || req.user.id,
+        username: req.user.name || req.user.username,
+        email: req.user.email
+      };
+    }
+    
+    // Fix connection settings based on connection type
+    const connectionSetting = req.body.connectionSetting;
+    if (connectionSetting) {
+      // For TCP connection, make sure RTU fields are set with defaults
+      if (connectionSetting.connectionType === 'tcp') {
+        connectionSetting.rtu = {
+          serialPort: 'N/A',
+          baudRate: 9600,
+          dataBits: 8,
+          stopBits: 1,
+          parity: 'none',
+          slaveId: 1
+        };
+      }
+      
+      // For RTU connection, make sure TCP fields are set with defaults
+      if (connectionSetting.connectionType === 'rtu') {
+        connectionSetting.tcp = {
+          ip: 'N/A',
+          port: 502,
+          slaveId: 1
+        };
+      }
+    }
+    
+    // Get the client database connection and models
+    const clientModels = req.app.locals.clientModels;
+    
+    // Use the connection-specific Device model if available, otherwise fall back to default
+    let DeviceModel = Device;
+    if (clientModels && clientModels.Device) {
+      DeviceModel = clientModels.Device;
+      console.log('[deviceController] Using client-specific Device model');
+    } else {
+      console.warn('[deviceController] Client-specific Device model not found, using default');
+    }
+    
+    // Create the device with all provided data
+    const device = await DeviceModel.create(req.body);
+    
+    // Log which database was used
+    console.log(`[deviceController] Device created in database: ${device.db?.name || 'unknown'}`);
+    
+    // Return the created device
     res.status(201).json(device);
   } catch (error: any) {
     console.error('Create device error:', error);
+    
+    // Handle duplicate name error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
+      return res.status(400).json({ 
+        message: 'A device with this name already exists',
+        error: 'Duplicate device name'
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+    
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -58,7 +308,41 @@ export const updateDevice = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Update device
+    // Ensure we don't overwrite createdBy field if not provided
+    if (!req.body.createdBy && device.createdBy) {
+      req.body.createdBy = device.createdBy;
+    }
+    
+    // Fix connection settings based on connection type if they are being updated
+    if (req.body.connectionSetting) {
+      const connectionSetting = req.body.connectionSetting;
+      
+      // For TCP connection, make sure RTU fields are set with defaults
+      if (connectionSetting.connectionType === 'tcp') {
+        connectionSetting.rtu = {
+          serialPort: 'N/A',
+          baudRate: 9600,
+          dataBits: 8,
+          stopBits: 1,
+          parity: 'none',
+          slaveId: 1
+        };
+      }
+      
+      // For RTU connection, make sure TCP fields are set with defaults
+      if (connectionSetting.connectionType === 'rtu') {
+        connectionSetting.tcp = {
+          ip: 'N/A',
+          port: 502,
+          slaveId: 1
+        };
+      }
+    }
+    
+    // Update the updatedAt timestamp
+    req.body.updatedAt = new Date();
+    
+    // Update device with new data
     const updatedDevice = await Device.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -68,6 +352,24 @@ export const updateDevice = async (req: Request, res: Response) => {
     res.json(updatedDevice);
   } catch (error: any) {
     console.error('Update device error:', error);
+    
+    // Handle duplicate name error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
+      return res.status(400).json({ 
+        message: 'A device with this name already exists',
+        error: 'Duplicate device name'
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+    
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -426,6 +728,102 @@ export const readDeviceRegisters = async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     console.error('Read registers error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get devices by device driver ID
+// @route   GET /api/devices/by-driver/:driverId
+// @access  Private
+export const getDevicesByDriverId = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.params.driverId;
+    
+    if (!driverId) {
+      return res.status(400).json({ message: 'Device driver ID is required' });
+    }
+    
+    // Use the explicit MongoDB query approach to avoid TypeScript issues
+    const filter = {
+      deviceDriverId: driverId,
+      isTemplate: { $ne: true } // Exclude templates
+    };
+    
+    // Set up pagination
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+    
+    // Execute query with pagination using the explicit MongoDB approach
+    const devices = await Device.collection.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+    
+    // Get total count for pagination
+    const totalDevices = await Device.collection.countDocuments(filter);
+    
+    res.json({
+      devices,
+      deviceDriverId: driverId,
+      pagination: {
+        total: totalDevices,
+        page,
+        limit,
+        pages: Math.ceil(totalDevices / limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Get devices by driver error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get devices by usage category
+// @route   GET /api/devices/by-usage/:usage
+// @access  Private
+export const getDevicesByUsage = async (req: Request, res: Response) => {
+  try {
+    const usage = req.params.usage;
+    
+    if (!usage) {
+      return res.status(400).json({ message: 'Usage category is required' });
+    }
+    
+    // Use the explicit MongoDB query approach to avoid TypeScript issues
+    const filter = {
+      usage: usage,
+      isTemplate: { $ne: true } // Exclude templates
+    };
+    
+    // Set up pagination
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+    
+    // Execute query with pagination using the explicit MongoDB approach
+    const devices = await Device.collection.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+    
+    // Get total count for pagination
+    const totalDevices = await Device.collection.countDocuments(filter);
+    
+    res.json({
+      devices,
+      usage,
+      pagination: {
+        total: totalDevices,
+        page,
+        limit,
+        pages: Math.ceil(totalDevices / limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Get devices by usage error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

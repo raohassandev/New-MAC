@@ -86,6 +86,16 @@ export interface IDevice extends Omit<Document, 'model'> {
   connectionSetting?: IConnectionSetting;
   dataPoints?: IDataPoint[];
   
+  // Device driver linkage
+  deviceDriverId?: string;
+  // Runtime-populated device driver data (not stored in DB)
+  driverData?: any;
+  
+  // Metadata fields
+  usage?: string;
+  usageNotes?: string;
+  location?: string;
+  
   // Legacy fields for backward compatibility
   ip?: string;
   port?: number;
@@ -103,6 +113,11 @@ export interface IDevice extends Omit<Document, 'model'> {
   lastSeen?: Date;
   createdAt: Date;
   updatedAt: Date;
+  createdBy?: {
+    userId: string;
+    username: string;
+    email: string;
+  };
 }
 
 // Schemas for the nested structures
@@ -150,12 +165,12 @@ export const TcpSettingsSchema = new Schema<ITcpSettings>({
 
 // RTU Settings Schema
 export const RtuSettingsSchema = new Schema<IRtuSettings>({
-  serialPort: { type: String, required: true },
-  baudRate: { type: Number, required: true },
-  dataBits: { type: Number, required: true },
-  stopBits: { type: Number, required: true },
-  parity: { type: String, required: true },
-  slaveId: { type: Number, required: true }
+  serialPort: { type: String, required: false }, // Changed from required: true
+  baudRate: { type: Number, required: false },  // Changed from required: true
+  dataBits: { type: Number, required: false },  // Changed from required: true
+  stopBits: { type: Number, required: false },  // Changed from required: true
+  parity: { type: String, required: false },    // Changed from required: true
+  slaveId: { type: Number, required: false }    // Changed from required: true
 });
 
 // Combined Connection Setting Schema
@@ -188,6 +203,14 @@ export const DeviceSchema = new Schema<IDevice>({
   connectionSetting: { type: ConnectionSettingSchema, required: false },
   dataPoints: [DataPointSchema],
   
+  // Device driver linkage
+  deviceDriverId: { type: String, ref: 'DeviceDriver' },
+  
+  // Metadata fields
+  usage: { type: String },
+  usageNotes: { type: String },
+  location: { type: String },
+  
   // Legacy fields for backward compatibility
   ip: { type: String },
   port: { type: Number },
@@ -205,6 +228,11 @@ export const DeviceSchema = new Schema<IDevice>({
   lastSeen: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  createdBy: {
+    userId: { type: String },
+    username: { type: String },
+    email: { type: String }
+  }
 });
 
 // Update the updatedAt timestamp on save
@@ -213,5 +241,17 @@ DeviceSchema.pre('save', function (this: IDevice, next) {
   next(null);
 });
 
+// Create a function to create the Device model with a specific connection
+export const createDeviceModel = (connection: mongoose.Connection) => {
+  // Check if model already exists in this connection to prevent duplicate model error
+  try {
+    return connection.model<IDevice>('Device');
+  } catch (error) {
+    // Model doesn't exist yet for this connection, create it
+    return connection.model<IDevice>('Device', DeviceSchema);
+  }
+};
+
+// For backward compatibility, also create with default connection
 const Device = mongoose.model<IDevice>('Device', DeviceSchema);
 export default Device;

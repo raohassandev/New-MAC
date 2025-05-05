@@ -49,3 +49,34 @@ export const dashboardApi = {
   getRecentActivity: (limit: number = 5) => api.get(`/dashboard/activity?limit=${limit}`),
   getPerformanceMetrics: (days: number = 7) => api.get(`/dashboard/performance?days=${days}`),
 };
+
+// Device endpoints
+export const deviceApi = {
+  getDevices: (filters?: Record<string, any>) => {
+    let url = '/client/api/devices'; 
+    if (filters) {
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return api.get(url);
+  },
+  getDeviceById: (id: string, includeDriver: boolean = false) =>
+    api.get(`/client/api/devices/${id}${includeDriver ? '?includeDriver=true' : ''}`),
+  createDevice: (deviceData: any) => api.post('/client/api/devices', deviceData),
+  updateDevice: (id: string, deviceData: any) => api.put(`/client/api/devices/${id}`, deviceData),
+  deleteDevice: (id: string) => api.delete(`/client/api/devices/${id}`),
+  testConnection: (id: string) => api.post(`/client/api/devices/${id}/test`),
+  readRegisters: (id: string) => api.get(`/client/api/devices/${id}/read`),
+  getDevicesByDriver: (driverId: string, page: number = 1, limit: number = 50) =>
+    api.get(`/client/api/devices/by-driver/${driverId}?page=${page}&limit=${limit}`),
+  getDevicesByUsage: (usage: string, page: number = 1, limit: number = 50) =>
+    api.get(`/client/api/devices/by-usage/${usage}?page=${page}&limit=${limit}`),
+};

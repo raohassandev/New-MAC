@@ -1,5 +1,5 @@
-// client/src/services/devices.ts
-import api from '../api/client';
+
+import { deviceApi } from '../api/endpoints';
 import { Device as BaseDevice, ConnectionSetting, DataPoint } from '../types/device.types';
 
 // Extend the base Device interface for the service
@@ -48,22 +48,24 @@ export function ensureDeviceProperties(device: BaseDevice): Device {
   
   // If connectionSetting doesn't exist or is missing required properties, create it
   if (!connectionSetting || (!connectionSetting.tcp && !connectionSetting.rtu)) {
-    const connectionType = device.connectionType || 'tcp';
+    // Handle connectionType - ensure it's a valid literal type
+    const connType = (device.connectionType === 'rtu') ? 'rtu' : 'tcp';
     
+    // Create a properly typed connection setting object
     connectionSetting = {
-      connectionType,
+      connectionType: connType,
       tcp: {
         ip: device.ip || '',
-        port: device.port || 502,
-        slaveId: device.slaveId || 1
+        port: typeof device.port === 'number' ? device.port : 502,
+        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1
       },
       rtu: {
         serialPort: device.serialPort || '',
-        baudRate: device.baudRate || 9600,
-        dataBits: device.dataBits || 8,
-        stopBits: device.stopBits || 1,
+        baudRate: typeof device.baudRate === 'number' ? device.baudRate : 9600,
+        dataBits: typeof device.dataBits === 'number' ? device.dataBits : 8,
+        stopBits: typeof device.stopBits === 'number' ? device.stopBits : 1,
         parity: device.parity || 'none',
-        slaveId: device.slaveId || 1
+        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1
       }
     };
   }
@@ -130,131 +132,179 @@ export function convertToBaseDevice(serviceDevice: Device): BaseDevice {
   };
 }
 
-// Export functions that integrate with the backend API
-export async function getDevices(): Promise<Device[]> {
+// Sample devices for testing and development
+const SAMPLE_DEVICES: Device[] = [
+  {
+    _id: 'sample_device_1',
+    name: 'AC Room 1',
+    enabled: true,
+    make: 'CVM',
+    model: 'C4 TPM30',
+    isTemplate: false, // Important: explicitly mark as NOT a template
+    tags: ['power', 'HVAC'],
+    connectionSetting: {
+      connectionType: 'tcp',
+      tcp: {
+        ip: '192.168.1.191',
+        port: 502,
+        slaveId: 1
+      },
+      rtu: {
+        serialPort: '',
+        baudRate: 9600,
+        dataBits: 8,
+        stopBits: 1,
+        parity: 'none',
+        slaveId: 1
+      }
+    },
+    dataPoints: [
+      {
+        range: {
+          startAddress: 0,
+          count: 2,
+          fc: 3,
+        },
+        parser: {
+          parameters: [
+            {
+              name: 'Voltage',
+              dataType: 'FLOAT',
+              scalingFactor: 1,
+              decimalPoint: 1,
+              byteOrder: 'ABCD',
+              signed: true,
+              registerRange: 'Main',
+              registerIndex: 0,
+              wordCount: 2
+            }
+          ]
+        }
+      }
+    ],
+    // New required fields
+    deviceDriverId: 'sample_driver_1',
+    usage: 'energy_analysis',
+    usageNotes: 'Sample energy analyzer for demo purposes',
+    location: 'Main Building, Room 101',
+    // User information
+    createdBy: {
+      userId: 'demo_user_id',
+      username: 'Demo User',
+      email: 'demo@example.com'
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSeen: new Date(),
+    description: '',
+  },
+  {
+    _id: 'sample_device_2',
+    name: 'Solar Inverter',
+    enabled: true,
+    make: 'Huawei',
+    model: '110 KTL M2',
+    isTemplate: false, // Important: explicitly mark as NOT a template
+    tags: ['solar', 'power'],
+    connectionSetting: {
+      connectionType: 'rtu',
+      tcp: {
+        ip: '',
+        port: 502,
+        slaveId: 1
+      },
+      rtu: {
+        serialPort: 'COM2',
+        baudRate: 9600,
+        dataBits: 8,
+        stopBits: 1,
+        parity: 'none',
+        slaveId: 1
+      }
+    },
+    dataPoints: [
+      {
+        range: {
+          startAddress: 0,
+          count: 2,
+          fc: 3,
+        },
+        parser: {
+          parameters: [
+            {
+              name: 'DC Voltage',
+              dataType: 'FLOAT',
+              scalingFactor: 1,
+              decimalPoint: 1,
+              byteOrder: 'ABCD',
+              signed: true,
+              registerRange: 'Main',
+              registerIndex: 0,
+              wordCount: 2
+            }
+          ]
+        }
+      }
+    ],
+    // New required fields
+    deviceDriverId: 'sample_driver_2',
+    usage: 'power_source',
+    usageNotes: 'Sample solar inverter for demo purposes',
+    location: 'Rooftop, Panel 3',
+    // User information
+    createdBy: {
+      userId: 'demo_user_id',
+      username: 'Demo User',
+      email: 'demo@example.com'
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSeen: new Date(),
+    description: '',
+  },
+];
+
+// Export functions that integrate with the backend API using the unified endpoint helpers
+export async function getDevices(): Promise<any> {
   try {
-    const response = await api.get('/devices');
-
-    // If no devices are returned, provide some sample devices for testing
-    if (!response.data || response.data.length === 0) {
-      console.warn('No devices returned from API, using sample devices');
-      return [
-        {
-          _id: 'sample_device_1',
-          name: 'AC Room 1',
-          enabled: true,
-          make: 'CVM',
-          model: 'C4 TPM30',
-          isTemplate: false, // Important: explicitly mark as NOT a template
-          tags: ['power', 'HVAC'],
-          connectionSetting: {
-            connectionType: 'tcp',
-            tcp: {
-              ip: '192.168.1.191',
-              port: 502,
-              slaveId: 1
-            }
-          },
-          dataPoints: [
-            {
-              range: {
-                startAddress: 0,
-                count: 2,
-                fc: 3,
-              },
-              parser: {
-                parameters: [
-                  {
-                    name: 'Voltage',
-                    dataType: 'FLOAT',
-                    scalingFactor: 1,
-                    decimalPoint: 1,
-                    byteOrder: 'ABCD',
-                    signed: true,
-                    registerRange: 'Main',
-                    registerIndex: 0,
-                    wordCount: 2
-                  }
-                ]
-              }
-            }
-          ],
-          createdBy: {
-            userId: 'demo_user_id',
-            username: 'Demo User',
-            email: 'demo@example.com'
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastSeen: new Date(),
-        },
-        {
-          _id: 'sample_device_2',
-          name: 'Solar Inverter',
-          enabled: true,
-          make: 'Huawei',
-          model: '110 KTL M2',
-          isTemplate: false, // Important: explicitly mark as NOT a template
-          tags: ['solar', 'power'],
-          connectionSetting: {
-            connectionType: 'rtu',
-            rtu: {
-              serialPort: 'COM2',
-              baudRate: 9600,
-              dataBits: 8,
-              stopBits: 1,
-              parity: 'none',
-              slaveId: 1
-            }
-          },
-          dataPoints: [
-            {
-              range: {
-                startAddress: 0,
-                count: 2,
-                fc: 3,
-              },
-              parser: {
-                parameters: [
-                  {
-                    name: 'DC Voltage',
-                    dataType: 'FLOAT',
-                    scalingFactor: 1,
-                    decimalPoint: 1,
-                    byteOrder: 'ABCD',
-                    signed: true,
-                    registerRange: 'Main',
-                    registerIndex: 0,
-                    wordCount: 2
-                  }
-                ]
-              }
-            }
-          ],
-          createdBy: {
-            userId: 'demo_user_id',
-            username: 'Demo User',
-            email: 'demo@example.com'
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastSeen: new Date(),
-        },
-      ];
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.getDevices();
+    
+    // If it's a direct response with data property containing the paginated structure
+    if (response && response.data && response.data.devices) {
+      return response.data; // Return the whole pagination object with devices, not just devices array
     }
-
-    return response.data;
+    
+    // If response.data is an array
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // If response itself is the array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    
+    // Special case for MongoDB cursor in raw response
+    if (response && typeof response === 'object') {
+      return response; // Return the whole object so caller can handle MongoDB cursor
+    }
+    
+    // If no devices are returned, provide some sample devices for testing
+    console.warn('No devices returned from API or unexpected format, using sample devices');
+    return { devices: SAMPLE_DEVICES, pagination: { total: SAMPLE_DEVICES.length, page: 1, limit: 50, pages: 1 } };
   } catch (error) {
     console.error('Error fetching devices from API:', error);
-    // Return empty array in case of error
-    return [];
+    // Return sample devices in case of error for development
+    return { devices: SAMPLE_DEVICES, pagination: { total: SAMPLE_DEVICES.length, page: 1, limit: 50, pages: 1 } };
   }
 }
 
 export async function getDevice(id: string): Promise<Device> {
   try {
-    const response = await api.get(`/devices/${id}`);
-    return response.data;
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.getDeviceById(id);
+    return response.data || response;
   } catch (error) {
     console.error('Error getting device from API:', error);
     throw new Error('Failed to get device');
@@ -266,9 +316,11 @@ export async function addDevice(device: BaseDevice): Promise<Device> {
     // Ensure all required properties are present
     const preparedDevice = ensureDeviceProperties(device);
 
-    // Send to backend API
-    const response = await api.post('/devices', preparedDevice);
-    return response.data;
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.createDevice(preparedDevice);
+    
+    // Return response data or response itself
+    return response.data || response;
   } catch (error) {
     console.error('Error adding device to API:', error);
     throw error;
@@ -277,9 +329,9 @@ export async function addDevice(device: BaseDevice): Promise<Device> {
 
 export async function updateDevice(device: Partial<Device> & { _id: string }): Promise<Device> {
   try {
-    // Send update to backend API
-    const response = await api.put(`/devices/${device._id}`, device);
-    return response.data;
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.updateDevice(device._id, device);
+    return response.data || response;
   } catch (error) {
     console.error('Error updating device via API:', error);
     throw new Error('Failed to update device');
@@ -288,8 +340,13 @@ export async function updateDevice(device: Partial<Device> & { _id: string }): P
 
 export async function deleteDevice(id: string): Promise<boolean> {
   try {
-    // Delete from backend API
-    await api.delete(`/devices/${id}`);
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.deleteDevice(id);
+    // Check if response has data property (AxiosResponse)
+    if (response.data) {
+      return true;
+    }
+    // For direct response objects
     return true;
   } catch (error) {
     console.error('Error deleting device via API:', error);
@@ -299,9 +356,9 @@ export async function deleteDevice(id: string): Promise<boolean> {
 
 export async function testConnection(id: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Test connection via backend API
-    const response = await api.post(`/devices/${id}/test`);
-    return response.data;
+    // Use the deviceApi from endpoints.ts
+    const response = await deviceApi.testConnection(id);
+    return response.data || response;
   } catch (error) {
     console.error('Error testing device connection via API:', error);
     return { success: false, message: 'Connection test failed' };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Server, Settings, MapPin, Tag, Info, Database, HelpCircle } from 'lucide-react';
+import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 // Import UI components
@@ -9,12 +9,14 @@ import { Form } from '../../components/ui/Form';
 import { Tabs } from '../../components/ui/Tabs';
 import { Dialog } from '../../components/ui/Dialog';
 import { Switch } from '../../components/ui/Switch';
-import { Select } from '../../components/ui/Select';
 import { Card } from '../../components/ui/Card';
 import { Alert } from '../../components/ui/Alert';
 
 // Import services for device drivers
 import { getDeviceDrivers, DeviceDriver } from '../../services/deviceDrivers';
+
+// Import types
+import { DataPoint } from '../../types/device.types';
 
 // Device usage categories
 const DEVICE_USAGE_CATEGORIES = [
@@ -74,7 +76,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     model: '',
     description: '',
     tags: [] as string[],
-    dataPoints: [],
+    dataPoints: [] as DataPoint[],
   });
   
   const [deviceDrivers, setDeviceDrivers] = useState<DeviceDriver[]>([]);
@@ -219,28 +221,57 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    // Basic validation
     if (!deviceData.name.trim()) {
       newErrors.name = 'Device name is required';
     }
 
-    if (!deviceData.deviceDriverId) {
+    // Only require device driver if device drivers are loaded
+    if (deviceDrivers.length > 0 && !deviceData.deviceDriverId) {
       newErrors.deviceDriverId = 'Please select a device driver';
     }
 
+    // Validate usage category
     if (!deviceData.usage) {
       newErrors.usage = 'Please select a device usage category';
     }
 
-    if (deviceData.connectionSetting.connectionType === 'tcp') {
-      if (!deviceData.connectionSetting.tcp.ip.trim()) {
-        newErrors['tcp.ip'] = 'IP address is required';
+    // Connection settings validation
+    if (deviceData.connectionSetting) {
+      if (deviceData.connectionSetting.connectionType === 'tcp') {
+        // TCP validation
+        const tcp = deviceData.connectionSetting.tcp;
+        if (!tcp || !tcp.ip || !tcp.ip.trim()) {
+          newErrors['tcp.ip'] = 'IP address is required';
+        }
+
+        // Ensure port is a valid number
+        if (tcp && (isNaN(Number(tcp.port)) || Number(tcp.port) <= 0 || Number(tcp.port) > 65535)) {
+          newErrors['tcp.port'] = 'Port must be a valid number between 1-65535';
+        }
+
+        // Ensure slave ID is a valid number
+        if (tcp && (isNaN(Number(tcp.slaveId)) || Number(tcp.slaveId) <= 0 || Number(tcp.slaveId) > 255)) {
+          newErrors['tcp.slaveId'] = 'Slave ID must be a valid number between 1-255';
+        }
+      } else if (deviceData.connectionSetting.connectionType === 'rtu') {
+        // RTU validation
+        const rtu = deviceData.connectionSetting.rtu;
+        if (!rtu || !rtu.serialPort || !rtu.serialPort.trim()) {
+          newErrors['rtu.serialPort'] = 'Serial port is required';
+        }
+
+        // Additional RTU validations if needed
+        if (rtu && (isNaN(Number(rtu.slaveId)) || Number(rtu.slaveId) <= 0 || Number(rtu.slaveId) > 255)) {
+          newErrors['rtu.slaveId'] = 'Slave ID must be a valid number between 1-255';
+        }
       }
-    } else if (deviceData.connectionSetting.connectionType === 'rtu') {
-      if (!deviceData.connectionSetting.rtu.serialPort.trim()) {
-        newErrors['rtu.serialPort'] = 'Serial port is required';
-      }
+    } else {
+      // Connection settings must exist
+      newErrors['connectionSetting'] = 'Connection settings are required';
     }
 
+    // Set errors and return validation result
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -250,31 +281,57 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
 
     if (!validateForm()) {
       toast.error('Please fill in all required fields');
+      // Automatically switch to first tab with errors
+      if (errors.name || errors.deviceDriverId) {
+        setActiveTab('basic');
+      } else if (errors['tcp.ip'] || errors['tcp.port'] || errors['tcp.slaveId'] || 
+                errors['rtu.serialPort'] || errors['rtu.baudRate'] || errors['rtu.slaveId']) {
+        setActiveTab('connection');
+      } else if (errors.usage) {
+        setActiveTab('metadata');
+      }
       return;
     }
 
-    // Prepare data for submission
-    const submissionData = {
-      ...deviceData,
-      // Ensure numeric values
-      connectionSetting: {
-        ...deviceData.connectionSetting,
-        tcp: {
-          ...deviceData.connectionSetting.tcp,
-          port: parseInt(deviceData.connectionSetting.tcp.port.toString()),
-          slaveId: parseInt(deviceData.connectionSetting.tcp.slaveId.toString())
-        },
-        rtu: {
-          ...deviceData.connectionSetting.rtu,
-          baudRate: parseInt(deviceData.connectionSetting.rtu.baudRate.toString()),
-          dataBits: parseInt(deviceData.connectionSetting.rtu.dataBits.toString()),
-          stopBits: parseInt(deviceData.connectionSetting.rtu.stopBits.toString()),
-          slaveId: parseInt(deviceData.connectionSetting.rtu.slaveId.toString())
+    // Prepare data for submission with proper type conversion
+    try {
+      const submissionData = {
+        ...deviceData,
+        // Ensure numeric values with proper conversions
+        connectionSetting: {
+          ...deviceData.connectionSetting,
+          tcp: {
+            ...deviceData.connectionSetting.tcp,
+            port: parseInt(deviceData.connectionSetting.tcp.port.toString()) || 502,
+            slaveId: parseInt(deviceData.connectionSetting.tcp.slaveId.toString()) || 1
+          },
+          rtu: {
+            ...deviceData.connectionSetting.rtu,
+            baudRate: parseInt(deviceData.connectionSetting.rtu.baudRate.toString()) || 9600,
+            dataBits: parseInt(deviceData.connectionSetting.rtu.dataBits.toString()) || 8,
+            stopBits: parseInt(deviceData.connectionSetting.rtu.stopBits.toString()) || 1,
+            slaveId: parseInt(deviceData.connectionSetting.rtu.slaveId.toString()) || 1
+          }
         }
-      }
-    };
+      };
 
-    onSubmit(submissionData);
+      // Add default values for empty fields to prevent backend validation errors
+      if (!submissionData.description) submissionData.description = '';
+      if (!submissionData.make) submissionData.make = '';
+      if (!submissionData.model) submissionData.model = '';
+      if (!submissionData.location) submissionData.location = '';
+      if (!submissionData.usageNotes) submissionData.usageNotes = '';
+      
+      // Ensure required arrays are defined
+      submissionData.tags = submissionData.tags || [];
+      submissionData.dataPoints = submissionData.dataPoints || [];
+
+      // Call the onSubmit handler with the prepared data
+      onSubmit(submissionData);
+    } catch (error) {
+      console.error('Error preparing device data for submission:', error);
+      toast.error('There was an error processing your form data. Please try again.');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -374,9 +431,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                       <span>Loading device drivers...</span>
                     </div>
                   ) : driverLoadError ? (
-                    <Alert type="error">{driverLoadError}</Alert>
+                    <Alert variant="error">{driverLoadError}</Alert>
                   ) : deviceDrivers.length === 0 ? (
-                    <Alert type="warning">
+                    <Alert variant="warning">
                       No device drivers found. Please create a device driver first.
                     </Alert>
                   ) : (

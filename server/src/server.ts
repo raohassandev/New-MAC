@@ -6,6 +6,7 @@ import User from './client/models/User';
 import path from 'path';
 import { connectClientToDB } from './client/config/db';
 import { amxModels } from './amx/models';
+import { clientModels } from './client/models';
 import { clientRouter } from './client/routes';
 import connectAmxToDB from './amx/config/db';
 import { amxRouter } from './amx/routes';
@@ -90,8 +91,12 @@ const startServer = async () => {
     // Initialize library models with the library database connection
     const amxDBConnection = amxModels(amxDB);
     
-    // Add library models to app locals
+    // Initialize client models with the client database connection
+    const clientDBModels = clientModels(clientDB);
+    
+    // Add models to app locals
     app.locals.libraryModels = amxDBConnection;
+    app.locals.clientModels = clientDBModels;
 
     // Start server after successful database connections
     app.listen(PORT, () => {

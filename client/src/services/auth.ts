@@ -1,4 +1,5 @@
 // client/src/services/auth.ts
+import { endpoints } from '../../../CONSTANTS';
 import API from './api';
 
 export interface LoginCredentials {
@@ -23,7 +24,7 @@ export interface User {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<User> {
-    const response = await API.post('/auth/login', credentials);
+    const response = await API.post(endpoints.frontend.auth.login, credentials);
 
     // Store user data and token
     localStorage.setItem('token', response.data.token);
@@ -33,7 +34,7 @@ export const authService = {
   },
 
   async register(credentials: RegisterCredentials): Promise<User> {
-    const response = await API.post('/auth/register', credentials);
+    const response = await API.post(endpoints.frontend.auth.register, credentials);
 
     // Store user data and token
     localStorage.setItem('token', response.data.token);
@@ -43,7 +44,7 @@ export const authService = {
   },
 
   async getCurrentUser(): Promise<User> {
-    const response = await API.get('/auth/me');
+    const response = await API.get(endpoints.frontend.auth.me);
     return response.data;
   },
 
