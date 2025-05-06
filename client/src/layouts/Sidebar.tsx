@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Home, Settings, X, Code } from 'lucide-react';
+import { Activity, AlertTriangle, Home, Settings, X, Code, Sliders } from 'lucide-react';
 
 import { NavLink } from 'react-router-dom';
 
@@ -12,7 +12,8 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
     { path: '/dashboard', name: 'Dashboard', icon: <Home size={20} /> },
     { path: '/system', name: 'System Monitor', icon: <Activity size={20} /> },
     { path: '/alerts', name: 'Alerts', icon: <AlertTriangle size={20} /> },
-    { path: '/project-structure', name: 'Project Structure', icon: <Code size={20} /> },
+    { path: '/system-architecture', name: 'System Architecture', icon: <Code size={20} /> },
+    { path: '/system-configuration', name: 'Configuration', icon: <Sliders size={20} /> },
     { path: '/settings', name: 'Settings', icon: <Settings size={20} /> },
   ];
 

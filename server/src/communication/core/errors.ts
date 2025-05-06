@@ -62,14 +62,14 @@ export class ProtocolError extends CommunicationError {
  */
 export class ModbusError extends ProtocolError {
   public exceptionCode?: number;
-  
+
   constructor(message: string, exceptionCode?: number) {
     super(message);
     this.name = 'ModbusError';
     this.exceptionCode = exceptionCode;
     Object.setPrototypeOf(this, ModbusError.prototype);
   }
-  
+
   /**
    * Get the standard message for a Modbus exception code
    */
@@ -141,15 +141,15 @@ export function createError(error: any): Error {
   if (error instanceof Error) {
     return error;
   }
-  
+
   if (typeof error === 'number') {
     return new ModbusError(ModbusError.getExceptionMessage(error), error);
   }
-  
+
   if (typeof error === 'string') {
     return new CommunicationError(error);
   }
-  
+
   return new CommunicationError('Unknown error');
 }
 
@@ -160,15 +160,13 @@ export function createErrorFromException(error: any): Error {
   if (error instanceof Error) {
     return error;
   }
-  
+
   if (typeof error === 'string') {
     return new CommunicationError(error);
   }
-  
+
   return new CommunicationError(
-    typeof error === 'object' ? 
-      JSON.stringify(error) : 
-      `Unknown error: ${String(error)}`
+    typeof error === 'object' ? JSON.stringify(error) : `Unknown error: ${String(error)}`,
   );
 }
 

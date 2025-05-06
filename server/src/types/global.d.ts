@@ -5,9 +5,9 @@ import express from 'express';
 declare global {
   namespace Express {
     interface Request {
-      user?: any;  // Define a proper user interface 
+      user?: any; // Define a proper user interface
     }
-    
+
     interface Application {
       locals: {
         mainDB?: mongoose.Connection;
@@ -16,7 +16,7 @@ declare global {
           Template: mongoose.Model<any>;
           DeviceType: mongoose.Model<any>;
         };
-      }
+      };
     }
   }
 }

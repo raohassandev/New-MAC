@@ -28,7 +28,7 @@ describe('Auth Controller', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
-    
+
     mockUser = {
       _id: 'test-user-id',
       name: 'Test User',
@@ -37,7 +37,7 @@ describe('Auth Controller', () => {
       permissions: ['view_devices', 'view_profiles'],
       toObject: jest.fn().mockReturnThis(),
     };
-    
+
     jest.clearAllMocks();
   });
 
@@ -48,23 +48,23 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'correct-password',
       };
-      
+
       (User.findOne as jest.Mock).mockResolvedValueOnce(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
       (jwt.sign as jest.Mock).mockReturnValueOnce('mock-jwt-token');
-      
+
       // Execute function
       await login(req as Request, res as Response);
-      
+
       // Assertions
       expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
       expect(bcrypt.compare).toHaveBeenCalledWith('correct-password', undefined);
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: 'test-user-id' },
         expect.any(String),
-        expect.any(Object)
+        expect.any(Object),
       );
-      
+
       expect(res.json).toHaveBeenCalledWith({
         _id: 'test-user-id',
         name: 'Test User',
@@ -80,11 +80,11 @@ describe('Auth Controller', () => {
         email: 'nonexistent@example.com',
         password: 'any-password',
       };
-      
+
       (User.findOne as jest.Mock).mockResolvedValueOnce(null);
-      
+
       await login(req as Request, res as Response);
-      
+
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ message: 'Invalid credentials' });
       expect(bcrypt.compare).not.toHaveBeenCalled();
@@ -95,12 +95,12 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'wrong-password',
       };
-      
+
       (User.findOne as jest.Mock).mockResolvedValueOnce(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
-      
+
       await login(req as Request, res as Response);
-      
+
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ message: 'Invalid credentials' });
       expect(jwt.sign).not.toHaveBeenCalled();
@@ -115,23 +115,23 @@ describe('Auth Controller', () => {
         email: 'newuser@example.com',
         password: 'new-password',
       };
-      
+
       const createdUser = {
         ...mockUser,
         _id: 'new-user-id',
         name: 'New User',
         email: 'newuser@example.com',
       };
-      
+
       (User.findOne as jest.Mock).mockResolvedValueOnce(null);
       (bcrypt.genSalt as jest.Mock).mockResolvedValueOnce('mock-salt');
       (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed-password');
       (User.create as jest.Mock).mockResolvedValueOnce(createdUser);
       (jwt.sign as jest.Mock).mockReturnValueOnce('mock-jwt-token');
-      
+
       // Execute function
       await register(req as Request, res as Response);
-      
+
       // Assertions
       expect(User.findOne).toHaveBeenCalledWith({ email: 'newuser@example.com' });
       expect(bcrypt.genSalt).toHaveBeenCalledWith(10);
@@ -143,14 +143,16 @@ describe('Auth Controller', () => {
         role: 'user',
         permissions: ['view_devices', 'view_profiles'],
       });
-      
+
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        _id: 'new-user-id',
-        name: 'New User',
-        email: 'newuser@example.com',
-        token: 'mock-jwt-token',
-      }));
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: 'new-user-id',
+          name: 'New User',
+          email: 'newuser@example.com',
+          token: 'mock-jwt-token',
+        }),
+      );
     });
 
     test('should return 400 if required fields are missing', async () => {
@@ -158,9 +160,9 @@ describe('Auth Controller', () => {
         name: 'New User',
         // Missing email and password
       };
-      
+
       await register(req as Request, res as Response);
-      
+
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: 'Please fill all fields' });
       expect(User.findOne).not.toHaveBeenCalled();
@@ -172,11 +174,11 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'new-password',
       };
-      
+
       (User.findOne as jest.Mock).mockResolvedValueOnce(mockUser);
-      
+
       await register(req as Request, res as Response);
-      
+
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ message: 'User already exists' });
       expect(bcrypt.genSalt).not.toHaveBeenCalled();
@@ -186,13 +188,13 @@ describe('Auth Controller', () => {
   describe('getMe function', () => {
     test('should return current user data', async () => {
       req.user = { id: 'test-user-id' };
-      
+
       (User.findById as jest.Mock).mockReturnValueOnce({
         select: jest.fn().mockResolvedValueOnce(mockUser),
       });
-      
+
       await getMe(req as Request, res as Response);
-      
+
       expect(User.findById).toHaveBeenCalledWith('test-user-id');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(mockUser);
@@ -200,13 +202,13 @@ describe('Auth Controller', () => {
 
     test('should return 404 if user not found', async () => {
       req.user = { id: 'nonexistent-user-id' };
-      
+
       (User.findById as jest.Mock).mockReturnValueOnce({
         select: jest.fn().mockResolvedValueOnce(null),
       });
-      
+
       await getMe(req as Request, res as Response);
-      
+
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ message: 'User not found' });
     });

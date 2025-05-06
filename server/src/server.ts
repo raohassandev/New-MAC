@@ -26,9 +26,9 @@ const startServer = async () => {
   console.log('Attempting to connect to databases...');
   try {
     // Initialize database connections and models
-    const { clientConnection, amxConnection, clientModels, amxModels } = 
+    const { clientConnection, amxConnection, clientModels, amxModels } =
       await initializeDatabases();
-    
+
     // Store connections and models in app.locals for use throughout the application
     app.locals.mainDB = clientConnection;
     app.locals.libraryDB = amxConnection;
@@ -47,7 +47,7 @@ const startServer = async () => {
     // API routes
     app.use('/client/api', clientRouter);
     app.use('/amx/api', amxRouter);
-    
+
     app.get('/', (req, res) => {
       res.send('MacSys Backend is working');
     });
@@ -59,13 +59,13 @@ const startServer = async () => {
         timestamp: new Date(),
         services: {
           clientDB: clientConnection.readyState === 1 ? 'UP' : 'DOWN',
-          amxDB: amxConnection.readyState === 1 ? 'UP' : 'DOWN'
-        }
+          amxDB: amxConnection.readyState === 1 ? 'UP' : 'DOWN',
+        },
       };
-      
-      const httpStatus = health.services.clientDB === 'UP' && 
-                         health.services.amxDB === 'UP' ? 200 : 503;
-      
+
+      const httpStatus =
+        health.services.clientDB === 'UP' && health.services.amxDB === 'UP' ? 200 : 503;
+
       res.status(httpStatus).json(health);
     });
 
@@ -83,23 +83,29 @@ const startServer = async () => {
     // Start server
     const server = app.listen(PORT, async () => {
       console.log(`MACSYS Backend running on port ${PORT}`);
-      console.log(`- Client DB: connected (${process.env.MONGO_URI || 'mongodb://localhost:27017/client'})`);
-      console.log(`- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`);
-      
+      console.log(
+        `- Client DB: connected (${process.env.MONGO_URI || 'mongodb://localhost:27017/client'})`,
+      );
+      console.log(
+        `- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`,
+      );
+
       // Initialize device polling
       try {
         const isDevelopment = process.env.NODE_ENV === 'development';
         const developerMode = isDevelopment && process.env.ENABLE_DEVELOPER_MODE === 'true';
         await initializeDevicePolling(30000, developerMode);
-        
+
         if (developerMode) {
-          console.log('Developer mode enabled: Some physical devices may be skipped to prevent errors');
+          console.log(
+            'Developer mode enabled: Some physical devices may be skipped to prevent errors',
+          );
         }
       } catch (err) {
         console.error('Failed to initialize device polling:', err);
       }
     });
-    
+
     return server;
   } catch (err) {
     console.error('Database connection error:', err);

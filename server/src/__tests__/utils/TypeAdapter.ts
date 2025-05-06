@@ -13,7 +13,7 @@ declare global {
       // Any global properties used in tests
     }
   }
-  
+
   // Declare mongoose as a global variable
   var mongoose: {
     connect: (uri: string, options?: any) => Promise<any>;
@@ -28,7 +28,7 @@ declare global {
     model: (name: string, schema?: any) => any;
     Types: {
       ObjectId: {
-        new(id?: string): ObjectId;
+        new (id?: string): ObjectId;
       };
       String: StringConstructor;
       Number: NumberConstructor;

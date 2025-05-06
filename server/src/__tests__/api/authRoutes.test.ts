@@ -8,11 +8,11 @@ describe('Auth API Endpoints', () => {
   beforeAll(async () => {
     // Connect to test database
     await mongoose.connect(process.env.MONGO_URI_TEST || 'mongodb://localhost:27017/macsys_test');
-    
+
     // Create a test user with a known password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('testpassword', salt);
-    
+
     await User.create({
       name: 'Test User',
       email: 'test@example.com',
@@ -25,7 +25,7 @@ describe('Auth API Endpoints', () => {
   afterAll(async () => {
     // Clean up test data
     await User.deleteMany({});
-    
+
     // Close database connection
     await mongoose.connection.close();
   });
@@ -37,18 +37,16 @@ describe('Auth API Endpoints', () => {
         email: 'newuser@example.com',
         password: 'password123',
       };
-      
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send(userData);
-      
+
+      const res = await request(app).post('/api/auth/register').send(userData);
+
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('_id');
       expect(res.body).toHaveProperty('name', 'New User');
       expect(res.body).toHaveProperty('email', 'newuser@example.com');
       expect(res.body).toHaveProperty('token');
       expect(res.body).not.toHaveProperty('password'); // Password should not be returned
-      
+
       // Verify default permissions
       expect(res.body).toHaveProperty('permissions');
       expect(res.body.permissions).toContain('view_devices');
@@ -60,11 +58,9 @@ describe('Auth API Endpoints', () => {
         name: 'Incomplete User',
         // Missing email and password
       };
-      
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send(incompleteData);
-      
+
+      const res = await request(app).post('/api/auth/register').send(incompleteData);
+
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('Please fill all fields');
@@ -76,11 +72,9 @@ describe('Auth API Endpoints', () => {
         email: 'test@example.com', // Already exists
         password: 'password123',
       };
-      
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send(duplicateData);
-      
+
+      const res = await request(app).post('/api/auth/register').send(duplicateData);
+
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('User already exists');
@@ -93,11 +87,9 @@ describe('Auth API Endpoints', () => {
         email: 'test@example.com',
         password: 'testpassword',
       };
-      
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send(loginData);
-      
+
+      const res = await request(app).post('/api/auth/login').send(loginData);
+
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('_id');
       expect(res.body).toHaveProperty('name', 'Test User');
@@ -111,11 +103,9 @@ describe('Auth API Endpoints', () => {
         email: 'nonexistent@example.com',
         password: 'testpassword',
       };
-      
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send(invalidData);
-      
+
+      const res = await request(app).post('/api/auth/login').send(invalidData);
+
       expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('Invalid credentials');
@@ -126,11 +116,9 @@ describe('Auth API Endpoints', () => {
         email: 'test@example.com',
         password: 'wrongpassword',
       };
-      
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send(invalidData);
-      
+
+      const res = await request(app).post('/api/auth/login').send(invalidData);
+
       expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('Invalid credentials');
@@ -139,24 +127,20 @@ describe('Auth API Endpoints', () => {
 
   describe('GET /api/auth/me', () => {
     let token: string;
-    
+
     beforeAll(async () => {
       // Get a valid token by logging in
-      const loginRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: 'testpassword',
-        });
-      
+      const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: 'testpassword',
+      });
+
       token = loginRes.body.token;
     });
-    
+
     test('should return current user data', async () => {
-      const res = await request(app)
-        .get('/api/auth/me')
-        .set('Authorization', `Bearer ${token}`);
-      
+      const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('_id');
       expect(res.body).toHaveProperty('name', 'Test User');
@@ -166,7 +150,7 @@ describe('Auth API Endpoints', () => {
 
     test('should require authentication', async () => {
       const res = await request(app).get('/api/auth/me');
-      
+
       expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('Not authorized');
@@ -176,7 +160,7 @@ describe('Auth API Endpoints', () => {
       const res = await request(app)
         .get('/api/auth/me')
         .set('Authorization', 'Bearer invalidtoken');
-      
+
       expect(res.status).toBe(401);
       expect(res.body).toHaveProperty('message');
       expect(res.body.message).toContain('Invalid token');

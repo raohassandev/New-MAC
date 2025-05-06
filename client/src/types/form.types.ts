@@ -50,7 +50,8 @@ export interface ParameterConfig {
   bitPosition?: number; // Bit position for boolean extraction
   signed?: boolean; // Whether to interpret as signed (for integer types)
   registerRange?: string; // Register range name this parameter belongs to
-  registerIndex: number; // Index within the register range
+  registerIndex: number; // Index within the register range (Legacy field for backward compatibility)
+  bufferIndex: number; // Index within the buffer for response parsing
   unit?: string; // Unit of measurement (e.g., '°C', 'bar')
   description?: string; // Optional description
   // For handling complex multi-register values

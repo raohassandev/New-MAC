@@ -1,10 +1,10 @@
 /**
  * Communication Module for Industrial Automation
- * 
+ *
  * This module provides a framework for industrial communication protocols,
  * focusing on Modbus TCP and RTU implementations with support for various
  * industrial data types, automatic reconnection, polling, and caching.
- * 
+ *
  * Features:
  * - Support for Modbus TCP and RTU protocols
  * - Full implementation of Modbus function codes (01-16)
@@ -63,16 +63,17 @@ import { ModuleConfig } from './config/types';
  * @param config Module configuration or path to configuration file
  */
 export async function initializeModule(config: ModuleConfig | string): Promise<void> {
-    const configLoader = ConfigLoader.getInstance();
-    
-    if (typeof config === 'string') {
-        await configLoader.loadAndApply(config);
-    } else {
-        // Set configuration and apply
-        const configManager = await import('./config/configManager')
-            .then(module => module.ConfigManager.getInstance());
-        
-        configManager.setConfig(config);
-        await configLoader.loadAndApply();
-    }
+  const configLoader = ConfigLoader.getInstance();
+
+  if (typeof config === 'string') {
+    await configLoader.loadAndApply(config);
+  } else {
+    // Set configuration and apply
+    const configManager = await import('./config/configManager').then(module =>
+      module.ConfigManager.getInstance(),
+    );
+
+    configManager.setConfig(config);
+    await configLoader.loadAndApply();
+  }
 }

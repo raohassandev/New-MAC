@@ -40,8 +40,8 @@ const TemplateInfoPanel: React.FC = () => {
                 in the previous tab
               </li>
               <li>
-                <span className="font-semibold">Register Index:</span> The position within the range
-                (0-based)
+                <span className="font-semibold">Buffer Index:</span> The position in the buffer for parsing response
+                (0-based byte index)
               </li>
               <li>
                 <span className="font-semibold">Data Type:</span> How to interpret the binary data
@@ -163,45 +163,57 @@ const TemplateDataReaderTab: React.FC = () => {
       p => p.registerRange === parameter.registerRange
     );
     
-    // Calculate register ranges
+    // Calculate register ranges and buffer indices
     const wordCount = parameter.wordCount || getWordCount(parameter);
     const paramStart = parameter.registerIndex;
     const paramEnd = paramStart + wordCount - 1;
     
+    // Calculate buffer ranges
+    const byteSize = getWordCount(parameter) * 2; // 2 bytes per register
+    const bufferStart = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+    const bufferEnd = bufferStart + byteSize - 1;
+    
     // For bit-level parameters, check bit position conflicts (only within the same register range)
     if (['BOOLEAN', 'BIT'].includes(parameter.dataType)) {
       const conflictingBitParam = sameRangeParams.find(
-        p =>
-          ['BOOLEAN', 'BIT'].includes(p.dataType) &&
-          p.registerIndex === parameter.registerIndex &&
-          p.bitPosition === parameter.bitPosition
+        p => {
+          // Get buffer index (either direct or calculated from registerIndex)
+          const pBufferIndex = p.bufferIndex !== undefined ? p.bufferIndex : p.registerIndex * 2;
+          const paramBufferIndex = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+          
+          return ['BOOLEAN', 'BIT'].includes(p.dataType) &&
+            pBufferIndex === paramBufferIndex &&
+            p.bitPosition === parameter.bitPosition;
+        }
       );
 
       if (conflictingBitParam) {
-        return `Bit position ${parameter.bitPosition} at register index ${parameter.registerIndex} is already used by template parameter "${conflictingBitParam.name}" in the same register range`;
+        const bufferIndex = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+        return `Bit position ${parameter.bitPosition} at buffer index ${bufferIndex} is already used by template parameter "${conflictingBitParam.name}" in the same register range`;
       }
 
       // Bit parameters can share registers with other types, so no further checks needed
       return null;
     }
 
-    // For non-bit parameters, check register overlaps (only within the same register range)
+    // For non-bit parameters, check buffer index overlaps (only within the same register range)
     for (const existing of sameRangeParams) {
-      // Skip bit-level parameters as they can share registers
+      // Skip bit-level parameters as they can share buffer locations
       if (['BOOLEAN', 'BIT'].includes(existing.dataType)) {
         continue;
       }
 
-      const existingWordCount = existing.wordCount || getWordCount(existing);
-      const existingStart = existing.registerIndex;
-      const existingEnd = existingStart + existingWordCount - 1;
+      // Calculate existing parameter's buffer range
+      const existingByteSize = getWordCount(existing) * 2; // 2 bytes per register
+      const existingBufferIndex = existing.bufferIndex !== undefined ? existing.bufferIndex : existing.registerIndex * 2;
+      const existingBufferEnd = existingBufferIndex + existingByteSize - 1;
 
-      // Check for register overlap
+      // Check for buffer overlap
       if (
-        (paramStart <= existingEnd && paramEnd >= existingStart) ||
-        (existingStart <= paramEnd && existingEnd >= paramStart)
+        (bufferStart <= existingBufferEnd && bufferEnd >= existingBufferIndex) ||
+        (existingBufferIndex <= bufferEnd && existingBufferEnd >= bufferStart)
       ) {
-        return `Register conflict in template "${parameter.registerRange}": Parameter "${parameter.name}" (registers ${paramStart}-${paramEnd}) overlaps with existing parameter "${existing.name}" (registers ${existingStart}-${existingEnd})`;
+        return `Buffer conflict in template "${parameter.registerRange}": Parameter "${parameter.name}" (buffer ${bufferStart}-${bufferEnd}) overlaps with existing parameter "${existing.name}" (buffer ${existingBufferIndex}-${existingBufferEnd})`;
       }
     }
 
@@ -382,7 +394,7 @@ const TemplateDataReaderTab: React.FC = () => {
                         {param.registerRange}
                       </Badge>
                       <Badge variant="outline" size="sm">
-                        Index: {param.registerIndex}
+                        Buffer Index: {param.bufferIndex !== undefined ? param.bufferIndex : param.registerIndex * 2}
                         {absoluteAddress !== null && ` (Addr: ${absoluteAddress})`}
                       </Badge>
                       {wordCount > 1 && (

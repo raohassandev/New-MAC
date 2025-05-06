@@ -38,10 +38,10 @@ jest.mock('../config/database', () => ({
   connectClientToDB: jest.fn().mockResolvedValue({}),
   connectAmxToDB: jest.fn().mockResolvedValue({}),
   __esModule: true,
-  default: { 
+  default: {
     connectClientToDB: jest.fn().mockResolvedValue({}),
-    connectAmxToDB: jest.fn().mockResolvedValue({})
-  }
+    connectAmxToDB: jest.fn().mockResolvedValue({}),
+  },
 }));
 
 // Mock JWT for testing
@@ -67,17 +67,17 @@ jest.mock('bcryptjs', () => ({
 // Mock the User model
 jest.mock('../client/models/User', () => ({
   __esModule: true,
-  default: UserMock
+  default: UserMock,
 }));
 
 // Mock the Device model
 jest.mock('../client/models/Device', () => ({
   __esModule: true,
-  default: DeviceMock
+  default: DeviceMock,
 }));
 
 // Mock the Profile model
 jest.mock('../client/models/Profile', () => ({
   __esModule: true,
-  default: ProfileMock
+  default: ProfileMock,
 }));

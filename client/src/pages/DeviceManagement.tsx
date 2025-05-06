@@ -15,10 +15,18 @@ import {
   RefreshCw,
   Search,
   Server,
+  Sliders,
   Trash,
   X,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useSelector } from 'react-redux';
+import type { TypedUseSelectorHook } from 'react-redux';
+import type { RootState } from '../redux/store';
+import { selectDeviceRefreshInterval, selectDevicePollingEnabled } from '../redux/features/siteConfiguration';
+
+// Define useAppSelector to avoid circular dependencies
+const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -57,6 +65,13 @@ const DeviceManagement: React.FC = () => {
   const canTestDevices =
     userPermissions.includes('manage_devices') || userPermissions.includes('test_devices');
 
+  // Get configuration values from siteConfiguration feature
+  const deviceRefreshInterval = useAppSelector(selectDeviceRefreshInterval);
+  const devicePollingEnabled = useAppSelector(selectDevicePollingEnabled);
+  
+  // Auto-refresh timer ref
+  const refreshTimerRef = useRef<number | null>(null);
+  
   // State
   // We've removed isNewDeviceModalOpen state since we're using only isNewDeviceFormOpen
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,6 +290,30 @@ const DeviceManagement: React.FC = () => {
     }
   };
 
+  // Set up polling based on configuration
+  useEffect(() => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      window.clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    
+    // Only set up polling if enabled in configuration
+    if (devicePollingEnabled) {
+      refreshTimerRef.current = window.setInterval(() => {
+        console.log(`Auto-refreshing devices every ${deviceRefreshInterval / 1000} seconds`);
+        refreshDevices();
+      }, deviceRefreshInterval);
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, [deviceRefreshInterval, devicePollingEnabled, refreshDevices]);
+
   // Handle adding new device
   const handleAddDevice = async (deviceData: any) => {
     try {
@@ -428,14 +467,24 @@ const DeviceManagement: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">Manage and monitor your actual Modbus devices (not templates)</p>
         </div>
         <div className="flex space-x-2">
-          <Button
-            variant="default"
-            onClick={() => setIsNewDeviceFormOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Add New Device
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/system-configuration')}
+              className="flex items-center gap-2"
+            >
+              <Sliders size={16} />
+              Configure Polling
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => setIsNewDeviceFormOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Add New Device
+            </Button>
+          </div>
           {filteredDevices.length > 0 && (
             <Button
               variant="outline"
@@ -593,9 +642,16 @@ const DeviceManagement: React.FC = () => {
             onClick={refreshDevices}
             className="rounded-md border border-gray-300 px-4 py-2 text-gray-600 hover:bg-gray-50"
           >
-            <div className="flex items-center gap-1">
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              Refresh
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1">
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                Refresh
+              </div>
+              {devicePollingEnabled && (
+                <span className="text-xs text-green-600">
+                  Auto: {deviceRefreshInterval / 1000}s
+                </span>
+              )}
             </div>
           </button>
         </div>

@@ -1,6 +1,13 @@
 import ModbusRTU from 'modbus-serial';
 import mongoose from 'mongoose';
-import { Device } from '../models';
+import { getClientModels } from '../../config/database';
+import chalk from 'chalk';
+
+// Import the specific types from modbus-serial
+import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU';
+
+// Define Modbus response types
+type ModbusResponse = ReadRegisterResult | ReadCoilResult;
 
 // Type definitions for data readings
 interface DeviceReading {
@@ -30,28 +37,56 @@ const realtimeDataCache = new Map<string, DeviceReading>();
  */
 export async function pollDevice(deviceId: string): Promise<DeviceReading | null> {
   try {
-    const device = await Device.findById(deviceId);
+    console.log(chalk.blue(`Starting poll for device ${deviceId}`));
+    
+    // Get the Device model from client connection
+    const clientModels = getClientModels();
+    if (!clientModels || !clientModels.Device) {
+      throw new Error('Client Device model not available');
+    }
+    const Device = clientModels.Device;
 
-    if (!device || !device.enabled) {
-      console.warn(`Device ${deviceId} not found or disabled`);
+    // Perform the findById with a timeout
+    console.log(chalk.cyan(`Looking up device ${deviceId} in database...`));
+    const findPromise = Device.findById(deviceId).exec();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Device findById operation timed out')), 5000);
+    });
+
+    // Find device with timeout
+    const device = await Promise.race([findPromise, timeoutPromise]);
+
+    if (!device) {
+      console.warn(chalk.yellow(`⚠ Device ${deviceId} not found in database`));
       return null;
     }
+    
+    if (!device.enabled) {
+      console.warn(chalk.yellow(`⚠ Device ${deviceId} (${device.name}) is disabled, skipping poll`));
+      return null;
+    }
+    
+    console.log(chalk.blue(`Starting polling for device ${device.name} (${deviceId})`));
 
     // Check if device has any configuration for reading
     const hasNewConfig = device.dataPoints && device.dataPoints.length > 0;
     const hasLegacyConfig = device.registers && device.registers.length > 0;
     
+    console.log(chalk.cyan(`Device ${device.name} configuration: New format: ${hasNewConfig ? 'Yes' : 'No'}, Legacy format: ${hasLegacyConfig ? 'Yes' : 'No'}`));
+
     if (!hasNewConfig && !hasLegacyConfig) {
-      console.warn(`No data points or registers configured for device ${deviceId}`);
+      console.warn(chalk.yellow(`⚠ No data points or registers configured for device ${deviceId}`));
       return null;
     }
 
     // Get connection settings (support both new and legacy format)
-    const connectionType = device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-    
+    const connectionType =
+      device.connectionSetting?.connectionType || device.connectionType || 'tcp';
+    console.log(chalk.blue(`Device ${device.name} connection type: ${connectionType}`));
+
     // Get TCP settings
-    const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : (device.ip || '');
-    
+    const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : device.ip || '';
+
     // Ensure port is a valid number
     let port: number = 502; // Default Modbus TCP port
     if (connectionType === 'tcp') {
@@ -60,26 +95,36 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
       } else if (device.port) {
         port = Number(device.port);
       }
-      
+
       // Validate port is a reasonable number
       if (isNaN(port) || port <= 0 || port > 65535) {
         port = 502; // Use default Modbus port if invalid
-        console.warn(`Invalid port for device ${device._id}, using default port 502`);
+        console.warn(chalk.yellow(`⚠ Invalid port for device ${device._id}, using default port 502`));
       }
+      console.log(chalk.cyan(`TCP connection settings - IP: ${ip}, Port: ${port}`));
     }
-    
-    const tcpSlaveId = connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
-    
-    // Get RTU settings  
-    const serialPort = connectionType === 'rtu' ? device.connectionSetting?.rtu?.serialPort : (device.serialPort || '');
-    const baudRate = connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : (device.baudRate || 0);
-    const dataBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : (device.dataBits || 0);
-    const stopBits = connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : (device.stopBits || 0);
-    const parity = connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : (device.parity || '');
-    const rtuSlaveId = connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
-    
+
+    const tcpSlaveId =
+      connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
+
+    // Get RTU settings
+    const serialPort =
+      connectionType === 'rtu'
+        ? device.connectionSetting?.rtu?.serialPort
+        : device.serialPort || '';
+    const baudRate =
+      connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : device.baudRate || 0;
+    const dataBits =
+      connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : device.dataBits || 0;
+    const stopBits =
+      connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : device.stopBits || 0;
+    const parity =
+      connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : device.parity || '';
+    const rtuSlaveId =
+      connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
+
     // Combined slaveId (prefer the one from the matching connection type)
-    const slaveId = connectionType === 'tcp' ? tcpSlaveId : (rtuSlaveId || device.slaveId || 1);
+    const slaveId = connectionType === 'tcp' ? tcpSlaveId : rtuSlaveId || device.slaveId || 1;
 
     // Initialize Modbus client
     const client = new ModbusRTU();
@@ -87,9 +132,10 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
     // Create device connection status object for logging
     const deviceIdentifier = `${device.name} (${device._id})`;
-    const connectionInfo = connectionType === 'tcp' 
-      ? `TCP ${ip}:${port}`
-      : `RTU ${serialPort} @ ${baudRate || 'default'} baud`;
+    const connectionInfo =
+      connectionType === 'tcp'
+        ? `TCP ${ip}:${port}`
+        : `RTU ${serialPort} @ ${baudRate || 'default'} baud`;
 
     try {
       // Validate connection parameters before attempting connection
@@ -111,38 +157,37 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
       // Connect based on connection type with timeout handling
       if (connectionType === 'tcp') {
+        console.log(chalk.blue(`Attempting to connect to TCP device ${deviceIdentifier} at ${ip}:${port}`));
         // Set a reasonable timeout for TCP connection attempts
         const connectionTimeout = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Connection timeout')), 5000);
         });
-        
+
         // Make sure ip is defined before using it
         if (!ip) {
           throw new Error('IP address is undefined');
         }
-        
+
         // Port is already validated and converted to a number above
-        
-        await Promise.race([
-          client.connectTCP(ip, { port }),
-          connectionTimeout
-        ]);
-        console.log(`Connected to TCP device at ${ip}:${port}`);
+
+        const res = await Promise.race([client.connectTCP(ip, { port }), connectionTimeout]);
+        console.log(chalk.green(`✓ Connected to TCP device ${deviceIdentifier} at ${ip}:${port}`));
       } else if (connectionType === 'rtu') {
+        console.log(chalk.blue(`Attempting to connect to RTU device ${deviceIdentifier} at ${serialPort}`));
         const rtuOptions: any = {};
         if (baudRate) rtuOptions.baudRate = baudRate;
         if (dataBits) rtuOptions.dataBits = dataBits;
         if (stopBits) rtuOptions.stopBits = stopBits;
         if (parity) rtuOptions.parity = parity;
-        
+
         try {
           // Make sure serialPort is defined before using it
           if (!serialPort) {
             throw new Error('Serial port is undefined');
           }
-          
+
           await client.connectRTUBuffered(serialPort, rtuOptions);
-          console.log(`Connected to RTU device at ${serialPort}`);
+          console.log(chalk.green(`✓ Connected to RTU device ${deviceIdentifier} at ${serialPort}`));
         } catch (rtuError: any) {
           // Specific handling for common RTU errors
           if (rtuError.message && rtuError.message.includes('No such file or directory')) {
@@ -154,64 +199,141 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
       } else {
         throw new Error('Invalid connection configuration');
       }
-      
+
       // Verify that the client is connected before proceeding
       if (!isClientConnected(client)) {
         throw new Error('Modbus client is not connected');
       }
       
+      // Set slave ID
       if (slaveId !== undefined) {
+        console.log(chalk.cyan(`Setting slave ID to ${slaveId} for device ${deviceIdentifier}`));
         client.setID(slaveId);
       } else {
+        console.log(chalk.cyan(`No slave ID provided, using default (1) for device ${deviceIdentifier}`));
         client.setID(1); // Default slave ID
       }
 
       // Process data points (new structure)
       if (hasNewConfig && device.dataPoints) {
+        console.log(chalk.blue(`Starting to read data points for device ${deviceIdentifier}`));
         for (const dataPoint of device.dataPoints) {
           try {
             const range = dataPoint.range;
             const parser = dataPoint.parser;
             
+            console.log(chalk.cyan(`Reading range FC=${range.fc} from address ${range.startAddress}, count: ${range.count}`));
             // Read registers based on function code
-            let result;
-            switch (range.fc) {
-              case 1:
-                result = await client.readCoils(range.startAddress, range.count);
-                break;
-              case 2:
-                result = await client.readDiscreteInputs(range.startAddress, range.count);
-                break;
-              case 3:
-                result = await client.readHoldingRegisters(range.startAddress, range.count);
-                break;
-              case 4:
-                result = await client.readInputRegisters(range.startAddress, range.count);
-                break;
-              default:
-                result = await client.readHoldingRegisters(range.startAddress, range.count);
+            // Define result with proper typing for modbus-serial response
+            let result: ModbusResponse | undefined;
+            try {
+              switch (range.fc) {
+                case 1:
+                  result = await client.readCoils(range.startAddress, range.count);
+                  break;
+                case 2:
+                  result = await client.readDiscreteInputs(range.startAddress, range.count);
+                  break;
+                case 3:
+                  console.log(chalk.blue(`Reading holding registers from address ${range.startAddress}, count: ${range.count}`));
+                  try {
+                    // Add explicit timeout for holding registers
+                    const readPromise = client.readHoldingRegisters(range.startAddress, range.count);
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                      setTimeout(() => reject(new Error('Holding register read operation timed out after 5000ms')), 5000);
+                    });
+                    
+                    console.log(chalk.cyan(`Waiting for holding register response...`));
+                    result = await Promise.race([readPromise, timeoutPromise]);
+                    console.log(chalk.green(`Holding register read complete, received data: ${result && result.data && result.data.length > 0 ? 'yes' : 'no'}`));
+                  } catch (error: any) {
+                    console.error(chalk.red(`Error in holding register read operation: ${error.message || JSON.stringify(error)}`));
+                    // Log connection details before re-throwing
+                    console.log(chalk.red(`Connection details: TCP ${ip}:${port}, Slave ID: ${slaveId}`));
+                    throw error; // Re-throw to be caught by outer try-catch
+                  }
+                  break;
+                case 4:
+                  console.log(chalk.blue(`Reading input registers from address ${range.startAddress}, count: ${range.count}`));
+                  try {
+                    // Add explicit timeout for input registers which can sometimes hang
+                    const readPromise = client.readInputRegisters(range.startAddress, range.count);
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                      setTimeout(() => reject(new Error('Input register read operation timed out after 5000ms')), 5000);
+                    });
+                    
+                    console.log(chalk.cyan(`Waiting for input register response...`));
+                    result = await Promise.race([readPromise, timeoutPromise]);
+                    console.log(chalk.green(`Input register read complete, received data: ${result && result.data && result.data.length > 0 ? 'yes' : 'no'}`));
+                  } catch (error: any) {
+                    console.error(chalk.red(`Error in input register read operation: ${error.message || JSON.stringify(error)}`));
+                    // Log connection details before re-throwing
+                    console.log(chalk.red(`Connection details: TCP ${ip}:${port}, Slave ID: ${slaveId}`));
+                    throw error; // Re-throw to be caught by outer try-catch
+                  }
+                  break;
+                default:
+                  console.log(chalk.yellow(`Unknown function code ${range.fc}, defaulting to read holding registers`));
+                  result = await client.readHoldingRegisters(range.startAddress, range.count);
+              }
+              
+              // Make sure result is defined before continuing
+              if (!result || !result.data) {
+                throw new Error(`No data returned from device for FC=${range.fc}, address=${range.startAddress}`);
+              }
+              
+              console.log(chalk.green(`✓ Read successful from address ${range.startAddress}, data length: ${result.data.length}`));
+              
+              // For FC=3 and FC=4 (Holding/Input Registers), log the actual raw data for debugging
+              if (range.fc === 3 || range.fc === 4) {
+                try {
+                  // Handle both number[] and boolean[] data types
+                  const dataValues = result.data.map((val: any) => 
+                    typeof val === 'number' ? val.toString(16).padStart(4, '0') : String(val)
+                  );
+                  console.log(chalk.cyan(`${range.fc === 3 ? 'Holding' : 'Input'} register values (hex): [${dataValues.join(', ')}]`));
+                  
+                  // Log the raw buffer if available
+                  if (result.buffer) {
+                    const bufferHex = Array.from(result.buffer).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                    console.log(chalk.cyan(`Raw buffer (hex): ${bufferHex}`));
+                  }
+                } catch (error: any) {
+                  console.log(chalk.yellow(`Could not log register values: ${error.message}`));
+                }
+              }
+            } catch (error: any) {
+              console.error(chalk.red(`Error reading from device: ${error.message || JSON.stringify(error)}`));
+              throw error; // Re-throw to be caught by the outer catch block
             }
-
             // Process the result based on parser configuration
-            if (parser && parser.parameters) {
+            if (result && parser && parser.parameters) {
+              console.log(chalk.cyan(`Processing ${parser.parameters.length} parameters from range FC=${range.fc}`));
               for (const param of parser.parameters) {
                 try {
                   // Get the register index relative to the range start
                   const relativeIndex = param.registerIndex - range.startAddress;
-                  
+
                   if (relativeIndex < 0 || relativeIndex >= range.count) {
+                    console.log(chalk.yellow(`⚠ Parameter ${param.name} register index ${param.registerIndex} is out of range, skipping`));
                     continue; // Skip if out of range
+                  }
+
+                  // Ensure we have result.data before proceeding
+                  if (!result.data) {
+                    console.error(chalk.red(`Missing result data for parameter ${param.name}`));
+                    continue;
                   }
 
                   // For FLOAT32 and other multi-register data types
                   let value: any = null;
-                  
+
                   switch (param.dataType) {
                     case 'FLOAT32':
                       if (param.wordCount === 2 && relativeIndex + 1 < range.count) {
                         // Create a buffer for the float
                         const buffer = Buffer.alloc(4);
-                        
+
                         // Handle different byte orders
                         if (param.byteOrder === 'ABCD') {
                           buffer.writeUInt16BE(Number(result.data[relativeIndex]), 0);
@@ -220,13 +342,25 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
                           buffer.writeUInt16BE(Number(result.data[relativeIndex + 1]), 0);
                           buffer.writeUInt16BE(Number(result.data[relativeIndex]), 2);
                         } else if (param.byteOrder === 'BADC') {
-                          buffer.writeUInt16BE(Number(swapBytes(Number(result.data[relativeIndex]))), 0);
-                          buffer.writeUInt16BE(Number(swapBytes(Number(result.data[relativeIndex + 1]))), 2);
+                          buffer.writeUInt16BE(
+                            Number(swapBytes(Number(result.data[relativeIndex]))),
+                            0,
+                          );
+                          buffer.writeUInt16BE(
+                            Number(swapBytes(Number(result.data[relativeIndex + 1]))),
+                            2,
+                          );
                         } else if (param.byteOrder === 'DCBA') {
-                          buffer.writeUInt16BE(Number(swapBytes(Number(result.data[relativeIndex + 1]))), 0);
-                          buffer.writeUInt16BE(Number(swapBytes(Number(result.data[relativeIndex]))), 2);
+                          buffer.writeUInt16BE(
+                            Number(swapBytes(Number(result.data[relativeIndex + 1]))),
+                            0,
+                          );
+                          buffer.writeUInt16BE(
+                            Number(swapBytes(Number(result.data[relativeIndex]))),
+                            2,
+                          );
                         }
-                        
+
                         value = buffer.readFloatBE(0);
                       }
                       break;
@@ -257,7 +391,11 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
                   }
 
                   // Apply scaling factor if defined
-                  if (param.scalingFactor && param.scalingFactor !== 1 && typeof value === 'number') {
+                  if (
+                    param.scalingFactor &&
+                    param.scalingFactor !== 1 &&
+                    typeof value === 'number'
+                  ) {
                     value = value * param.scalingFactor;
                   }
 
@@ -278,14 +416,18 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
                     value = parseFloat(value.toFixed(param.decimalPoint));
                   }
 
-                  readings.push({
+                  const reading = {
                     name: param.name,
                     registerIndex: param.registerIndex,
                     value: value,
                     unit: param.unit || '',
                     dataType: param.dataType,
-                  });
+                  };
+                  
+                  console.log(chalk.green(`✓ Parameter ${param.name}: ${value}${param.unit || ''}`));
+                  readings.push(reading);
                 } catch (paramError: any) {
+                  console.error(chalk.red(`❌ Error processing parameter ${param.name}: ${paramError.message}`));
                   readings.push({
                     name: param.name,
                     registerIndex: param.registerIndex,
@@ -297,8 +439,13 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
               }
             }
           } catch (rangeError: any) {
-            console.error(`Error reading range (${dataPoint.range.startAddress}-${dataPoint.range.startAddress + dataPoint.range.count - 1}):`, rangeError);
-            // Continue to next range even if this one fails
+            const rangeStart = dataPoint.range.startAddress;
+            const rangeEnd = dataPoint.range.startAddress + dataPoint.range.count - 1;
+            console.error(
+              chalk.red(`❌ Error reading range FC=${dataPoint.range.fc} (${rangeStart}-${rangeEnd}): ${rangeError.message}`),
+            );
+            // Continue to next range - don't process data or parameters if the modbus read operation failed
+            continue;
           }
         }
       }
@@ -306,13 +453,16 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
       else if (hasLegacyConfig && device.registers) {
         for (const register of device.registers) {
           try {
-            const result = await client.readHoldingRegisters(
-              register.address,
-              register.length
-            );
+            const result: ModbusResponse = await client.readHoldingRegisters(register.address, register.length);
+
+            // Make sure result is defined before continuing
+            if (!result || !result.data || result.data.length === 0) {
+              throw new Error(`No data returned from device for register ${register.address}`);
+            }
 
             // Process the result based on register configuration
-            let value = result.data[0];
+            // For register results, data will be a number[]
+            let value = (result.data as number[])[0];
 
             // Apply scale factor if defined
             if (register.scaleFactor && register.scaleFactor !== 1) {
@@ -356,9 +506,31 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
       // Store in real-time cache
       realtimeDataCache.set(deviceId, deviceReading);
+      console.log(chalk.blue(`Updated real-time cache for device ${deviceIdentifier}`));
 
       // Store in history database
+      console.log(chalk.blue(`Storing historical data for device ${deviceIdentifier}`));
       await storeHistoricalData(deviceReading);
+      console.log(chalk.green(`✓ Successfully polled device ${deviceIdentifier} with ${readings.length} readings`));
+      
+      // If no readings were captured but polling completed successfully, log additional debug info
+      if (readings.length === 0) {
+        console.log(chalk.yellow(`⚠ No readings were captured for device ${deviceIdentifier} despite successful polling`));
+        console.log(chalk.yellow(`Debug information for last data point reading:`));
+        
+        // Try to extract and log raw buffer information from the last successful read
+        try {
+          // Check if we have any data points with raw buffer data
+          const lastDataPoint = device.dataPoints ? device.dataPoints[device.dataPoints.length - 1] : null;
+          if (lastDataPoint) {
+            console.log(chalk.yellow(`Last range read: FC=${lastDataPoint.range.fc}, Start Address=${lastDataPoint.range.startAddress}, Count=${lastDataPoint.range.count}`));
+          }
+          
+          console.log(chalk.yellow(`This could indicate a parsing issue or a configuration mismatch between the device and parameters`));
+        } catch (error: any) {
+          console.log(chalk.yellow(`Could not log additional debug info: ${error.message}`));
+        }
+      }
 
       return deviceReading;
     } finally {
@@ -366,20 +538,41 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
       try {
         if (isClientConnected(client)) {
           await client.close();
-          console.debug(`Closed connection to device ${deviceId}`);
+          console.log(chalk.cyan(`✓ Closed connection to device ${deviceIdentifier}`));
         }
       } catch (closeError) {
-        console.warn(`Error closing connection to device ${deviceId}:`, closeError);
+        console.warn(chalk.yellow(`⚠ Error closing connection to device ${deviceIdentifier}:`), closeError);
       }
     }
   } catch (error: any) {
     // Better error logging with device identifier if available
-    const device = await Device.findById(deviceId).select('name').lean().exec();
-    const deviceName = device ? device.name : deviceId;
-    
+    let deviceName = deviceId;
+    try {
+      const clientModels = getClientModels();
+      if (clientModels && clientModels.Device) {
+        const Device = clientModels.Device;
+        const findPromise = Device.findById(deviceId).select('name').lean().exec();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Name lookup timed out')), 2000);
+        });
+
+        const device = await Promise.race([findPromise, timeoutPromise]);
+        if (device && device.name) {
+          deviceName = device.name;
+        }
+      }
+    } catch (error) {
+      // Just use the ID if we can't get the name
+      const nameError = error as Error;
+      console.warn(
+        chalk.yellow(`Could not get name for device ${deviceId}:`),
+        nameError.message || 'Unknown error',
+      );
+    }
+
     // Format error message
     let errorMsg = `Error polling device ${deviceName} (${deviceId}): `;
-    
+
     // Check for specific error types for better diagnostics
     if (error.code === 'ECONNREFUSED') {
       errorMsg += `Connection refused at ${error.address}:${error.port}. Device may be offline or unreachable.`;
@@ -392,30 +585,31 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
     } else {
       errorMsg += error.message || 'Unknown error';
     }
-    
-    console.error(errorMsg);
-    
+
+    console.error(chalk.red(errorMsg));
+
     // Create a minimal reading with error information
     try {
-      if (device) {
-        const errorReading: DeviceReading = {
-          deviceId: new mongoose.Types.ObjectId(deviceId),
-          deviceName: deviceName,
-          timestamp: new Date(),
-          readings: [{
+      // Create error reading with just the device ID since we already have the device name
+      const errorReading: DeviceReading = {
+        deviceId: new mongoose.Types.ObjectId(deviceId),
+        deviceName: deviceName,
+        timestamp: new Date(),
+        readings: [
+          {
             name: 'connection_status',
             value: 'error',
-            error: errorMsg
-          }]
-        };
-        
-        // Update cache with error status
-        realtimeDataCache.set(deviceId, errorReading);
-      }
+            error: errorMsg,
+          },
+        ],
+      };
+
+      // Update cache with error status
+      realtimeDataCache.set(deviceId, errorReading);
     } catch (cacheError) {
       console.error(`Error updating cache for device ${deviceId}:`, cacheError);
     }
-    
+
     return null;
   }
 }
@@ -432,7 +626,7 @@ function swapBytes(word: number): number {
     console.warn('swapBytes received a non-numeric value:', word);
     return 0;
   }
-  return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
+  return ((value & 0xff) << 8) | ((value >> 8) & 0xff);
 }
 
 /**
@@ -460,16 +654,25 @@ export function getRealtimeData(deviceId: string): DeviceReading | null {
  */
 async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> {
   try {
-    // Import the history model to avoid circular dependencies
-    const HistoricalData = mongoose.model('HistoricalData');
+    // Get the HistoricalData model from client connection
+    console.log(chalk.blue(`Preparing to store historical data for device ${deviceReading.deviceName}`));
     
+    const clientModels = getClientModels();
+    if (!clientModels || !clientModels.HistoricalData) {
+      console.warn(
+        chalk.yellow(`⚠ HistoricalData model not available in client models, skipping historical data storage`),
+      );
+      return; // Skip historical data storage instead of throwing an error
+    }
+    const HistoricalData = clientModels.HistoricalData;
+
     // Filter out readings with errors or null values
-    const validReadings = deviceReading.readings.filter(reading => 
-      reading.value !== null && 
-      reading.value !== undefined && 
-      !reading.error
+    const validReadings = deviceReading.readings.filter(
+      reading => reading.value !== null && reading.value !== undefined && !reading.error,
     );
     
+    console.log(chalk.cyan(`Found ${validReadings.length}/${deviceReading.readings.length} valid readings to store for device ${deviceReading.deviceName}`));
+
     // Create history data entries for valid readings only
     const historyEntries = validReadings.map(reading => ({
       deviceId: deviceReading.deviceId,
@@ -477,48 +680,55 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
       value: reading.value,
       unit: reading.unit,
       timestamp: deviceReading.timestamp,
-      quality: 'good' // These are all valid readings since we filtered out errors
+      quality: 'good', // These are all valid readings since we filtered out errors
     }));
-    
+
     // Insert historical data in batches to avoid large operations
     if (historyEntries.length > 0) {
       try {
-        // Check MongoDB connection first
-        if (mongoose.connection.readyState !== 1) {
-          console.warn(`MongoDB connection not ready (state: ${mongoose.connection.readyState}). Skipping historical data storage.`);
+        // Check if the model and its connection is available
+        if (!HistoricalData || !HistoricalData.db || HistoricalData.db.readyState !== 1) {
+          console.warn(
+            chalk.yellow(`⚠ HistoricalData model connection not ready (readyState: ${HistoricalData?.db?.readyState || 'unknown'}). Skipping historical data storage.`),
+          );
           return;
         }
         
+        console.log(chalk.blue(`Inserting ${historyEntries.length} historical data entries for device ${deviceReading.deviceName}`));
+
         // Set a timeout for database operations
         const dbTimeout = 5000; // 5 seconds
         const insertPromise = HistoricalData.insertMany(historyEntries);
-        
+
         // Create a timeout promise
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Database operation timed out')), dbTimeout);
         });
-        
+
         // Race the promises
         await Promise.race([insertPromise, timeoutPromise]);
+        console.log(chalk.green(`✓ Successfully stored ${historyEntries.length} historical data points for device ${deviceReading.deviceName}`));
       } catch (dbError: any) {
         // Handle specific MongoDB errors
         if (dbError.name === 'MongoNetworkError') {
-          console.error(`MongoDB network error while storing historical data: ${dbError.message}`);
+          console.error(chalk.red(`❌ MongoDB network error while storing historical data: ${dbError.message}`));
         } else if (dbError.message.includes('timed out')) {
-          console.error(`Database operation timed out while storing historical data`);
+          console.error(chalk.red(`❌ Database operation timed out while storing historical data`));
         } else {
+          console.error(chalk.red(`❌ Database error while storing historical data: ${dbError.message}`));
           throw dbError; // Re-throw for general error handling
         }
       }
     }
   } catch (error: any) {
     // Log error with device info for better diagnostics
-    console.error(`Error storing historical data for device ${deviceReading.deviceName} (${deviceReading.deviceId}):`, 
-      error.message || error);
-    
+    console.error(
+      chalk.red(`❌ Error storing historical data for device ${deviceReading.deviceName} (${deviceReading.deviceId}): ${error.message || error}`),
+    );
+
     // Log additional error details if available
     if (error.stack) {
-      console.debug('Error stack trace:', error.stack);
+      console.debug(chalk.gray('Error stack trace:'), error.stack);
     }
   }
 }
@@ -530,52 +740,67 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
  * @returns The interval ID
  */
 export function startPollingDevice(deviceId: string, intervalMs: number = 10000): NodeJS.Timeout {
-  console.log(`Starting polling for device ${deviceId} at ${intervalMs}ms intervals`);
-  
+  console.log(chalk.magenta(`🔄 Starting polling service for device ${deviceId} at ${intervalMs}ms intervals`));
+
   // Track consecutive failures for adaptive behavior
   let consecutiveFailures = 0;
   const MAX_CONSECUTIVE_FAILURES = 5;
   let currentInterval = intervalMs;
   let intervalId: NodeJS.Timeout;
-  
+
   // Function to handle a successful poll
   const handleSuccessfulPoll = () => {
     // Reset failure counter on success
     if (consecutiveFailures > 0) {
-      console.log(`Device ${deviceId} recovered after ${consecutiveFailures} consecutive failures`);
+      console.log(
+        chalk.green(
+          `✓ Device ${deviceId} recovered after ${consecutiveFailures} consecutive failures`,
+        ),
+      );
       consecutiveFailures = 0;
-      
+
       // If we had adjusted the interval due to failures, restore it
       if (currentInterval !== intervalMs) {
         currentInterval = intervalMs;
         clearInterval(intervalId);
         intervalId = setInterval(doPoll, currentInterval);
-        console.log(`Restored normal polling interval of ${intervalMs}ms for device ${deviceId}`);
+        console.log(
+          chalk.green(`✓ Restored normal polling interval of ${intervalMs}ms for device ${deviceId}`),
+        );
       }
     }
   };
-  
+
   // Function to handle a failed poll
   const handleFailedPoll = (err: any) => {
     consecutiveFailures++;
-    console.error(`Error polling device ${deviceId} (failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}):`, err.message || err);
-    
+    console.error(
+      chalk.red(
+        `❌ Error polling device ${deviceId} (failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${err.message || err}`,
+      )
+    );
+
     // Implement adaptive polling - if device fails repeatedly, back off
     if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
       // Double the interval after max consecutive failures (up to 5 minutes max)
       const newInterval = Math.min(currentInterval * 2, 300000);
-      
+
       if (newInterval !== currentInterval) {
-        console.warn(`Device ${deviceId} has failed ${consecutiveFailures} times. Adjusting polling interval from ${currentInterval}ms to ${newInterval}ms`);
+        console.warn(
+          chalk.yellow(
+            `⚠ Device ${deviceId} has failed ${consecutiveFailures} times. Adjusting polling interval from ${currentInterval}ms to ${newInterval}ms`,
+          ),
+        );
         currentInterval = newInterval;
         clearInterval(intervalId);
         intervalId = setInterval(doPoll, currentInterval);
       }
     }
   };
-  
+
   // The polling function
   const doPoll = async () => {
+    console.log(chalk.blue(`📊 Running polling cycle for device ${deviceId}`));
     try {
       const result = await pollDevice(deviceId);
       if (result) {
@@ -589,11 +814,13 @@ export function startPollingDevice(deviceId: string, intervalMs: number = 10000)
       handleFailedPoll(err);
     }
   };
-  
+
   // Poll once immediately
+  console.log(chalk.blue(`🚀 Initiating first poll for device ${deviceId}`));
   doPoll();
-  
+
   // Set up regular polling
+  console.log(chalk.cyan(`⏱ Setting up regular polling interval of ${intervalMs}ms for device ${deviceId}`));
   intervalId = setInterval(doPoll, intervalMs);
   return intervalId;
 }
@@ -610,7 +837,9 @@ export function stopPollingDevice(deviceId: string): void {
   if (interval) {
     clearInterval(interval);
     pollingIntervals.delete(deviceId);
-    console.log(`Stopped polling for device ${deviceId}`);
+    console.log(chalk.yellow(`⏹ Stopped polling service for device ${deviceId}`));
+  } else {
+    console.log(chalk.yellow(`⚠ No active polling service found for device ${deviceId}`));
   }
 }
 
@@ -620,10 +849,14 @@ export function stopPollingDevice(deviceId: string): void {
  * @param intervalMs The polling interval in milliseconds
  */
 export function setDevicePolling(deviceId: string, intervalMs: number = 10000): void {
+  console.log(chalk.blue(`Configuring polling for device ${deviceId} with interval ${intervalMs}ms`));
+  
   // Stop existing polling if any
   stopPollingDevice(deviceId);
-  
+
   // Start new polling
   const intervalId = startPollingDevice(deviceId, intervalMs);
   pollingIntervals.set(deviceId, intervalId);
+  
+  console.log(chalk.green(`✓ Device ${deviceId} polling service configured successfully`));
 }

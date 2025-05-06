@@ -432,15 +432,19 @@ const checkParameterOverlaps = (
 
           // Only check bit-level parameters against each other
           if (['BOOLEAN', 'BIT'].includes(paramB.param.dataType)) {
-            // For bit parameters, check if they use same register and same bit position
+            // For bit parameters, check if they use same buffer index and same bit position
+            // Get buffer indices (either direct or calculated from registerIndex)
+            const bufferIndexA = paramA.param.bufferIndex !== undefined ? paramA.param.bufferIndex : paramA.param.registerIndex * 2;
+            const bufferIndexB = paramB.param.bufferIndex !== undefined ? paramB.param.bufferIndex : paramB.param.registerIndex * 2;
+            
             if (
-              paramA.param.registerIndex === paramB.param.registerIndex &&
+              bufferIndexA === bufferIndexB &&
               paramA.param.bitPosition === paramB.param.bitPosition
             ) {
               const errorKey = `param_${paramA.index}_bit_overlap`;
               if (!errors[errorKey]) {
                 errors[errorKey] =
-                  `Template parameter "${paramA.param.name}" uses the same register and bit position as "${paramB.param.name}" in the same register range "${rangeName}"`;
+                  `Template parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) and bit position (${paramA.param.bitPosition}) as "${paramB.param.name}" in the same register range "${rangeName}"`;
               }
             }
           }
@@ -450,36 +454,59 @@ const checkParameterOverlaps = (
         for (let j = i + 1; j < rangeParams.length; j++) {
           const paramB = rangeParams[j];
 
+          // Calculate buffer indices and sizes for both parameters
+          const getByteSize = (dataType: string): number => {
+            if (['INT8', 'UINT8', 'BOOLEAN', 'BIT'].includes(dataType)) {
+              return 1; // 8-bit types
+            } else if (['INT16', 'UINT16', 'BCD'].includes(dataType)) {
+              return 2; // 16-bit types
+            } else if (['INT32', 'UINT32', 'FLOAT32', 'FLOAT'].includes(dataType)) {
+              return 4; // 32-bit types
+            } else if (['INT64', 'UINT64', 'DOUBLE', 'FLOAT64'].includes(dataType)) {
+              return 8; // 64-bit types
+            } else if (['STRING', 'ASCII'].includes(dataType)) {
+              return paramA.param.wordCount ? paramA.param.wordCount * 2 : 20; // String types
+            }
+            return 2; // Default to 16-bit (2 bytes)
+          };
+          
+          const bufferIndexA = paramA.param.bufferIndex !== undefined ? paramA.param.bufferIndex : paramA.param.registerIndex * 2;
+          const byteSizeA = getByteSize(paramA.param.dataType);
+          const bufferEndA = bufferIndexA + byteSizeA - 1;
+          
+          const bufferIndexB = paramB.param.bufferIndex !== undefined ? paramB.param.bufferIndex : paramB.param.registerIndex * 2;
+          const byteSizeB = getByteSize(paramB.param.dataType);
+          const bufferEndB = bufferIndexB + byteSizeB - 1;
+          
           // For non-bit parameters vs bit parameters
           if (['BOOLEAN', 'BIT'].includes(paramB.param.dataType)) {
-            // Non-bit parameter overlaps with register used by bit parameter
+            // Non-bit parameter overlaps with byte used by bit parameter
             if (
-              paramA.param.registerIndex <= paramB.param.registerIndex &&
-              paramA.end >= paramB.param.registerIndex
+              bufferIndexA <= bufferIndexB &&
+              bufferEndA >= bufferIndexB
             ) {
-              // This is fine - bit parameters can share registers with other data types
+              // This is fine - bit parameters can share bytes with other data types
               // as they only read a single bit
               continue;
             }
           } else {
-            // Check for register overlap between non-bit parameters
+            // Check for buffer overlap between non-bit parameters
             if (
-              (paramA.param.registerIndex <= paramB.end &&
-                paramA.end >= paramB.param.registerIndex) ||
-              (paramB.param.registerIndex <= paramA.end && paramB.end >= paramA.param.registerIndex)
+              (bufferIndexA <= bufferEndB && bufferEndA >= bufferIndexB) ||
+              (bufferIndexB <= bufferEndA && bufferEndB >= bufferIndexA)
             ) {
-              // Special case: exact same register index conflict
-              if (paramA.param.registerIndex === paramB.param.registerIndex) {
+              // Special case: exact same buffer index conflict
+              if (bufferIndexA === bufferIndexB) {
                 const errorKey = `param_${paramA.index}_duplicate_index`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Template parameter "${paramA.param.name}" uses the same register index as "${paramB.param.name}" in register range "${rangeName}"`;
+                    `Template parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) as "${paramB.param.name}" in register range "${rangeName}"`;
                 }
               } else {
                 const errorKey = `param_${paramA.index}_overlap`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Template parameter "${paramA.param.name}" (registers ${paramA.param.registerIndex}-${paramA.end}) overlaps with "${paramB.param.name}" (registers ${paramB.param.registerIndex}-${paramB.end}) in register range "${rangeName}"`;
+                    `Template parameter "${paramA.param.name}" (buffer indices ${bufferIndexA}-${bufferEndA}) overlaps with "${paramB.param.name}" (buffer indices ${bufferIndexB}-${bufferEndB}) in register range "${rangeName}"`;
                 }
               }
             }
@@ -521,6 +548,14 @@ export const validateParameters = (
         errors[`param_${index}_registerIndex`] = 'Register index is required';
       } else if (param.registerIndex < 0) {
         errors[`param_${index}_registerIndex`] = 'Register index must be a positive number';
+      }
+      
+      // Validate bufferIndex
+      if (param.bufferIndex === undefined || param.bufferIndex === null) {
+        // If bufferIndex is not defined, flag it as an error
+        errors[`param_${index}_bufferIndex`] = 'Buffer index is required';
+      } else if (param.bufferIndex < 0) {
+        errors[`param_${index}_bufferIndex`] = 'Buffer index must be a positive number';
       }
 
       // Check register range validity

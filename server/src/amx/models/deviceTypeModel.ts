@@ -4,29 +4,32 @@ import { connectAmxToDB } from '../../config/database';
 /**
  * Device Type Model Schema - Used in AMX database
  */
-export const DeviceTypeModel = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
+export const DeviceTypeModel = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+    },
+    category: {
+      type: String,
+    },
+    specifications: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    createdBy: {
+      userId: { type: String },
+      username: { type: String },
+      email: { type: String },
+      organization: { type: String, default: '' },
+    },
   },
-  description: {
-    type: String,
-  },
-  category: {
-    type: String,
-  },
-  specifications: {
-    type: mongoose.Schema.Types.Mixed,
-  },
-  createdBy: {
-    userId: { type: String },
-    username: { type: String },
-    email: { type: String },
-    organization: { type: String, default: '' },
-  },
-}, { timestamps: true, collection: 'devicetypes' });
+  { timestamps: true, collection: 'devicetypes' },
+);
 
 /**
  * Create a DeviceType model with the specified connection

@@ -102,10 +102,20 @@ const TemplateConnectionSettings: React.FC = () => {
     return error?.message;
   };
 
-  // Handle device basics changes
+  // Handle device basics changes with validation
   const handleDeviceBasicsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    actions.setDeviceBasics({ [name]: value });
+    
+    // For template name, enforce minimum length of 3 characters
+    if (name === 'name') {
+      // Always update the state, but users will see validation error if too short
+      actions.setDeviceBasics({ [name]: value });
+      
+      // Print debug message
+      console.log(`Template name updated to "${value}" (length: ${value.length})`);
+    } else {
+      actions.setDeviceBasics({ [name]: value });
+    }
   };
 
   const handleConnectionTypeChange = (value: string) => {
@@ -187,8 +197,12 @@ const TemplateConnectionSettings: React.FC = () => {
             placeholder="Energy Analyzer Template"
             className={getBasicFieldError('name') ? 'border-red-300' : ''}
             ref={refs.name as React.RefObject<HTMLInputElement>}
+            minLength={3}
           />
           <FieldError message={getBasicFieldError('name')} />
+          <p className="mt-1 text-xs text-gray-500">
+            Must be at least 3 characters long. Currently: {deviceBasics.name.length} characters
+          </p>
         </Form.Group>
 
         <Form.Group>

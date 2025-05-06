@@ -9,18 +9,18 @@
 //   description: { type: String },
 //   enabled: { type: Boolean, default: true },
 //   tags: [{ type: String }],
-  
+
 //   // Connection settings
-//   connectionSetting: { 
+//   connectionSetting: {
 //     type: mongoose.Schema.Types.Mixed,
-//     required: false 
+//     required: false
 //   },
-  
+
 //   // Data points
-//   dataPoints: [{ 
-//     type: mongoose.Schema.Types.Mixed 
+//   dataPoints: [{
+//     type: mongoose.Schema.Types.Mixed
 //   }],
-  
+
 //   // Template-specific fields
 //   deviceType: {
 //     type: String,
@@ -76,8 +76,6 @@
 
 // // Create a compound index to ensure unique templates per device type
 // DeviceDriverSchema.index({ name: 1, deviceType: 1 }, { unique: true });
-
-
 
 // // Export the schema for use elsewhere
 // export { DeviceDriverSchema };

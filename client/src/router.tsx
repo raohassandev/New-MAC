@@ -9,6 +9,8 @@ import MainLayout from './layouts/MainLayout';
 import NotFound from './pages/NotFound';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
+import SystemArchitecture from './pages/SystemArchitecture';
+import SystemConfiguration from './pages/SystemConfiguration';
 import SystemMonitor from './pages/SystemMonitor';
 import XmlStructureView from './pages/XmlStructureView';
 import { createBrowserRouter } from 'react-router-dom';
@@ -71,8 +73,16 @@ const router = createBrowserRouter([
         element: <Settings />,
       },
       {
+        path: 'system-configuration',
+        element: <SystemConfiguration />,
+      },
+      {
         path: 'project-structure',
         element: <XmlStructureView />,
+      },
+      {
+        path: 'system-architecture',
+        element: <SystemArchitecture />,
       },
     ],
   },

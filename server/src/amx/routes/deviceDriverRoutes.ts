@@ -7,15 +7,15 @@ import {
   getDeviceTypeById,
   createDeviceType,
   updateDeviceType,
-  deleteDeviceType
+  deleteDeviceType,
 } from '../controllers/DeviceTypeController';
 
 import {
-  createDeviceDriver, 
-  deleteDeviceDriver, 
-  getAllDeviceDrivers, 
-  getDeviceDriverById, 
-  updateDeviceDriver
+  createDeviceDriver,
+  deleteDeviceDriver,
+  getAllDeviceDrivers,
+  getDeviceDriverById,
+  updateDeviceDriver,
 } from '../controllers/DeviceDriverController';
 
 export const deviceDriverRouter = express.Router();
@@ -36,4 +36,3 @@ deviceDriverRouter.post('/', createDeviceDriver);
 deviceDriverRouter.get('/:id', getDeviceDriverById);
 deviceDriverRouter.put('/:id', updateDeviceDriver);
 deviceDriverRouter.delete('/:id', deleteDeviceDriver);
-

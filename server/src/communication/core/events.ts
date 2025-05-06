@@ -13,29 +13,29 @@ export enum EventType {
   CONNECTED = 'connected',
   DISCONNECTED = 'disconnected',
   CONNECTION_ERROR = 'connectionError',
-  
+
   // Data events
   DATA_RECEIVED = 'dataReceived',
   DATA_CHANGED = 'dataChanged',
   DATA_ERROR = 'dataError',
-  
+
   // Command events
-  COMMAND_SENT = 'commandSent', 
+  COMMAND_SENT = 'commandSent',
   COMMAND_SUCCESS = 'commandSuccess',
   COMMAND_ERROR = 'commandError',
-  
+
   // Device events
   DEVICE_ADDED = 'deviceAdded',
   DEVICE_REMOVED = 'deviceRemoved',
   DEVICE_STATE_CHANGED = 'deviceStateChanged',
-  
+
   // Log events
   LOG = 'log',
-  
+
   // General events
   ERROR = 'error',
   WARNING = 'warning',
-  INFO = 'info'
+  INFO = 'info',
 }
 
 /**
@@ -52,7 +52,11 @@ export interface Event {
  * Connection state event
  */
 export interface ConnectionStateEvent extends Event {
-  type: EventType.CONNECTING | EventType.CONNECTED | EventType.DISCONNECTED | EventType.CONNECTION_ERROR;
+  type:
+    | EventType.CONNECTING
+    | EventType.CONNECTED
+    | EventType.DISCONNECTED
+    | EventType.CONNECTION_ERROR;
   data: {
     state: ConnectionState;
     error?: Error;
@@ -101,7 +105,7 @@ export type EventListener = (event: Event) => void;
  */
 export class EventEmitter {
   private listeners: Map<EventType | string, EventListener[]> = new Map();
-  
+
   /**
    * Add an event listener
    * @param type Event type
@@ -113,7 +117,7 @@ export class EventEmitter {
     }
     this.listeners.get(type)!.push(listener);
   }
-  
+
   /**
    * Remove an event listener
    * @param type Event type
@@ -121,20 +125,20 @@ export class EventEmitter {
    */
   off(type: EventType | string, listener: EventListener): void {
     if (!this.listeners.has(type)) return;
-    
+
     const listeners = this.listeners.get(type)!;
     const index = listeners.indexOf(listener);
-    
+
     if (index !== -1) {
       listeners.splice(index, 1);
     }
-    
+
     // Clean up empty listener arrays
     if (listeners.length === 0) {
       this.listeners.delete(type);
     }
   }
-  
+
   /**
    * Emit an event
    * @param event Event to emit
@@ -149,7 +153,7 @@ export class EventEmitter {
         }
       }
     }
-    
+
     // Also emit to wildcard listeners
     if (this.listeners.has('*')) {
       for (const listener of this.listeners.get('*')!) {
@@ -161,7 +165,7 @@ export class EventEmitter {
       }
     }
   }
-  
+
   /**
    * Add a one-time event listener
    * @param type Event type
@@ -172,10 +176,10 @@ export class EventEmitter {
       this.off(type, onceListener);
       listener(event);
     };
-    
+
     this.on(type, onceListener);
   }
-  
+
   /**
    * Remove all listeners for a specific event type or all listeners if no type is provided
    * @param type Optional event type
@@ -210,7 +214,7 @@ export function createEvent(type: EventType | string, source: string, data?: any
     type,
     timestamp: new Date(),
     source,
-    data
+    data,
   };
 }
 
@@ -221,9 +225,9 @@ export function createEvent(type: EventType | string, source: string, data?: any
  * @param error Optional error
  */
 export function createConnectionStateEvent(
-  source: string, 
-  state: ConnectionState, 
-  error?: Error
+  source: string,
+  state: ConnectionState,
+  error?: Error,
 ): ConnectionStateEvent {
   let type: EventType;
   switch (state) {
@@ -242,15 +246,15 @@ export function createConnectionStateEvent(
     default:
       type = EventType.DEVICE_STATE_CHANGED;
   }
-  
+
   return {
     type,
     timestamp: new Date(),
     source,
     data: {
       state,
-      error
-    }
+      error,
+    },
   };
 }
 
@@ -265,7 +269,7 @@ export function createDataEvent(
   type: EventType.DATA_RECEIVED | EventType.DATA_CHANGED | EventType.DATA_ERROR,
   source: string,
   values: ParameterValue[] | ParameterValue,
-  error?: Error
+  error?: Error,
 ): DataEvent {
   return {
     type,
@@ -273,8 +277,8 @@ export function createDataEvent(
     source,
     data: {
       values,
-      error
-    }
+      error,
+    },
   };
 }
 
@@ -293,7 +297,7 @@ export function createCommandEvent(
   command: string,
   args?: any[],
   result?: any,
-  error?: Error
+  error?: Error,
 ): CommandEvent {
   return {
     type,
@@ -303,8 +307,8 @@ export function createCommandEvent(
       command,
       args,
       result,
-      error
-    }
+      error,
+    },
   };
 }
 
@@ -318,6 +322,6 @@ export function createLogEvent(source: string, entry: LogEntry): LogEvent {
     type: EventType.LOG,
     timestamp: new Date(),
     source,
-    data: entry
+    data: entry,
   };
 }

@@ -6,7 +6,7 @@
     "start": "npm run start:server",
     "start:server": "cd server && npm start",
     "start:client": "cd client && npm run preview",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"", 
+    "dev": "npm cache clean --force && concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "build": "npm run build:server && npm run build:client",

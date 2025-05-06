@@ -290,13 +290,13 @@ export async function getDevices(): Promise<any> {
       return response; // Return the whole object so caller can handle MongoDB cursor
     }
     
-    // If no devices are returned, provide some sample devices for testing
-    console.warn('No devices returned from API or unexpected format, using sample devices');
-    return { devices: SAMPLE_DEVICES, pagination: { total: SAMPLE_DEVICES.length, page: 1, limit: 50, pages: 1 } };
+    // If no devices are returned, return empty array instead of sample devices
+    console.warn('No devices returned from API or unexpected format, returning empty array');
+    return { devices: [], pagination: { total: 0, page: 1, limit: 50, pages: 1 } };
   } catch (error) {
     console.error('Error fetching devices from API:', error);
-    // Return sample devices in case of error for development
-    return { devices: SAMPLE_DEVICES, pagination: { total: SAMPLE_DEVICES.length, page: 1, limit: 50, pages: 1 } };
+    // Return empty array instead of sample devices
+    return { devices: [], pagination: { total: 0, page: 1, limit: 50, pages: 1 } };
   }
 }
 

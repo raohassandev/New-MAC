@@ -6,10 +6,10 @@
  * RegisterType enum - Defines the standard Modbus register types
  */
 export enum RegisterType {
-  COIL = 'coil',                   // Read/Write 1-bit registers (FC01, FC05, FC15)
+  COIL = 'coil', // Read/Write 1-bit registers (FC01, FC05, FC15)
   DISCRETE_INPUT = 'discreteInput', // Read-only 1-bit registers (FC02)
   INPUT_REGISTER = 'inputRegister', // Read-only 16-bit registers (FC04)
-  HOLDING_REGISTER = 'holdingRegister' // Read/Write 16-bit registers (FC03, FC06, FC16)
+  HOLDING_REGISTER = 'holdingRegister', // Read/Write 16-bit registers (FC03, FC06, FC16)
 }
 
 /**
@@ -36,7 +36,7 @@ export enum DataType {
   INT64 = 'int64',
   UINT64 = 'uint64',
   STRING = 'string',
-  BYTE_ARRAY = 'byteArray'
+  BYTE_ARRAY = 'byteArray',
 }
 
 /**
@@ -46,12 +46,12 @@ export enum ByteOrder {
   // Single register (16-bit) byte orders
   AB = 'AB', // Big-endian (A is MSB, B is LSB)
   BA = 'BA', // Little-endian (B is MSB, A is LSB)
-  
+
   // Double register (32-bit) byte orders
   ABCD = 'ABCD', // Big-endian
   CDAB = 'CDAB', // Big-endian byte swapped
   BADC = 'BADC', // Little-endian byte swapped
-  DCBA = 'DCBA'  // Little-endian
+  DCBA = 'DCBA', // Little-endian
 }
 
 /**
@@ -61,7 +61,7 @@ export enum ConnectionState {
   DISCONNECTED = 'disconnected',
   CONNECTING = 'connecting',
   CONNECTED = 'connected',
-  ERROR = 'error'
+  ERROR = 'error',
 }
 
 /**
@@ -165,7 +165,7 @@ export enum LogLevel {
   DEBUG = 'debug',
   INFO = 'info',
   WARN = 'warn',
-  ERROR = 'error'
+  ERROR = 'error',
 }
 
 /**

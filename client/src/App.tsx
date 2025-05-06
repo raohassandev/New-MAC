@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
 import XmlStructureView from './pages/XmlStructureView';
+import SystemArchitecture from './pages/SystemArchitecture';
 
 // Development mode App component with simplified routing
 function App() {
@@ -40,6 +41,7 @@ function App() {
             <Route path="system" element={<SystemMonitor />} />
             <Route path="settings" element={<Settings />} />
             <Route path="project-structure" element={<XmlStructureView />} />
+            <Route path="system-architecture" element={<SystemArchitecture />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 

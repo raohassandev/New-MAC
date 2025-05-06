@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { User } from '../client/models';
-import jwt from 'jsonwebtoken'; 
+import jwt from 'jsonwebtoken';
 
 // Add custom property to Express Request
 declare global {
@@ -13,21 +13,14 @@ declare global {
 }
 
 // Protect routes
-export const protect = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token;
 
   // Debug info
   console.log('Checking authorization, headers:', req.headers.authorization);
 
   // Check if token exists in header
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
@@ -65,15 +58,15 @@ export const protect = async (
         console.log('Verifying JWT token');
         const decoded = jwt.verify(
           token,
-          process.env.JWT_SECRET || 'fallbacksecret'
+          process.env.JWT_SECRET || 'fallbacksecret',
         ) as jwt.JwtPayload;
-        
+
         console.log('Token decoded:', decoded);
 
         // Get user from token
         const user = await User.findById(decoded.id).select('-password');
         console.log('User found from database:', user);
-        
+
         if (!user) {
           console.log('User not found in database, creating temporary admin user');
           // For development - create a temporary user if token is valid but user isn't in DB
@@ -83,17 +76,23 @@ export const protect = async (
             name: decoded.name || 'Temporary User',
             email: decoded.email || 'temp@example.com',
             role: 'admin',
-            permissions: ['view_devices', 'add_devices', 'edit_devices', 'delete_devices', 'manage_devices']
+            permissions: [
+              'view_devices',
+              'add_devices',
+              'edit_devices',
+              'delete_devices',
+              'manage_devices',
+            ],
           };
           return next();
         }
-        
+
         // Ensure user has both _id and id fields for consistent access
         req.user = user;
         if (!req.user.id && req.user._id) {
           req.user.id = req.user._id.toString();
         }
-        
+
         console.log('User set in request:', req.user);
         next();
       } catch (jwtError) {
@@ -118,13 +117,11 @@ export const checkPermission = (permissions: string[]) => {
 
     // Check if user has any of the required permissions
     const hasPermission = req.user.permissions.some((permission: string) =>
-      permissions.includes(permission)
+      permissions.includes(permission),
     );
 
     if (!hasPermission) {
-      return res
-        .status(403)
-        .json({ message: 'Access denied, insufficient permissions' });
+      return res.status(403).json({ message: 'Access denied, insufficient permissions' });
     }
 
     next();

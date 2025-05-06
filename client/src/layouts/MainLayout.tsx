@@ -57,8 +57,13 @@ const MainLayout: React.FC = () => {
           <NavItem to="/dashboard" icon={<Home size={18} />} label="Dashboard" end={true} />
           <NavItem to="/devices" icon={<HardDrive size={18} />} label="Devices" />
           <NavItem to="/device-drivers" icon={<CreditCard size={18} />} label="Device Drivers" />
-          <NavItem to="/system" icon={<Activity size={18} />} label="System Monitor" />
-          <NavItem to="/project-structure" icon={<Home size={18} />} label="Project Structure" end={true} />
+          <NavItem to="/system-architecture" icon={<Activity size={18} />} label="System Architecture" />
+
+          {/* Configuration Section - Temporarily visible to all users */}
+          <div className="mt-6 px-4 py-2 text-xs font-semibold uppercase text-indigo-300">
+            Configuration
+          </div>
+          <NavItem to="/system-configuration" icon={<Sliders size={18} />} label="System Settings" />
 
           {/* Only show admin section if user has proper permissions */}
           {hasPermission('manage_users') && (

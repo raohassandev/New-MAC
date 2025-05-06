@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle, AlertCircle } from 'lucide-react';
+import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle, AlertCircle, Zap, Clock, RefreshCw, TerminalSquare } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 // Import UI components
@@ -77,6 +77,33 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     description: '',
     tags: [] as string[],
     dataPoints: [] as DataPoint[],
+    advancedSettings: {
+      defaultPollInterval: 30000, // 30 seconds
+      defaultRequestTimeout: 5000, // 5 seconds
+      connectionOptions: {
+        timeout: 10000, // 10 seconds
+        retries: 3,
+        retryInterval: 1000, // 1 second
+        autoReconnect: true,
+        reconnectInterval: 5000 // 5 seconds
+      },
+      cacheOptions: {
+        enabled: true,
+        defaultTtl: 60000, // 1 minute
+        maxSize: 10000,
+        checkInterval: 60000 // 1 minute
+      },
+      logOptions: {
+        level: 'info',
+        console: true,
+        file: {
+          enabled: false,
+          path: '',
+          maxSize: 5, // 5 MB
+          maxFiles: 5
+        }
+      }
+    }
   });
   
   const [deviceDrivers, setDeviceDrivers] = useState<DeviceDriver[]>([]);
@@ -159,22 +186,75 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     const { name, value, type } = e.target;
     const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
 
-    // Handle nested properties for connection settings
+    // Handle nested properties using path notation (e.g. 'tcp.ip', 'advancedSettings.defaultPollInterval')
     if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      if (parent === 'tcp' || parent === 'rtu') {
+      const paths = name.split('.');
+      
+      // Handle connection settings (special case for backward compatibility)
+      if (paths[0] === 'tcp' || paths[0] === 'rtu') {
         setDeviceData({
           ...deviceData,
           connectionSetting: {
             ...deviceData.connectionSetting,
-            [parent]: {
-              ...deviceData.connectionSetting[parent as 'tcp' | 'rtu'],
-              [child]: newValue,
+            [paths[0]]: {
+              ...deviceData.connectionSetting[paths[0] as 'tcp' | 'rtu'],
+              [paths[1]]: newValue,
             }
           }
         });
+      } 
+      // Handle advanced settings with up to 3 levels of nesting
+      else if (paths[0] === 'advancedSettings') {
+        if (paths.length === 2) {
+          // Handle 'advancedSettings.defaultPollInterval'
+          setDeviceData({
+            ...deviceData,
+            advancedSettings: {
+              ...deviceData.advancedSettings,
+              [paths[1]]: newValue,
+            }
+          });
+        } else if (paths.length === 3) {
+          // Handle 'advancedSettings.connectionOptions.timeout'
+          setDeviceData({
+            ...deviceData,
+            advancedSettings: {
+              ...deviceData.advancedSettings,
+              [paths[1]]: {
+                ...deviceData.advancedSettings[paths[1] as keyof typeof deviceData.advancedSettings],
+                [paths[2]]: newValue,
+              }
+            }
+          });
+        } else if (paths.length === 4) {
+          // Handle 'advancedSettings.logOptions.file.enabled'
+          const level1 = paths[1]; // logOptions
+          const level2 = paths[2]; // file
+          const level3 = paths[3]; // enabled
+          
+          // Safely cast to avoid TypeScript errors
+          const level1Obj = deviceData.advancedSettings[level1 as keyof typeof deviceData.advancedSettings];
+          
+          setDeviceData({
+            ...deviceData,
+            advancedSettings: {
+              ...deviceData.advancedSettings,
+              [level1]: {
+                ...(level1Obj as any),
+                [level2]: {
+                  ...(level1Obj as any)[level2],
+                  [level3]: newValue,
+                }
+              }
+            }
+          });
+        }
+      } else {
+        // Handle other nested properties
+        console.warn(`Unhandled nested property: ${name}`);
       }
     } else {
+      // Handle root level properties
       setDeviceData({
         ...deviceData,
         [name]: newValue,
@@ -226,9 +306,12 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       newErrors.name = 'Device name is required';
     }
 
-    // Only require device driver if device drivers are loaded
+    // Only require device driver if device drivers are available in the database
     if (deviceDrivers.length > 0 && !deviceData.deviceDriverId) {
       newErrors.deviceDriverId = 'Please select a device driver';
+    } else if (deviceDrivers.length === 0) {
+      // Add a more descriptive top-level error when no device drivers available
+      newErrors.noDeviceDrivers = 'No device drivers available. Please create a device driver first before adding a device.';
     }
 
     // Validate usage category
@@ -270,6 +353,76 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       // Connection settings must exist
       newErrors['connectionSetting'] = 'Connection settings are required';
     }
+    
+    // Advanced settings validation
+    if (deviceData.advancedSettings) {
+      // Validate polling interval
+      if (isNaN(Number(deviceData.advancedSettings.defaultPollInterval)) || 
+          Number(deviceData.advancedSettings.defaultPollInterval) < 100) {
+        newErrors['advancedSettings.defaultPollInterval'] = 'Poll interval must be at least 100ms';
+      }
+      
+      // Validate request timeout
+      if (isNaN(Number(deviceData.advancedSettings.defaultRequestTimeout)) || 
+          Number(deviceData.advancedSettings.defaultRequestTimeout) < 100) {
+        newErrors['advancedSettings.defaultRequestTimeout'] = 'Request timeout must be at least 100ms';
+      }
+      
+      // Validate connection options
+      if (deviceData.advancedSettings.connectionOptions) {
+        const connOpts = deviceData.advancedSettings.connectionOptions;
+        
+        if (isNaN(Number(connOpts.timeout)) || Number(connOpts.timeout) < 100) {
+          newErrors['advancedSettings.connectionOptions.timeout'] = 'Connection timeout must be at least 100ms';
+        }
+        
+        if (isNaN(Number(connOpts.retries)) || Number(connOpts.retries) < 0) {
+          newErrors['advancedSettings.connectionOptions.retries'] = 'Retries must be a non-negative number';
+        }
+        
+        if (isNaN(Number(connOpts.retryInterval)) || Number(connOpts.retryInterval) < 100) {
+          newErrors['advancedSettings.connectionOptions.retryInterval'] = 'Retry interval must be at least 100ms';
+        }
+        
+        if (connOpts.autoReconnect && 
+            (isNaN(Number(connOpts.reconnectInterval)) || Number(connOpts.reconnectInterval) < 100)) {
+          newErrors['advancedSettings.connectionOptions.reconnectInterval'] = 'Reconnect interval must be at least 100ms';
+        }
+      }
+      
+      // Validate cache options
+      if (deviceData.advancedSettings.cacheOptions && deviceData.advancedSettings.cacheOptions.enabled) {
+        const cacheOpts = deviceData.advancedSettings.cacheOptions;
+        
+        if (isNaN(Number(cacheOpts.defaultTtl)) || Number(cacheOpts.defaultTtl) < 1000) {
+          newErrors['advancedSettings.cacheOptions.defaultTtl'] = 'Cache TTL must be at least 1000ms (1 second)';
+        }
+        
+        if (isNaN(Number(cacheOpts.maxSize)) || Number(cacheOpts.maxSize) < 100) {
+          newErrors['advancedSettings.cacheOptions.maxSize'] = 'Cache max size must be at least 100 entries';
+        }
+        
+        if (isNaN(Number(cacheOpts.checkInterval)) || Number(cacheOpts.checkInterval) < 1000) {
+          newErrors['advancedSettings.cacheOptions.checkInterval'] = 'Cache check interval must be at least 1000ms (1 second)';
+        }
+      }
+      
+      // Validate log file options
+      if (deviceData.advancedSettings.logOptions && 
+          deviceData.advancedSettings.logOptions.file && 
+          deviceData.advancedSettings.logOptions.file.enabled) {
+        
+        const fileOpts = deviceData.advancedSettings.logOptions.file;
+        
+        if (isNaN(Number(fileOpts.maxSize)) || Number(fileOpts.maxSize) <= 0) {
+          newErrors['advancedSettings.logOptions.file.maxSize'] = 'Max file size must be a positive number';
+        }
+        
+        if (isNaN(Number(fileOpts.maxFiles)) || Number(fileOpts.maxFiles) <= 0) {
+          newErrors['advancedSettings.logOptions.file.maxFiles'] = 'Max files must be a positive number';
+        }
+      }
+    }
 
     // Set errors and return validation result
     setErrors(newErrors);
@@ -286,6 +439,13 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     
     if (!validateForm()) {
       console.log('[NewDeviceForm] Form validation failed', errors);
+      
+      // Special case for no device drivers available
+      if (errors.noDeviceDrivers) {
+        toast.error('Cannot create device: No device drivers available');
+        return;
+      }
+      
       toast.error('Please fill in all required fields');
       // Automatically switch to first tab with errors
       if (errors.name || errors.deviceDriverId) {
@@ -295,6 +455,10 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         setActiveTab('connection');
       } else if (errors.usage) {
         setActiveTab('metadata');
+      } else if (errors['advancedSettings.defaultPollInterval'] || 
+                errors['advancedSettings.defaultRequestTimeout'] || 
+                errors['advancedSettings.connectionOptions.timeout']) {
+        setActiveTab('advanced');
       }
       return;
     }
@@ -376,6 +540,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     { id: 'driver', label: 'Device Driver', icon: <Database size={16} /> },
     { id: 'connection', label: 'Connection', icon: <Settings size={16} /> },
     { id: 'metadata', label: 'Metadata', icon: <Info size={16} /> },
+    { id: 'advanced', label: 'Advanced Settings', icon: <Zap size={16} /> },
   ];
 
   if (!isOpen) return null;
@@ -389,6 +554,22 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         </Dialog.Header>
 
         <Form onSubmit={handleSubmit}>
+          {/* No Device Drivers Error */}
+          {errors.noDeviceDrivers && (
+            <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 p-4">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">Device Driver Required</h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>{errors.noDeviceDrivers}</p>
+                    <p className="mt-1">You must have at least one device driver defined before you can add devices.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} variant="boxed">
             {/* Basic Details Tab */}
             {activeTab === 'basic' && (
@@ -463,9 +644,20 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   ) : driverLoadError ? (
                     <Alert variant="error">{driverLoadError}</Alert>
                   ) : deviceDrivers.length === 0 ? (
-                    <Alert variant="warning">
-                      No device drivers found. Please create a device driver first.
-                    </Alert>
+                    <div className="space-y-3">
+                      <Alert variant="warning">
+                        No device drivers available in the database. You need to create device drivers before adding devices.
+                      </Alert>
+                      <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+                        <p>Device drivers define:</p>
+                        <ul className="mt-1 list-disc pl-5">
+                          <li>Communication register mapping</li>
+                          <li>Data points and their properties</li>
+                          <li>Default connection settings</li>
+                        </ul>
+                        <p className="mt-2">Go to Device Drivers section to create device drivers first.</p>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <Form.Select
@@ -774,6 +966,359 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                 </Form.Group>
               </div>
             )}
+            
+            {/* Advanced Settings Tab */}
+            {activeTab === 'advanced' && (
+              <div className="space-y-6 pt-4">
+                {/* Polling and Timeout Settings */}
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
+                    <Clock size={18} className="mr-2" />
+                    Polling & Timeout
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.defaultPollInterval">
+                        Poll Interval (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.defaultPollInterval"
+                        name="advancedSettings.defaultPollInterval"
+                        type="number"
+                        value={deviceData.advancedSettings.defaultPollInterval}
+                        onChange={handleInputChange}
+                      />
+                      <Form.Description>
+                        Default interval between polling requests (milliseconds)
+                      </Form.Description>
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.defaultRequestTimeout">
+                        Request Timeout (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.defaultRequestTimeout"
+                        name="advancedSettings.defaultRequestTimeout"
+                        type="number"
+                        value={deviceData.advancedSettings.defaultRequestTimeout}
+                        onChange={handleInputChange}
+                      />
+                      <Form.Description>
+                        Default timeout for communication requests (milliseconds)
+                      </Form.Description>
+                    </Form.Group>
+                  </div>
+                </div>
+                
+                {/* Connection Options */}
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
+                    <RefreshCw size={18} className="mr-2" />
+                    Connection Options
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.connectionOptions.timeout">
+                        Connection Timeout (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.connectionOptions.timeout"
+                        name="advancedSettings.connectionOptions.timeout"
+                        type="number"
+                        value={deviceData.advancedSettings.connectionOptions.timeout}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.connectionOptions.retries">
+                        Retries
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.connectionOptions.retries"
+                        name="advancedSettings.connectionOptions.retries"
+                        type="number"
+                        value={deviceData.advancedSettings.connectionOptions.retries}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.connectionOptions.retryInterval">
+                        Retry Interval (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.connectionOptions.retryInterval"
+                        name="advancedSettings.connectionOptions.retryInterval"
+                        type="number"
+                        value={deviceData.advancedSettings.connectionOptions.retryInterval}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Switch
+                        label="Auto Reconnect"
+                        checked={deviceData.advancedSettings.connectionOptions.autoReconnect}
+                        onChange={(e) => {
+                          const checked = (e.target as HTMLInputElement).checked;
+                          setDeviceData({
+                            ...deviceData,
+                            advancedSettings: {
+                              ...deviceData.advancedSettings,
+                              connectionOptions: {
+                                ...deviceData.advancedSettings.connectionOptions,
+                                autoReconnect: checked
+                              }
+                            }
+                          });
+                        }}
+                      />
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.connectionOptions.reconnectInterval">
+                        Reconnect Interval (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.connectionOptions.reconnectInterval"
+                        name="advancedSettings.connectionOptions.reconnectInterval"
+                        type="number"
+                        value={deviceData.advancedSettings.connectionOptions.reconnectInterval}
+                        onChange={handleInputChange}
+                        disabled={!deviceData.advancedSettings.connectionOptions.autoReconnect}
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
+                
+                {/* Cache Options */}
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
+                    <Database size={18} className="mr-2" />
+                    Cache Options
+                  </h3>
+                  <Form.Group>
+                    <Switch
+                      label="Enable Caching"
+                      checked={deviceData.advancedSettings.cacheOptions.enabled}
+                      onChange={(e) => {
+                        const checked = (e.target as HTMLInputElement).checked;
+                        setDeviceData({
+                          ...deviceData,
+                          advancedSettings: {
+                            ...deviceData.advancedSettings,
+                            cacheOptions: {
+                              ...deviceData.advancedSettings.cacheOptions,
+                              enabled: checked
+                            }
+                          }
+                        });
+                      }}
+                    />
+                  </Form.Group>
+                  
+                  <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.cacheOptions.defaultTtl">
+                        Default TTL (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.cacheOptions.defaultTtl"
+                        name="advancedSettings.cacheOptions.defaultTtl"
+                        type="number"
+                        value={deviceData.advancedSettings.cacheOptions.defaultTtl}
+                        onChange={handleInputChange}
+                        disabled={!deviceData.advancedSettings.cacheOptions.enabled}
+                      />
+                      <Form.Description>
+                        Time-to-live for cached values
+                      </Form.Description>
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.cacheOptions.maxSize">
+                        Max Size
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.cacheOptions.maxSize"
+                        name="advancedSettings.cacheOptions.maxSize"
+                        type="number"
+                        value={deviceData.advancedSettings.cacheOptions.maxSize}
+                        onChange={handleInputChange}
+                        disabled={!deviceData.advancedSettings.cacheOptions.enabled}
+                      />
+                      <Form.Description>
+                        Maximum items in cache
+                      </Form.Description>
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.cacheOptions.checkInterval">
+                        Check Interval (ms)
+                      </Form.Label>
+                      <Input
+                        id="advancedSettings.cacheOptions.checkInterval"
+                        name="advancedSettings.cacheOptions.checkInterval"
+                        type="number"
+                        value={deviceData.advancedSettings.cacheOptions.checkInterval}
+                        onChange={handleInputChange}
+                        disabled={!deviceData.advancedSettings.cacheOptions.enabled}
+                      />
+                      <Form.Description>
+                        Interval to check for expired items
+                      </Form.Description>
+                    </Form.Group>
+                  </div>
+                </div>
+                
+                {/* Logging Options */}
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
+                    <TerminalSquare size={18} className="mr-2" />
+                    Logging Options
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Form.Group>
+                      <Form.Label htmlFor="advancedSettings.logOptions.level">
+                        Log Level
+                      </Form.Label>
+                      <Form.Select
+                        id="advancedSettings.logOptions.level"
+                        name="advancedSettings.logOptions.level"
+                        value={deviceData.advancedSettings.logOptions.level}
+                        onChange={handleInputChange}
+                        options={[
+                          { value: 'debug', label: 'Debug (Most Verbose)' },
+                          { value: 'info', label: 'Info (Standard)' },
+                          { value: 'warn', label: 'Warning' },
+                          { value: 'error', label: 'Error (Least Verbose)' }
+                        ]}
+                      />
+                      <Form.Description>
+                        Minimum level of messages to log
+                      </Form.Description>
+                    </Form.Group>
+                    
+                    <Form.Group>
+                      <Switch
+                        label="Console Logging"
+                        checked={deviceData.advancedSettings.logOptions.console}
+                        onChange={(e) => {
+                          const checked = (e.target as HTMLInputElement).checked;
+                          setDeviceData({
+                            ...deviceData,
+                            advancedSettings: {
+                              ...deviceData.advancedSettings,
+                              logOptions: {
+                                ...deviceData.advancedSettings.logOptions,
+                                console: checked
+                              }
+                            }
+                          });
+                        }}
+                      />
+                      <Form.Description>
+                        Output logs to server console
+                      </Form.Description>
+                    </Form.Group>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <Switch
+                      label="Enable File Logging"
+                      checked={deviceData.advancedSettings.logOptions.file?.enabled}
+                      onChange={(e) => {
+                        const checked = (e.target as HTMLInputElement).checked;
+                        setDeviceData({
+                          ...deviceData,
+                          advancedSettings: {
+                            ...deviceData.advancedSettings,
+                            logOptions: {
+                              ...deviceData.advancedSettings.logOptions,
+                              file: {
+                                ...deviceData.advancedSettings.logOptions.file,
+                                enabled: checked
+                              }
+                            }
+                          }
+                        });
+                      }}
+                    />
+                    
+                    {deviceData.advancedSettings.logOptions.file?.enabled && (
+                      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Form.Group>
+                          <Form.Label htmlFor="advancedSettings.logOptions.file.path">
+                            Log File Path
+                          </Form.Label>
+                          <Input
+                            id="advancedSettings.logOptions.file.path"
+                            name="advancedSettings.logOptions.file.path"
+                            value={deviceData.advancedSettings.logOptions.file.path}
+                            onChange={handleInputChange}
+                            placeholder="logs/device-{id}.log"
+                          />
+                          <Form.Description>
+                            Path where log files will be stored
+                          </Form.Description>
+                        </Form.Group>
+                        
+                        <Form.Group>
+                          <Form.Label htmlFor="advancedSettings.logOptions.file.maxSize">
+                            Max File Size (MB)
+                          </Form.Label>
+                          <Input
+                            id="advancedSettings.logOptions.file.maxSize"
+                            name="advancedSettings.logOptions.file.maxSize"
+                            type="number"
+                            value={deviceData.advancedSettings.logOptions.file.maxSize}
+                            onChange={handleInputChange}
+                          />
+                        </Form.Group>
+                        
+                        <Form.Group>
+                          <Form.Label htmlFor="advancedSettings.logOptions.file.maxFiles">
+                            Max Files
+                          </Form.Label>
+                          <Input
+                            id="advancedSettings.logOptions.file.maxFiles"
+                            name="advancedSettings.logOptions.file.maxFiles"
+                            type="number"
+                            value={deviceData.advancedSettings.logOptions.file.maxFiles}
+                            onChange={handleInputChange}
+                          />
+                          <Form.Description>
+                            Maximum number of rotated log files to keep
+                          </Form.Description>
+                        </Form.Group>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-2 rounded-md bg-blue-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <HelpCircle className="h-5 w-5 text-blue-400" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800">Advanced Settings Information</h3>
+                      <div className="mt-2 text-sm text-blue-700">
+                        <p>These settings control how the system communicates with this device:</p>
+                        <ul className="list-disc space-y-1 pl-5 pt-2">
+                          <li>Polling Interval: Time between automatic data requests</li>
+                          <li>Connection Options: Controls retry behavior and reconnection</li>
+                          <li>Cache: Stores recent values to reduce communication overhead</li>
+                          <li>Logging: Controls what information is recorded about this device</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Tabs>
 
           {submissionError && (
@@ -796,7 +1341,11 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || deviceDrivers.length === 0}
+              title={deviceDrivers.length === 0 ? "Device drivers are required to create a device" : ""}
+            >
               {isSubmitting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>

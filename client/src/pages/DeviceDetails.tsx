@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,6 +14,21 @@ import {
   FileText,
   List,
   Save,
+  Zap,
+  Clock,
+  Database,
+  TerminalSquare,
+  Radio,
+  Eye,
+  EyeOff,
+  Send,
+  XCircle,
+  Wifi,
+  DownloadCloud,
+  UploadCloud,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Info,
 } from 'lucide-react';
 import { useDevices } from '../hooks/useDevices';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +38,7 @@ import { ConnectionErrorDisplay } from '../components/ui';
 const DeviceDetails: React.FC = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
-  const { getDevice, updateDevice, deleteDevice, testConnection, readRegisters, loadingDevice } = useDevices();
+  const { getDevice, updateDevice, deleteDevice, testConnection, readRegisters } = useDevices();
   const { user } = useAuth();
 
   const [device, setDevice] = useState<Device | null>(null);
@@ -46,10 +61,41 @@ const DeviceDetails: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedDevice, setEditedDevice] = useState<Device | null>(null);
-  const [activeTab, setActiveTab] = useState<'details' | 'registers' | 'readings' | 'edit'>(
+  const [activeTab, setActiveTab] = useState<'details' | 'registers' | 'readings' | 'advanced' | 'edit'>(
     'details'
   );
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  
+  // Communication monitoring and status
+  const [showMonitoring, setShowMonitoring] = useState<boolean>(false);
+  const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
+  const communicationLogRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-polling settings
+  const [autoPolling] = useState<boolean>(false);
+  const [pollingInterval] = useState<number>(1000); // 1 second default
+  const pollingTimerRef = useRef<number | null>(null);
+  
+  // Specific status for current operations
+  const [communicationStatus, setCommunicationStatus] = useState<{
+    type: 'idle' | 'sending' | 'success' | 'error';
+    operation?: string;
+    timestamp: Date;
+    message?: string;
+  }>({
+    type: 'idle',
+    timestamp: new Date()
+  });
+
+  // Define communication log type
+  type CommunicationLog = {
+    id: string;
+    type: 'request' | 'response' | 'error' | 'info';
+    operation: string;
+    timestamp: Date;
+    message: string;
+    details?: any;
+  };
 
   // Permissions
   const userPermissions = user?.permissions || [];
@@ -81,6 +127,35 @@ const DeviceDetails: React.FC = () => {
 
     fetchDeviceData();
   }, [deviceId]); // Removed getDevice from dependencies to prevent infinite loop
+  
+  // Set up auto-polling of device data
+  useEffect(() => {
+    // Clean up existing timer if any
+    if (pollingTimerRef.current) {
+      window.clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    
+    // Only set up polling if enabled and we have a valid device
+    if (autoPolling && deviceId && device) {
+      console.log(`Starting auto-polling every ${pollingInterval}ms for device ${device.name}`);
+      
+      // Create a new interval that calls the read registers function
+      pollingTimerRef.current = window.setInterval(() => {
+        console.log(`Auto-polling: Fetching data for device ${device.name}...`);
+        // Use the async function with silent success (don't show success message on each poll)
+        handleReadRegistersAsync(false);
+      }, pollingInterval);
+    }
+    
+    // Clean up on unmount or when dependencies change
+    return () => {
+      if (pollingTimerRef.current) {
+        window.clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+  }, [autoPolling, pollingInterval, deviceId, device]);
 
   const handleBack = () => {
     navigate('/devices');
@@ -160,6 +235,41 @@ const DeviceDetails: React.FC = () => {
     }
   };
 
+  // Helper function to add a log entry
+  const addCommunicationLog = (log: Omit<CommunicationLog, 'id' | 'timestamp'>) => {
+    const logEntry = {
+      ...log,
+      id: Math.random().toString(36).substring(2, 11),
+      timestamp: new Date()
+    };
+    
+    setCommunicationLogs(prev => {
+      const newLogs = [...prev, logEntry];
+      // Keep only the most recent 100 logs
+      if (newLogs.length > 100) {
+        return newLogs.slice(newLogs.length - 100);
+      }
+      return newLogs;
+    });
+    
+    // Scroll to bottom of logs
+    setTimeout(() => {
+      if (communicationLogRef.current) {
+        communicationLogRef.current.scrollTop = communicationLogRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+
+  // Clear communication logs
+  const clearCommunicationLogs = () => {
+    setCommunicationLogs([]);
+    addCommunicationLog({
+      type: 'info',
+      operation: 'system',
+      message: 'Communication logs cleared'
+    });
+  };
+
   const handleTestConnection = async () => {
     if (!deviceId || !device) return;
 
@@ -168,6 +278,28 @@ const DeviceDetails: React.FC = () => {
       setError(null);
       setErrorDetails(null);
       setSuccess(null);
+      
+      // Update communication status
+      setCommunicationStatus({
+        type: 'sending',
+        operation: 'Connection Test',
+        timestamp: new Date(),
+        message: `Testing connection to ${device.name}`
+      });
+      
+      // Add to logs
+      addCommunicationLog({
+        type: 'request',
+        operation: 'Connection Test',
+        message: `Request: Test connection to device ${device.name}`,
+        details: {
+          deviceId: deviceId,
+          connectionType: device.connectionSetting?.connectionType,
+          address: device.connectionSetting?.connectionType === 'tcp' 
+            ? `${device.connectionSetting?.tcp?.ip}:${device.connectionSetting?.tcp?.port}` 
+            : device.connectionSetting?.rtu?.serialPort
+        }
+      });
 
       // Call the API endpoint via useDevices hook
       const result = await testConnection(deviceId);
@@ -175,22 +307,61 @@ const DeviceDetails: React.FC = () => {
       if (result.success) {
         setSuccess(result.message || 'Connection test successful');
         
+        // Update communication status
+        setCommunicationStatus({
+          type: 'success',
+          operation: 'Connection Test',
+          timestamp: new Date(),
+          message: result.message || 'Connection test successful'
+        });
+        
+        // Add to logs
+        addCommunicationLog({
+          type: 'response',
+          operation: 'Connection Test',
+          message: `Response: ${result.message || 'Connection test successful'}`,
+          details: result
+        });
+        
         // Only clear success message after 3 seconds
         setTimeout(() => {
           setSuccess(null);
+          // Reset communication status after a delay
+          setTimeout(() => {
+            setCommunicationStatus({
+              type: 'idle',
+              timestamp: new Date()
+            });
+          }, 2000);
         }, 3000);
       } else {
         // Store the detailed error information
         setErrorDetails({
           message: result.message || 'Connection test failed',
-          error: result.error,
-          errorType: result.errorType,
-          troubleshooting: result.troubleshooting,
-          deviceInfo: result.deviceInfo
+          error: result.error || undefined,
+          errorType: result.errorType || undefined,
+          troubleshooting: result.troubleshooting || undefined,
+          deviceInfo: result.deviceInfo || undefined
         });
         
         // Also set simple error message for backward compatibility
         setError(result.message || 'Connection test failed');
+        
+        // Update communication status
+        setCommunicationStatus({
+          type: 'error',
+          operation: 'Connection Test',
+          timestamp: new Date(),
+          message: result.message || 'Connection test failed'
+        });
+        
+        // Add to logs
+        addCommunicationLog({
+          type: 'error',
+          operation: 'Connection Test',
+          message: `Error: ${result.message || 'Connection test failed'}`,
+          details: result
+        });
       }
     } catch (err: any) {
       console.error('Error testing connection:', err);
@@ -199,35 +370,125 @@ const DeviceDetails: React.FC = () => {
       setErrorDetails({
         message: err.message || 'Connection test failed',
       });
+      
+      // Update communication status
+      setCommunicationStatus({
+        type: 'error',
+        operation: 'Connection Test',
+        timestamp: new Date(),
+        message: err.message || 'Connection test failed'
+      });
+      
+      // Add to logs
+      addCommunicationLog({
+        type: 'error',
+        operation: 'Connection Test',
+        message: `Exception: ${err.message || 'Connection test failed'}`,
+        details: err
+      });
     } finally {
       setTestingConnection(false);
     }
   };
 
-  const handleReadRegisters = async () => {
+  // Memoized function to read registers to avoid recreation on every render
+  const handleReadRegistersAsync = useCallback(async (showSuccess = true) => {
     if (!deviceId || !device) return;
 
     try {
       setReadingData(true);
-      setError(null);
-      setErrorDetails(null);
-      setSuccess(null);
+      if (showSuccess) {
+        setError(null);
+        setErrorDetails(null);
+        setSuccess(null);
+      }
+      
+      // Update communication status
+      setCommunicationStatus({
+        type: 'sending',
+        operation: 'Read Data',
+        timestamp: new Date(),
+        message: `Reading data from ${device.name}`
+      });
+      
+      // Add to logs
+      addCommunicationLog({
+        type: 'request',
+        operation: 'Read Data',
+        message: `Request: Reading data from device ${device.name}`,
+        details: {
+          deviceId: deviceId,
+          registers: device.registers?.map(r => r.name) || [],
+          connectionType: device.connectionSetting?.connectionType,
+          address: device.connectionSetting?.connectionType === 'tcp' 
+            ? `${device.connectionSetting?.tcp?.ip}:${device.connectionSetting?.tcp?.port}` 
+            : device.connectionSetting?.rtu?.serialPort
+        }
+      });
 
       // Call the actual API endpoint via the readRegisters function
       try {
         const result = await readRegisters(deviceId);
         if (result && result.readings) {
           setReadings(result.readings);
-          setSuccess('Successfully read data from device');
           
-          // Clear success message after 3 seconds
-          setTimeout(() => setSuccess(null), 3000);
+          // Log Modbus response to console
+          console.log('Modbus Register Data:', {
+            timestamp: new Date().toISOString(),
+            deviceId,
+            deviceName: device.name,
+            readings: result.readings
+          });
+          
+          if (showSuccess) {
+            setSuccess('Successfully read data from device');
+          }
+          
+          // Update communication status
+          setCommunicationStatus({
+            type: 'success',
+            operation: 'Read Data',
+            timestamp: new Date(),
+            message: 'Successfully read data from device'
+          });
+          
+          // Add to logs
+          addCommunicationLog({
+            type: 'response',
+            operation: 'Read Data',
+            message: `Response: Successfully read ${result.readings.length} registers`,
+            details: result
+          });
+          
+          // Clear success message after 3 seconds, but only if we're showing success messages
+          if (showSuccess) {
+            setTimeout(() => {
+              setSuccess(null);
+              // Reset communication status after a delay
+              setTimeout(() => {
+                setCommunicationStatus({
+                  type: 'idle',
+                  timestamp: new Date()
+                });
+              }, 2000);
+            }, 3000);
+          }
+          
+          return result;
         } else {
           throw new Error('No readings returned from device');
         }
       } catch (apiError: any) {
         console.error('Error reading device data:', apiError);
         setError(apiError.message || 'Failed to read data from device');
+        
+        // Update communication status
+        setCommunicationStatus({
+          type: 'error',
+          operation: 'Read Data',
+          timestamp: new Date(),
+          message: apiError.message || 'Failed to read data from device'
+        });
         
         // Create error details object for better error display
         if (apiError.response && apiError.response.data) {
@@ -244,6 +505,14 @@ const DeviceDetails: React.FC = () => {
                 : device.connectionSetting?.rtu?.serialPort
             }
           });
+          
+          // Add to logs
+          addCommunicationLog({
+            type: 'error',
+            operation: 'Read Data',
+            message: `Error: ${apiError.response.data.message || 'Failed to read data from device'}`,
+            details: apiError.response.data
+          });
         } else {
           setErrorDetails({
             message: apiError.message || 'Failed to read data from device',
@@ -254,6 +523,14 @@ const DeviceDetails: React.FC = () => {
                 ? `${device.connectionSetting?.tcp?.ip}:${device.connectionSetting?.tcp?.port}` 
                 : device.connectionSetting?.rtu?.serialPort
             }
+          });
+          
+          // Add to logs
+          addCommunicationLog({
+            type: 'error',
+            operation: 'Read Data',
+            message: `Error: ${apiError.message || 'Failed to read data from device'}`,
+            details: apiError
           });
         }
       }
@@ -270,9 +547,14 @@ const DeviceDetails: React.FC = () => {
             : device.connectionSetting?.rtu?.serialPort
         } : undefined
       });
-    } finally {
-      setReadingData(false);
+      
+      return null;
     }
+  }, [deviceId, device, readRegisters]);
+  
+  // Regular handler for button click that calls the async function with full UI feedback
+  const handleReadRegisters = () => {
+    handleReadRegistersAsync(true);
   };
 
   const handleInputChange = (
@@ -358,6 +640,36 @@ const DeviceDetails: React.FC = () => {
             ></div>
           </div>
         </div>
+        
+        {/* Communication Status Indicator */}
+        <div className={`hidden sm:flex items-center ${
+          communicationStatus.type === 'idle' ? 'text-gray-500' :
+          communicationStatus.type === 'sending' ? 'text-blue-500 animate-pulse' :
+          communicationStatus.type === 'success' ? 'text-green-500' :
+          'text-red-500'
+        }`}>
+          {communicationStatus.type === 'idle' ? (
+            <Wifi size={18} className="mr-2" />
+          ) : communicationStatus.type === 'sending' ? (
+            <ArrowUpCircle size={18} className="mr-2 animate-pulse" />
+          ) : communicationStatus.type === 'success' ? (
+            <ArrowDownCircle size={18} className="mr-2" />
+          ) : (
+            <XCircle size={18} className="mr-2" />
+          )}
+          <span className="text-sm">
+            {communicationStatus.type === 'idle' ? 'Ready' : communicationStatus.message}
+          </span>
+          
+          {/* Toggle Monitoring Button */}
+          <button 
+            onClick={() => setShowMonitoring(!showMonitoring)}
+            className="ml-3 text-gray-500 hover:text-gray-700"
+            title={showMonitoring ? "Hide communication monitor" : "Show communication monitor"}
+          >
+            {showMonitoring ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
 
         <div className="flex gap-2">
           {canTestDevices && (
@@ -400,8 +712,121 @@ const DeviceDetails: React.FC = () => {
               Delete
             </button>
           )}
+          
+          {/* Mobile-only monitoring toggle */}
+          <button 
+            onClick={() => setShowMonitoring(!showMonitoring)}
+            className="sm:hidden flex items-center gap-1 rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+          >
+            {showMonitoring ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showMonitoring ? 'Hide Monitor' : 'Show Monitor'}
+          </button>
         </div>
       </div>
+      
+      {/* Mobile communication status */}
+      <div className={`flex sm:hidden items-center mt-2 p-2 rounded ${
+        communicationStatus.type === 'idle' ? 'bg-gray-100 text-gray-600' :
+        communicationStatus.type === 'sending' ? 'bg-blue-100 text-blue-600' :
+        communicationStatus.type === 'success' ? 'bg-green-100 text-green-600' :
+        'bg-red-100 text-red-600'
+      }`}>
+        {communicationStatus.type === 'idle' ? (
+          <Wifi size={18} className="mr-2" />
+        ) : communicationStatus.type === 'sending' ? (
+          <Send size={18} className="mr-2 animate-pulse" />
+        ) : communicationStatus.type === 'success' ? (
+          <CheckCircle size={18} className="mr-2" />
+        ) : (
+          <AlertCircle size={18} className="mr-2" />
+        )}
+        <span className="text-sm font-medium">
+          {communicationStatus.type === 'idle' ? 'Ready' : communicationStatus.message}
+        </span>
+        {communicationStatus.type !== 'idle' && (
+          <span className="ml-auto text-xs">
+            {new Date(communicationStatus.timestamp).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {/* Communication Monitoring Panel */}
+      {showMonitoring && (
+        <div className="mb-4 rounded-md border border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between border-b border-gray-200 bg-gray-100 px-4 py-2">
+            <h3 className="flex items-center font-medium text-gray-700">
+              <Radio size={16} className="mr-2 text-blue-500" />
+              Communication Monitor
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">
+                {communicationLogs.length} events
+              </span>
+              <button 
+                onClick={clearCommunicationLogs}
+                className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                title="Clear logs"
+              >
+                <XCircle size={16} />
+              </button>
+              <button 
+                onClick={() => setShowMonitoring(false)}
+                className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                title="Close monitor"
+              >
+                <EyeOff size={16} />
+              </button>
+            </div>
+          </div>
+          
+          <div 
+            ref={communicationLogRef}
+            className="h-48 overflow-y-auto p-2 font-mono text-xs"
+          >
+            {communicationLogs.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-gray-400">
+                No communication logs yet. Try testing the connection or reading data.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {communicationLogs.map((log) => (
+                  <div 
+                    key={log.id} 
+                    className={`rounded-md p-2 ${
+                      log.type === 'request' ? 'bg-blue-50 text-blue-800' :
+                      log.type === 'response' ? 'bg-green-50 text-green-800' :
+                      log.type === 'error' ? 'bg-red-50 text-red-800' :
+                      'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        {log.type === 'request' && <UploadCloud size={14} className="mr-1.5" />}
+                        {log.type === 'response' && <DownloadCloud size={14} className="mr-1.5" />}
+                        {log.type === 'error' && <AlertCircle size={14} className="mr-1.5" />}
+                        {log.type === 'info' && <Info size={14} className="mr-1.5" />}
+                        <span className="font-medium">{log.operation}</span>
+                      </div>
+                      <span className="text-xs opacity-70">
+                        {log.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="mt-1 whitespace-pre-wrap break-words">{log.message}</div>
+                    {log.details && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs font-medium">Details</summary>
+                        <pre className="mt-1 max-h-40 overflow-auto rounded-md bg-white p-2 text-xs text-gray-800">
+                          {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Success or error messages */}
       {success && (
@@ -490,6 +915,19 @@ const DeviceDetails: React.FC = () => {
               <div className="flex items-center">
                 <Activity size={16} className="mr-2" />
                 Data Readings
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('advanced')}
+              className={`whitespace-nowrap border-b-2 px-6 py-4 text-sm font-medium ${
+                activeTab === 'advanced'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center">
+                <Zap size={16} className="mr-2" />
+                Advanced
               </div>
             </button>
             {isEditing && (
@@ -874,6 +1312,207 @@ const DeviceDetails: React.FC = () => {
               )}
             </div>
           )}
+          
+          {activeTab === 'advanced' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-700">Advanced Communication Settings</h3>
+                {canEditDevices && (
+                  <button
+                    onClick={handleEdit}
+                    className="flex items-center gap-1 rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
+                  >
+                    <Edit size={14} />
+                    Edit Settings
+                  </button>
+                )}
+              </div>
+
+              {!device.advancedSettings ? (
+                <div className="rounded-lg bg-gray-50 p-8 text-center">
+                  <Zap size={32} className="mx-auto mb-4 text-gray-400" />
+                  <h3 className="mb-2 text-lg font-medium text-gray-700">No Advanced Settings Configured</h3>
+                  <p className="mb-4 text-gray-500">
+                    This device is using default communication settings. You can configure custom settings for improved performance.
+                  </p>
+                  {canEditDevices && (
+                    <button
+                      onClick={handleEdit}
+                      className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                    >
+                      Configure Advanced Settings
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Polling and Timeout Settings */}
+                  <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+                    <h4 className="mb-4 flex items-center font-medium text-gray-700">
+                      <Clock size={18} className="mr-2 text-blue-500" />
+                      Polling & Timeout Settings
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Poll Interval</label>
+                        <div className="mt-1 text-gray-900">
+                          {device.advancedSettings.defaultPollInterval || device.pollingInterval || 30000} ms
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Request Timeout</label>
+                        <div className="mt-1 text-gray-900">
+                          {device.advancedSettings.defaultRequestTimeout || 5000} ms
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connection Options */}
+                  <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+                    <h4 className="mb-4 flex items-center font-medium text-gray-700">
+                      <Settings size={18} className="mr-2 text-blue-500" />
+                      Connection Options
+                    </h4>
+                    {device.advancedSettings.connectionOptions ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Connection Timeout</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.connectionOptions.timeout || 10000} ms
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Retries</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.connectionOptions.retries || 3}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Retry Interval</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.connectionOptions.retryInterval || 1000} ms
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Auto Reconnect</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.connectionOptions.autoReconnect ? 'Enabled' : 'Disabled'}
+                          </div>
+                        </div>
+                        {device.advancedSettings.connectionOptions.autoReconnect && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-500">Reconnect Interval</label>
+                            <div className="mt-1 text-gray-900">
+                              {device.advancedSettings.connectionOptions.reconnectInterval || 5000} ms
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500">Using default connection options</div>
+                    )}
+                  </div>
+
+                  {/* Cache Options */}
+                  <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+                    <h4 className="mb-4 flex items-center font-medium text-gray-700">
+                      <Database size={18} className="mr-2 text-blue-500" />
+                      Cache Options
+                    </h4>
+                    {device.advancedSettings.cacheOptions ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Cache Status</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.cacheOptions.enabled ? 'Enabled' : 'Disabled'}
+                          </div>
+                        </div>
+                        {device.advancedSettings.cacheOptions.enabled && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Time-to-live (TTL)</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.cacheOptions.defaultTtl || 60000} ms
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Max Cache Size</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.cacheOptions.maxSize || 10000} entries
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Check Interval</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.cacheOptions.checkInterval || 60000} ms
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500">Using default cache options</div>
+                    )}
+                  </div>
+
+                  {/* Logging Options */}
+                  <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+                    <h4 className="mb-4 flex items-center font-medium text-gray-700">
+                      <TerminalSquare size={18} className="mr-2 text-blue-500" />
+                      Logging Options
+                    </h4>
+                    {device.advancedSettings.logOptions ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Log Level</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.logOptions.level || 'info'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Console Logging</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.logOptions.console !== false ? 'Enabled' : 'Disabled'}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-500">File Logging</label>
+                          <div className="mt-1 text-gray-900">
+                            {device.advancedSettings.logOptions.file?.enabled ? 'Enabled' : 'Disabled'}
+                          </div>
+                        </div>
+                        {device.advancedSettings.logOptions.file?.enabled && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Log File Path</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.logOptions.file.path || 'Default path'}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Max File Size</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.logOptions.file.maxSize || 5} MB
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500">Max Files</label>
+                              <div className="mt-1 text-gray-900">
+                                {device.advancedSettings.logOptions.file.maxFiles || 5}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500">Using default logging options</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {activeTab === 'edit' && editedDevice && (
             <div className="space-y-6">
@@ -1132,6 +1771,503 @@ const DeviceDetails: React.FC = () => {
                   )}
                 </div>
               </div>
+              
+              {/* Advanced Settings */}
+              <div className="space-y-4 border-t pt-6">
+                <h4 className="flex items-center font-medium text-gray-700">
+                  <Zap className="mr-2 text-blue-500" size={18} />
+                  Advanced Communication Settings
+                </h4>
+                
+                <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
+                  <p className="text-sm text-blue-700">
+                    These settings control the low-level communication behavior for this device. 
+                    Adjust them to optimize performance for your specific hardware and network conditions.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* Polling and Timeout */}
+                  <div className="space-y-3 rounded border border-gray-200 p-3">
+                    <h5 className="flex items-center font-medium text-gray-700">
+                      <Clock className="mr-2 text-blue-500" size={16} />
+                      Polling Settings
+                    </h5>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Poll Interval (ms)
+                      </label>
+                      <input
+                        type="number"
+                        name="advancedSettings.defaultPollInterval"
+                        value={editedDevice.advancedSettings?.defaultPollInterval || 30000}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              defaultPollInterval: parseInt(e.target.value) || 30000
+                            }
+                          });
+                        }}
+                        className="w-full rounded border p-2"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Default: 30000 ms (30 seconds). Time between automatic polls.
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Request Timeout (ms)
+                      </label>
+                      <input
+                        type="number"
+                        name="advancedSettings.defaultRequestTimeout"
+                        value={editedDevice.advancedSettings?.defaultRequestTimeout || 5000}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              defaultRequestTimeout: parseInt(e.target.value) || 5000
+                            }
+                          });
+                        }}
+                        className="w-full rounded border p-2"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Default: 5000 ms (5 seconds). Maximum time to wait for a response.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Connection Options */}
+                  <div className="space-y-3 rounded border border-gray-200 p-3">
+                    <h5 className="flex items-center font-medium text-gray-700">
+                      <Settings className="mr-2 text-blue-500" size={16} />
+                      Connection Options
+                    </h5>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Connection Timeout (ms)
+                        </label>
+                        <input
+                          type="number"
+                          name="advancedSettings.connectionOptions.timeout"
+                          value={editedDevice.advancedSettings?.connectionOptions?.timeout || 10000}
+                          onChange={(e) => {
+                            setEditedDevice({
+                              ...editedDevice,
+                              advancedSettings: {
+                                ...editedDevice.advancedSettings || {},
+                                connectionOptions: {
+                                  ...editedDevice.advancedSettings?.connectionOptions || {},
+                                  timeout: parseInt(e.target.value) || 10000
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full rounded border p-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Retries
+                        </label>
+                        <input
+                          type="number"
+                          name="advancedSettings.connectionOptions.retries"
+                          value={editedDevice.advancedSettings?.connectionOptions?.retries || 3}
+                          onChange={(e) => {
+                            setEditedDevice({
+                              ...editedDevice,
+                              advancedSettings: {
+                                ...editedDevice.advancedSettings || {},
+                                connectionOptions: {
+                                  ...editedDevice.advancedSettings?.connectionOptions || {},
+                                  retries: parseInt(e.target.value) || 3
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full rounded border p-2"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Retry Interval (ms)
+                      </label>
+                      <input
+                        type="number"
+                        name="advancedSettings.connectionOptions.retryInterval"
+                        value={editedDevice.advancedSettings?.connectionOptions?.retryInterval || 1000}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              connectionOptions: {
+                                ...editedDevice.advancedSettings?.connectionOptions || {},
+                                retryInterval: parseInt(e.target.value) || 1000
+                              }
+                            }
+                          });
+                        }}
+                        className="w-full rounded border p-2"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="autoReconnect"
+                        name="advancedSettings.connectionOptions.autoReconnect"
+                        checked={editedDevice.advancedSettings?.connectionOptions?.autoReconnect !== false}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              connectionOptions: {
+                                ...editedDevice.advancedSettings?.connectionOptions || {},
+                                autoReconnect: e.target.checked
+                              }
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="autoReconnect" className="ml-2 block text-sm text-gray-700">
+                        Auto Reconnect
+                      </label>
+                    </div>
+                    
+                    {editedDevice.advancedSettings?.connectionOptions?.autoReconnect !== false && (
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          Reconnect Interval (ms)
+                        </label>
+                        <input
+                          type="number"
+                          name="advancedSettings.connectionOptions.reconnectInterval"
+                          value={editedDevice.advancedSettings?.connectionOptions?.reconnectInterval || 5000}
+                          onChange={(e) => {
+                            setEditedDevice({
+                              ...editedDevice,
+                              advancedSettings: {
+                                ...editedDevice.advancedSettings || {},
+                                connectionOptions: {
+                                  ...editedDevice.advancedSettings?.connectionOptions || {},
+                                  reconnectInterval: parseInt(e.target.value) || 5000
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full rounded border p-2"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Cache Options */}
+                  <div className="space-y-3 rounded border border-gray-200 p-3">
+                    <h5 className="flex items-center font-medium text-gray-700">
+                      <Database className="mr-2 text-blue-500" size={16} />
+                      Cache Options
+                    </h5>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="cacheEnabled"
+                        name="advancedSettings.cacheOptions.enabled"
+                        checked={editedDevice.advancedSettings?.cacheOptions?.enabled !== false}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              cacheOptions: {
+                                ...editedDevice.advancedSettings?.cacheOptions || {},
+                                enabled: e.target.checked
+                              }
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="cacheEnabled" className="ml-2 block text-sm text-gray-700">
+                        Enable Caching
+                      </label>
+                    </div>
+                    
+                    {editedDevice.advancedSettings?.cacheOptions?.enabled !== false && (
+                      <>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Default TTL (ms)
+                          </label>
+                          <input
+                            type="number"
+                            name="advancedSettings.cacheOptions.defaultTtl"
+                            value={editedDevice.advancedSettings?.cacheOptions?.defaultTtl || 60000}
+                            onChange={(e) => {
+                              setEditedDevice({
+                                ...editedDevice,
+                                advancedSettings: {
+                                  ...editedDevice.advancedSettings || {},
+                                  cacheOptions: {
+                                    ...editedDevice.advancedSettings?.cacheOptions || {},
+                                    defaultTtl: parseInt(e.target.value) || 60000
+                                  }
+                                }
+                              });
+                            }}
+                            className="w-full rounded border p-2"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">
+                            Default: 60000 ms (1 minute). Time-to-live for cached values.
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Max Size
+                            </label>
+                            <input
+                              type="number"
+                              name="advancedSettings.cacheOptions.maxSize"
+                              value={editedDevice.advancedSettings?.cacheOptions?.maxSize || 10000}
+                              onChange={(e) => {
+                                setEditedDevice({
+                                  ...editedDevice,
+                                  advancedSettings: {
+                                    ...editedDevice.advancedSettings || {},
+                                    cacheOptions: {
+                                      ...editedDevice.advancedSettings?.cacheOptions || {},
+                                      maxSize: parseInt(e.target.value) || 10000
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full rounded border p-2"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Check Interval (ms)
+                            </label>
+                            <input
+                              type="number"
+                              name="advancedSettings.cacheOptions.checkInterval"
+                              value={editedDevice.advancedSettings?.cacheOptions?.checkInterval || 60000}
+                              onChange={(e) => {
+                                setEditedDevice({
+                                  ...editedDevice,
+                                  advancedSettings: {
+                                    ...editedDevice.advancedSettings || {},
+                                    cacheOptions: {
+                                      ...editedDevice.advancedSettings?.cacheOptions || {},
+                                      checkInterval: parseInt(e.target.value) || 60000
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full rounded border p-2"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Logging Options */}
+                  <div className="space-y-3 rounded border border-gray-200 p-3">
+                    <h5 className="flex items-center font-medium text-gray-700">
+                      <TerminalSquare className="mr-2 text-blue-500" size={16} />
+                      Logging Options
+                    </h5>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Log Level
+                      </label>
+                      <select
+                        name="advancedSettings.logOptions.level"
+                        value={editedDevice.advancedSettings?.logOptions?.level || 'info'}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              logOptions: {
+                                ...editedDevice.advancedSettings?.logOptions || {},
+                                level: e.target.value
+                              }
+                            }
+                          });
+                        }}
+                        className="w-full rounded border p-2"
+                      >
+                        <option value="debug">Debug (Most Verbose)</option>
+                        <option value="info">Info (Standard)</option>
+                        <option value="warn">Warning</option>
+                        <option value="error">Error (Least Verbose)</option>
+                      </select>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="consoleLogging"
+                        name="advancedSettings.logOptions.console"
+                        checked={editedDevice.advancedSettings?.logOptions?.console !== false}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              logOptions: {
+                                ...editedDevice.advancedSettings?.logOptions || {},
+                                console: e.target.checked
+                              }
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="consoleLogging" className="ml-2 block text-sm text-gray-700">
+                        Console Logging
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="fileLogging"
+                        name="advancedSettings.logOptions.file.enabled"
+                        checked={editedDevice.advancedSettings?.logOptions?.file?.enabled === true}
+                        onChange={(e) => {
+                          setEditedDevice({
+                            ...editedDevice,
+                            advancedSettings: {
+                              ...editedDevice.advancedSettings || {},
+                              logOptions: {
+                                ...editedDevice.advancedSettings?.logOptions || {},
+                                file: {
+                                  ...editedDevice.advancedSettings?.logOptions?.file || {},
+                                  enabled: e.target.checked
+                                }
+                              }
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="fileLogging" className="ml-2 block text-sm text-gray-700">
+                        File Logging
+                      </label>
+                    </div>
+                    
+                    {editedDevice.advancedSettings?.logOptions?.file?.enabled && (
+                      <div className="grid grid-cols-1 gap-2">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Log File Path
+                          </label>
+                          <input
+                            type="text"
+                            name="advancedSettings.logOptions.file.path"
+                            value={editedDevice.advancedSettings?.logOptions?.file?.path || ''}
+                            onChange={(e) => {
+                              setEditedDevice({
+                                ...editedDevice,
+                                advancedSettings: {
+                                  ...editedDevice.advancedSettings || {},
+                                  logOptions: {
+                                    ...editedDevice.advancedSettings?.logOptions || {},
+                                    file: {
+                                      ...editedDevice.advancedSettings?.logOptions?.file || {},
+                                      path: e.target.value
+                                    }
+                                  }
+                                }
+                              });
+                            }}
+                            placeholder="logs/device-{id}.log"
+                            className="w-full rounded border p-2"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Max File Size (MB)
+                            </label>
+                            <input
+                              type="number"
+                              name="advancedSettings.logOptions.file.maxSize"
+                              value={editedDevice.advancedSettings?.logOptions?.file?.maxSize || 5}
+                              onChange={(e) => {
+                                setEditedDevice({
+                                  ...editedDevice,
+                                  advancedSettings: {
+                                    ...editedDevice.advancedSettings || {},
+                                    logOptions: {
+                                      ...editedDevice.advancedSettings?.logOptions || {},
+                                      file: {
+                                        ...editedDevice.advancedSettings?.logOptions?.file || {},
+                                        maxSize: parseInt(e.target.value) || 5
+                                      }
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full rounded border p-2"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Max Files
+                            </label>
+                            <input
+                              type="number"
+                              name="advancedSettings.logOptions.file.maxFiles"
+                              value={editedDevice.advancedSettings?.logOptions?.file?.maxFiles || 5}
+                              onChange={(e) => {
+                                setEditedDevice({
+                                  ...editedDevice,
+                                  advancedSettings: {
+                                    ...editedDevice.advancedSettings || {},
+                                    logOptions: {
+                                      ...editedDevice.advancedSettings?.logOptions || {},
+                                      file: {
+                                        ...editedDevice.advancedSettings?.logOptions?.file || {},
+                                        maxFiles: parseInt(e.target.value) || 5
+                                      }
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full rounded border p-2"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               <div className="flex justify-end gap-2 border-t pt-4">
                 <button
@@ -1178,8 +2314,172 @@ const DeviceDetails: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Footer with communication status */}
+      <div className="mt-8 flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+        <div className="flex items-center text-gray-500">
+          <Radio size={16} className="mr-2" />
+          <span>
+            {device.connectionSetting?.connectionType === 'tcp' 
+              ? `TCP: ${device.connectionSetting?.tcp?.ip}:${device.connectionSetting?.tcp?.port}` 
+              : `RTU: ${device.connectionSetting?.rtu?.serialPort || 'N/A'}`}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className={`flex items-center ${
+            communicationStatus.type === 'idle' ? 'text-gray-500' :
+            communicationStatus.type === 'sending' ? 'text-blue-500' :
+            communicationStatus.type === 'success' ? 'text-green-500' :
+            'text-red-500'
+          }`}>
+            {communicationStatus.type === 'idle' ? (
+              <span className="flex items-center">
+                <Wifi size={14} className="mr-1.5" /> 
+                Ready
+              </span>
+            ) : communicationStatus.type === 'sending' ? (
+              <span className="flex items-center">
+                <ArrowUpCircle size={14} className="mr-1.5 animate-pulse" /> 
+                {communicationStatus.operation}
+              </span>
+            ) : communicationStatus.type === 'success' ? (
+              <span className="flex items-center">
+                <ArrowDownCircle size={14} className="mr-1.5" /> 
+                Success
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <XCircle size={14} className="mr-1.5" /> 
+                Error
+              </span>
+            )}
+          </div>
+          
+          <button 
+            onClick={() => setShowMonitoring(!showMonitoring)}
+            className={`flex items-center gap-1 px-2 py-1 text-xs ${
+              showMonitoring 
+                ? 'rounded bg-blue-100 text-blue-700' 
+                : 'text-blue-600 hover:text-blue-800'
+            }`}
+          >
+            {showMonitoring ? (
+              <>
+                <EyeOff size={14} className="mr-1" />
+                Hide Monitor
+              </>
+            ) : (
+              <>
+                <Eye size={14} className="mr-1" />
+                Show Monitor
+              </>
+            )}
+          </button>
+        </div>
+        
+        <div className="text-gray-500">
+          <span className="text-xs">
+            Last Activity: {
+              communicationStatus.type !== 'idle' 
+                ? new Date(communicationStatus.timestamp).toLocaleTimeString()
+                : (device.lastSeen 
+                  ? new Date(device.lastSeen).toLocaleTimeString() 
+                  : 'Never'
+                )
+            }
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default DeviceDetails;
+// Add a polling controls wrapper component
+const PollingControlsWrapper = () => {
+  // This is a high-order component that wraps DeviceDetails with polling functionality
+  return function WithPollingControls(Component: React.ComponentType<any>) {
+    const WrappedComponent = (props: any) => {
+      const [autoPolling, setAutoPolling] = useState(true); // Default to enabled
+      const [pollingInterval, setPollingInterval] = useState(1000); // Default to 1 second
+      const pollingTimerRef = useRef<number | null>(null);
+      const { deviceId } = useParams<{ deviceId: string }>();
+      const { readRegisters } = useDevices();
+    
+    // Set up polling effect
+    useEffect(() => {
+      // Clean up existing timer
+      if (pollingTimerRef.current) {
+        window.clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+      
+      // Only set up polling if enabled and we have a device ID
+      if (autoPolling && deviceId) {
+        console.log(`Setting up auto-polling every ${pollingInterval}ms for device ${deviceId}`);
+        
+        // Create a polling interval
+        pollingTimerRef.current = window.setInterval(async () => {
+          try {
+            // Read registers and log the result to console
+            console.log(`Auto-polling: Fetching data for device ${deviceId}...`);
+            const result = await readRegisters(deviceId);
+            
+            console.log('Modbus Register Data:', {
+              timestamp: new Date().toISOString(),
+              deviceId,
+              readings: result?.readings || []
+            });
+          } catch (error) {
+            console.error('Error in auto-polling:', error);
+          }
+        }, pollingInterval);
+      }
+      
+      // Clean up on unmount
+      return () => {
+        if (pollingTimerRef.current) {
+          window.clearInterval(pollingTimerRef.current);
+          pollingTimerRef.current = null;
+        }
+      };
+    }, [autoPolling, pollingInterval, deviceId, readRegisters]);
+    
+    return (
+      <>
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white p-3 shadow-lg">
+          <div className="flex items-center gap-2 rounded border border-gray-300 px-3 py-2">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={autoPolling}
+                onChange={e => setAutoPolling(e.target.checked)}
+                className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Auto-poll</span>
+            </label>
+            
+            <select
+              value={pollingInterval}
+              onChange={e => setPollingInterval(Number(e.target.value))}
+              className="rounded border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+              disabled={!autoPolling}
+            >
+              <option value="1000">1 second</option>
+              <option value="2000">2 seconds</option>
+              <option value="5000">5 seconds</option>
+              <option value="10000">10 seconds</option>
+            </select>
+          </div>
+        </div>
+        <Component {...props} />
+      </>
+    );
+  };
+  
+  return WrappedComponent;
+  };
+};
+
+// Export the wrapped component
+export default PollingControlsWrapper()(DeviceDetails);

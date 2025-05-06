@@ -4,7 +4,7 @@ import { startServer } from './server';
 startServer()
   .then(server => {
     console.log('Server initialization complete, waiting for connections...');
-    
+
     // Handle server shutdown
     const gracefulShutdown = () => {
       console.log('Shutting down server gracefully...');
@@ -13,7 +13,7 @@ startServer()
         process.exit(0);
       });
     };
-    
+
     // Listen for termination signals
     process.on('SIGTERM', gracefulShutdown);
     process.on('SIGINT', gracefulShutdown);

@@ -8,17 +8,15 @@ const mockUser = {
   email: 'test@example.com',
   password: 'hashed_password',
   role: 'admin',
-  permissions: [
-    'view_devices',
-    'add_devices',
-    'edit_devices',
-    'delete_devices',
-    'manage_profiles'
-  ],
+  permissions: ['view_devices', 'add_devices', 'edit_devices', 'delete_devices', 'manage_profiles'],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  toObject: jest.fn().mockImplementation(function() { return this; }),
-  toJSON: jest.fn().mockImplementation(function() { return this; }),
+  toObject: jest.fn().mockImplementation(function () {
+    return this;
+  }),
+  toJSON: jest.fn().mockImplementation(function () {
+    return this;
+  }),
   matchPassword: jest.fn().mockResolvedValue(true),
 };
 
@@ -29,62 +27,64 @@ const mockRegularUser = {
   email: 'regular@example.com',
   password: 'hashed_password',
   role: 'user',
-  permissions: [
-    'view_devices'
-  ],
+  permissions: ['view_devices'],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  toObject: jest.fn().mockImplementation(function() { return this; }),
-  toJSON: jest.fn().mockImplementation(function() { return this; }),
+  toObject: jest.fn().mockImplementation(function () {
+    return this;
+  }),
+  toJSON: jest.fn().mockImplementation(function () {
+    return this;
+  }),
   matchPassword: jest.fn().mockResolvedValue(true),
 };
 
-// Mock User model 
+// Mock User model
 const UserMock = {
   findById: jest.fn().mockImplementation(() => ({
     exec: jest.fn().mockResolvedValue(mockUser),
     select: jest.fn().mockImplementation(() => ({
-      exec: jest.fn().mockResolvedValue(mockUser)
+      exec: jest.fn().mockResolvedValue(mockUser),
     })),
   })),
   findOne: jest.fn().mockImplementation(() => ({
     exec: jest.fn().mockResolvedValue(mockUser),
     select: jest.fn().mockImplementation(() => ({
-      exec: jest.fn().mockResolvedValue(mockUser)
+      exec: jest.fn().mockResolvedValue(mockUser),
     })),
   })),
   find: jest.fn().mockImplementation(() => ({
     exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
     limit: jest.fn().mockImplementation(() => ({
-      exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser])
+      exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
     })),
     skip: jest.fn().mockImplementation(() => ({
       limit: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser])
-      }))
+        exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
+      })),
     })),
     sort: jest.fn().mockImplementation(() => ({
       exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
       limit: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser])
+        exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
       })),
       skip: jest.fn().mockImplementation(() => ({
         limit: jest.fn().mockImplementation(() => ({
-          exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser])
-        }))
+          exec: jest.fn().mockResolvedValue([mockUser, mockRegularUser]),
+        })),
       })),
     })),
   })),
   create: jest.fn().mockResolvedValue(mockUser),
   findByIdAndUpdate: jest.fn().mockImplementation(() => ({
-    exec: jest.fn().mockResolvedValue(mockUser)
+    exec: jest.fn().mockResolvedValue(mockUser),
   })),
   findByIdAndDelete: jest.fn().mockImplementation(() => ({
-    exec: jest.fn().mockResolvedValue({ _id: 'user-123' })
+    exec: jest.fn().mockResolvedValue({ _id: 'user-123' }),
   })),
   deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
   countDocuments: jest.fn().mockImplementation(() => ({
-    exec: jest.fn().mockResolvedValue(2)
+    exec: jest.fn().mockResolvedValue(2),
   })),
 };
 
@@ -101,7 +101,7 @@ mockRegularUser.generateAuthToken = generateAuthToken;
 UserMock.prototype = {
   save: jest.fn().mockResolvedValue(mockUser),
   matchPassword: jest.fn().mockResolvedValue(true),
-  generateAuthToken: generateAuthToken
+  generateAuthToken: generateAuthToken,
 };
 
 export { mockUser, mockRegularUser, UserMock };

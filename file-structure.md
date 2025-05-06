@@ -2,10 +2,8 @@
 
 ```
 /MAC
-├── .claude/                     # Claude AI-related files
 ├── .git/                        # Git repository
 ├── .gitignore                   # Git ignore patterns
-├── .husky/                      # Husky git hooks
 ├── CONSTANTS/                   # Shared constants
 │   ├── backend/                 # Backend-specific constants
 │   ├── common/                  # Shared constants between frontend and backend
@@ -21,6 +19,12 @@
 │   │   ├── hooks/               # Custom React hooks
 │   │   ├── layouts/             # Page layouts
 │   │   ├── pages/               # Page components
+│   │   ├── redux/               # Redux state management
+│   │   │   ├── features/        # Feature slices (auth, devices, users)
+│   │   │   ├── reducers/        # Global reducers
+│   │   │   ├── rootReducer.ts   # Combined root reducer
+│   │   │   ├── store.ts         # Redux store configuration
+│   │   │   └── types.ts         # Redux types
 │   │   ├── services/            # Service layer for data operations
 │   │   ├── types/               # TypeScript type definitions
 │   │   └── utils/               # Utility functions
@@ -43,15 +47,20 @@
 │   ├── scripts/                 # Backend-specific scripts
 │   ├── src/                     # Backend source code
 │   │   ├── amx/                 # AMX database models and controllers 
-│   │   │   ├── config/          # AMX database configuration
 │   │   │   ├── controllers/     # AMX controllers
 │   │   │   ├── models/          # AMX data models
 │   │   │   └── routes/          # AMX API routes
 │   │   ├── client/              # Client database models and controllers
-│   │   │   ├── config/          # Client database configuration
 │   │   │   ├── controllers/     # Client controllers
 │   │   │   ├── models/          # Client data models
-│   │   │   └── routes/          # Client API routes
+│   │   │   ├── routes/          # Client API routes
+│   │   │   └── services/        # Client services
+│   │   ├── communication/       # Device communication protocols
+│   │   │   ├── config/          # Protocol configuration
+│   │   │   ├── core/            # Core interfaces and types
+│   │   │   ├── protocols/       # Protocol implementations (Modbus)
+│   │   │   ├── services/        # Communication services
+│   │   │   └── utils/           # Communication utilities
 │   │   ├── middleware/          # Express middleware
 │   │   ├── index.ts             # Backend entry point
 │   │   └── server.ts            # Express server configuration
@@ -66,13 +75,15 @@
 ### Frontend (client/)
 
 - **React application** built with Vite and TypeScript
-- Uses hooks and context for state management
+- Uses Redux for global state management
+- React hooks and context for component-level state
 - UI components with extensive modularization
 - API client for backend communication
 
 ### Backend (server/)
 
 - **Express server** built with TypeScript
+- Communication protocols including Modbus TCP/RTU
 - Dual database connections:
   - **AMX database**: Stores device drivers and templates
   - **Client database**: Stores devices, users, and application data
@@ -90,6 +101,7 @@
 Contains device driver templates and configuration:
 - DeviceDrivers
 - DeviceTypes
+- Templates
 
 ### Client Database
 
@@ -98,6 +110,13 @@ Contains application data:
 - Users
 - Profiles
 - Alerts
+- HistoricalData
+
+## Communication Protocols
+
+The system supports multiple device communication protocols:
+- Modbus TCP
+- Modbus RTU
 
 ## Running the Application
 

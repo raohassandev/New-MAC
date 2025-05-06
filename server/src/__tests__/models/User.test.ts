@@ -2,10 +2,10 @@
 jest.mock('bcryptjs', () => {
   return {
     genSalt: jest.fn().mockResolvedValue('mocksalt'),
-    hash: jest.fn().mockImplementation((password) => Promise.resolve(`hashed_${password}`)),
-    compare: jest.fn().mockImplementation((candidate, hash) => 
-      Promise.resolve(hash === `hashed_${candidate}`)
-    )
+    hash: jest.fn().mockImplementation(password => Promise.resolve(`hashed_${password}`)),
+    compare: jest
+      .fn()
+      .mockImplementation((candidate, hash) => Promise.resolve(hash === `hashed_${candidate}`)),
   };
 });
 
@@ -29,18 +29,20 @@ const mockUserData = new Map();
 // Generate ObjectId
 const generateObjectId = () => {
   const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
-  const rest = Math.floor(Math.random() * 16777216).toString(16).padStart(6, '0');
+  const rest = Math.floor(Math.random() * 16777216)
+    .toString(16)
+    .padStart(6, '0');
   return timestamp + rest;
 };
 
 // Create mock implementation for User model
 const mockUserImplementation = {
-  create: jest.fn().mockImplementation(async (data) => {
+  create: jest.fn().mockImplementation(async data => {
     // Handle array or single document
     if (Array.isArray(data)) {
       return Promise.all(data.map(item => mockUserImplementation.create(item)));
     }
-    
+
     // Handle unique email validation
     const existingEmail = Array.from(mockUserData.values()).find(user => user.email === data.email);
     if (existingEmail) {
@@ -49,72 +51,72 @@ const mockUserImplementation = {
       error.code = 11000;
       return Promise.reject(error);
     }
-    
+
     // Check required fields
     if (!data.name || !data.email || !data.password) {
       const error = new Error('Validation failed');
       error.name = 'ValidationError';
       return Promise.reject(error);
     }
-    
+
     // Hash password
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(data.password, salt);
-    
+
     const doc = {
       _id: generateObjectId(),
-      ...data, 
+      ...data,
       password: hashedPassword,
       role: data.role || 'user',
       permissions: data.permissions || ['view_devices', 'view_profiles'],
       createdAt: new Date(),
       updatedAt: new Date(),
-      
+
       // Add instance methods
-      save: jest.fn().mockImplementation(function(this: any) {
+      save: jest.fn().mockImplementation(function (this: any) {
         this.updatedAt = new Date();
         mockUserData.set(this._id.toString(), this);
         return Promise.resolve(this);
       }),
-      
-      deleteOne: jest.fn().mockImplementation(function(this: any) {
+
+      deleteOne: jest.fn().mockImplementation(function (this: any) {
         mockUserData.delete(this._id.toString());
         return Promise.resolve({ acknowledged: true, deletedCount: 1 });
       }),
     };
-    
+
     mockUserData.set(doc._id.toString(), doc);
     return Promise.resolve(doc);
   }),
-  
+
   find: jest.fn().mockImplementation((query = {}) => {
     const matchingDocs = Array.from(mockUserData.values()).filter(doc => {
       return Object.entries(query).every(([key, value]) => doc[key] === value);
     });
     return matchingDocs;
   }),
-  
+
   findOne: jest.fn().mockImplementation((query = {}) => {
     const doc = Array.from(mockUserData.values()).find(doc => {
       return Object.entries(query).every(([key, value]) => doc[key] === value);
     });
     return doc || null;
   }),
-  
-  findById: jest.fn().mockImplementation((id) => {
+
+  findById: jest.fn().mockImplementation(id => {
     return Promise.resolve(mockUserData.get(id.toString()) || null);
   }),
-  
+
   findByIdAndUpdate: jest.fn().mockImplementation((id, update, options) => {
     const doc = mockUserData.get(id.toString());
     if (!doc) return Promise.resolve(null);
-    
+
     const updatedDoc = { ...doc, ...update, updatedAt: new Date() };
     mockUserData.set(id.toString(), updatedDoc);
-    
+
     return Promise.resolve(options?.new === true ? updatedDoc : doc);
   }),
-  
+
   deleteMany: jest.fn().mockImplementation(() => {
     mockUserData.clear();
     return Promise.resolve({ acknowledged: true, deletedCount: mockUserData.size });
@@ -155,7 +157,7 @@ describe('User Model', () => {
     expect(user.name).toBe('Test User');
     expect(user.email).toBe('test@example.com');
     expect(user.password).toBe('hashed_password123'); // Password should be hashed
-    
+
     // Check default values
     expect(user.role).toBe('user');
     expect(user.permissions).toEqual(['view_devices', 'view_profiles']);
@@ -216,7 +218,7 @@ describe('User Model', () => {
     };
 
     const user = await User.create(userData);
-    
+
     expect(bcrypt.genSalt).toHaveBeenCalled();
     expect(bcrypt.hash).toHaveBeenCalledWith('plaintext', 'mocksalt');
     expect(user.password).toBe('hashed_plaintext');
@@ -229,7 +231,7 @@ describe('User Model', () => {
       email: 'original@example.com',
       password: 'original123',
     });
-    
+
     // Update using findByIdAndUpdate
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
@@ -237,9 +239,9 @@ describe('User Model', () => {
         name: 'Updated User',
         role: 'admin',
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
-    
+
     expect(updatedUser).not.toBeNull();
     if (updatedUser) {
       expect(updatedUser.name).toBe('Updated User');
@@ -257,22 +259,22 @@ describe('User Model', () => {
       email: 'auth@example.com',
       password: 'authpass',
     };
-    
+
     // Set up the hash mock specifically for this test
     bcrypt.hash.mockResolvedValueOnce('hashed_authpass');
-    
+
     // Create the user with hashed password
     const user = await User.create(userData);
-    
+
     // Configure the compare mock for our tests
     bcrypt.compare
-      .mockResolvedValueOnce(true)   // First call with correct password
+      .mockResolvedValueOnce(true) // First call with correct password
       .mockResolvedValueOnce(false); // Second call with wrong password
-    
+
     // Test authenticating with correct password
     const isMatch = await bcrypt.compare('authpass', user.password);
     expect(isMatch).toBe(true);
-    
+
     // Test authenticating with incorrect password
     const isWrong = await bcrypt.compare('wrongpass', user.password);
     expect(isWrong).toBe(false);
@@ -285,14 +287,14 @@ describe('User Model', () => {
       email: 'delete@example.com',
       password: 'delete123',
     });
-    
+
     // Verify it exists
     const userId = user._id;
     expect(await User.findById(userId)).not.toBeNull();
-    
+
     // Delete it
     await user.deleteOne();
-    
+
     // Verify it's gone
     expect(await User.findById(userId)).toBeNull();
   });
@@ -319,18 +321,18 @@ describe('User Model', () => {
         role: 'user',
       },
     ]);
-    
+
     // Query all users with role 'user'
     const regularUsers = await User.find({ role: 'user' });
     expect(regularUsers).toHaveLength(2);
     expect(regularUsers.map(u => u.name)).toEqual(['User A', 'User C']);
-    
+
     // Query by email
     const userByEmail = await User.findOne({ email: 'userb@example.com' });
     expect(userByEmail).not.toBeNull();
     expect(userByEmail?.name).toBe('User B');
     expect(userByEmail?.role).toBe('admin');
-    
+
     // Query by multiple criteria
     const userByMultiple = await User.findOne({
       role: 'user',

@@ -14,5 +14,3 @@ clientRouter.use('/device-data', deviceDataRoutes);
 clientRouter.use('/profiles', profileRoutes);
 
 // Library routes (separate database)
-
-

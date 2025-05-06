@@ -16,10 +16,10 @@ export const setupE2ETest = async () => {
   // Create a new MongoDB memory server
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
-  
+
   // Connect to the in-memory database
   await mongoose.connect(mongoUri);
-  
+
   return mongoUri;
 };
 
@@ -32,7 +32,7 @@ export const teardownE2ETest = async () => {
     await mongoose.connection.dropDatabase();
     await mongoose.connection.close();
   }
-  
+
   if (mongoServer) {
     await mongoServer.stop();
   }
@@ -42,11 +42,9 @@ export const teardownE2ETest = async () => {
  * Generate auth token for testing
  */
 export const generateAuthToken = (userId: string = 'user-123', role: string = 'admin') => {
-  return jwt.sign(
-    { id: userId, role },
-    process.env.JWT_SECRET || 'test-jwt-secret',
-    { expiresIn: '1h' }
-  );
+  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET || 'test-jwt-secret', {
+    expiresIn: '1h',
+  });
 };
 
 /**
@@ -60,20 +58,20 @@ export const setupMockData = async () => {
     default: {
       create: jest.fn().mockResolvedValue(mockUser),
       findById: jest.fn().mockImplementation(() => ({
-        select: jest.fn().mockResolvedValue(mockUser)
+        select: jest.fn().mockResolvedValue(mockUser),
       })),
-      findOne: jest.fn().mockImplementation((criteria) => {
+      findOne: jest.fn().mockImplementation(criteria => {
         if (criteria.email === 'regular@example.com') {
           return {
-            exec: jest.fn().mockResolvedValue(mockRegularUser)
+            exec: jest.fn().mockResolvedValue(mockRegularUser),
           };
         }
         return {
-          exec: jest.fn().mockResolvedValue(mockUser)
+          exec: jest.fn().mockResolvedValue(mockUser),
         };
       }),
       deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
-    }
+    },
   }));
 
   jest.mock('../../models/Device', () => ({
@@ -81,19 +79,19 @@ export const setupMockData = async () => {
     default: {
       create: jest.fn().mockResolvedValue(mockDevice),
       findById: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue(mockDevice)
+        exec: jest.fn().mockResolvedValue(mockDevice),
       })),
       find: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue([mockDevice, mockDevice2])
+        exec: jest.fn().mockResolvedValue([mockDevice, mockDevice2]),
       })),
       findByIdAndUpdate: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue({ ...mockDevice, name: 'Updated Device' })
+        exec: jest.fn().mockResolvedValue({ ...mockDevice, name: 'Updated Device' }),
       })),
       findByIdAndDelete: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue({ _id: mockDevice._id })
+        exec: jest.fn().mockResolvedValue({ _id: mockDevice._id }),
       })),
       deleteMany: jest.fn().mockResolvedValue({ deletedCount: 2 }),
-    }
+    },
   }));
 
   jest.mock('../../models/Profile', () => ({
@@ -101,19 +99,19 @@ export const setupMockData = async () => {
     default: {
       create: jest.fn().mockResolvedValue(mockProfile),
       findById: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue(mockProfile)
+        exec: jest.fn().mockResolvedValue(mockProfile),
       })),
       find: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue([mockProfile])
+        exec: jest.fn().mockResolvedValue([mockProfile]),
       })),
       findByIdAndUpdate: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue({ ...mockProfile, name: 'Updated Profile' })
+        exec: jest.fn().mockResolvedValue({ ...mockProfile, name: 'Updated Profile' }),
       })),
       findByIdAndDelete: jest.fn().mockImplementation(() => ({
-        exec: jest.fn().mockResolvedValue({ _id: mockProfile._id })
+        exec: jest.fn().mockResolvedValue({ _id: mockProfile._id }),
       })),
       deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }),
-    }
+    },
   }));
 
   // Mock JWT verification for authentication
@@ -134,10 +132,10 @@ export const setupMockData = async () => {
     compare: jest.fn().mockImplementation((password, hash) => {
       // Allow specific test passwords to work
       return Promise.resolve(
-        password === 'correct-password' || 
-        password === 'securepassword' || 
-        password === 'adminpass' || 
-        password === 'regularpass'
+        password === 'correct-password' ||
+          password === 'securepassword' ||
+          password === 'adminpass' ||
+          password === 'regularpass',
       );
     }),
   }));

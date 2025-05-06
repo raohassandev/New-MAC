@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { createDeviceModel } from '../client/models/Device';
 import { createDeviceDriverModel } from '../amx/models/deviceDriverModel';
 import { createDeviceTypeModel } from '../amx/models/deviceTypeModel';
+import HistoricalData from '../client/models/HistoricalData';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -21,28 +22,44 @@ let amxModels: any = {};
  */
 export const initializeDatabases = async () => {
   try {
-    // Connect to client database
+    // Connect to client database with timeout and connection options
     const clientUri = process.env.MONGO_URI || 'mongodb://localhost:27017/client';
     console.log('Connecting to client database:', clientUri);
-    clientConnection = await mongoose.createConnection(clientUri);
+    clientConnection = await mongoose.createConnection(clientUri, {
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+    });
     console.log('Client database connected successfully');
 
-    // Connect to AMX library database
+    // Connect to AMX library database with timeout and connection options
     const amxUri = process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx';
     console.log('Connecting to AMX library database:', amxUri);
-    amxConnection = await mongoose.createConnection(amxUri);
+    amxConnection = await mongoose.createConnection(amxUri, {
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+    });
     console.log('AMX library database connected successfully');
 
     // Initialize client models with client connection
     clientModels = {
       Device: createDeviceModel(clientConnection),
+      // Create HistoricalData model with the client connection
+      HistoricalData: clientConnection.model('HistoricalData', HistoricalData.schema),
       // Add other client models here
     };
 
     // Initialize AMX models with AMX connection
     amxModels = {
       DeviceDriver: createDeviceDriverModel(amxConnection),
-      DeviceType: createDeviceTypeModel(amxConnection)
+      DeviceType: createDeviceTypeModel(amxConnection),
       // Add other AMX models here
     };
 
@@ -60,22 +77,29 @@ export const connectClientToDB = async (): Promise<mongoose.Connection> => {
   if (clientConnection && clientConnection.readyState === 1) {
     return clientConnection;
   }
-  
+
   try {
     const mainDBUri = process.env.MONGO_URI || 'mongodb://localhost:27017/client';
     console.log('Connecting to client database...');
-    
+
     // Configure Mongoose
     mongoose.set('strictQuery', false);
-    
+
     // Create connection
-    clientConnection = await mongoose.createConnection(mainDBUri);
-    
+    clientConnection = await mongoose.createConnection(mainDBUri, {
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+    });
+
     console.log('Client database connected successfully');
-    
+
     // Initialize database indexes
     await initializeClientIndexes(clientConnection);
-    
+
     return clientConnection;
   } catch (error) {
     console.error('Error connecting to client database:', error);
@@ -92,17 +116,17 @@ const initializeClientIndexes = async (connection: mongoose.Connection): Promise
       console.warn('Database not connected, skipping index creation');
       return;
     }
-    
+
     // Get or create Device model
     const DeviceModel = clientModels.Device || createDeviceModel(connection);
-    
+
     // Create indexes
     try {
       await DeviceModel.collection.createIndex({ name: 1 }, { unique: true });
       await DeviceModel.collection.createIndex({ deviceDriverId: 1 });
       await DeviceModel.collection.createIndex({ usage: 1 });
       await DeviceModel.collection.createIndex({ tags: 1 });
-      
+
       console.log('Database indexes created successfully');
     } catch (indexError) {
       console.error('Error creating specific index:', indexError);
@@ -121,14 +145,21 @@ export const connectAmxToDB = async (): Promise<mongoose.Connection> => {
   if (amxConnection && amxConnection.readyState === 1) {
     return amxConnection;
   }
-  
+
   try {
     const libraryDBUri = process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx';
     console.log('Connecting to AMX library database...');
-    
+
     // Create a separate connection for the AMX library database
-    amxConnection = await mongoose.createConnection(libraryDBUri);
-    
+    amxConnection = await mongoose.createConnection(libraryDBUri, {
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+    });
+
     console.log('AMX library database connected successfully');
     return amxConnection;
   } catch (error) {
@@ -174,5 +205,5 @@ export default {
   getAmxConnection,
   getClientModels,
   getAmxModels,
-  closeConnections
+  closeConnections,
 };

@@ -17,25 +17,27 @@ const mockDeviceData = new Map();
 // Generate ObjectId
 const generateObjectId = () => {
   const timestamp = Math.floor(new Date().getTime() / 1000).toString(16);
-  const rest = Math.floor(Math.random() * 16777216).toString(16).padStart(6, '0');
+  const rest = Math.floor(Math.random() * 16777216)
+    .toString(16)
+    .padStart(6, '0');
   return timestamp + rest;
 };
 
 // Create mock implementation for Device model
 const mockDeviceImplementation = {
-  create: jest.fn().mockImplementation(async (data) => {
+  create: jest.fn().mockImplementation(async data => {
     // Handle array or single document
     if (Array.isArray(data)) {
       return Promise.all(data.map(item => mockDeviceImplementation.create(item)));
     }
-    
+
     // Check required fields
     if (!data.name) {
       const error = new Error('Validation failed');
       error.name = 'ValidationError';
       return Promise.reject(error);
     }
-    
+
     // Create a proper mock device document
     const doc = {
       _id: generateObjectId(),
@@ -45,24 +47,24 @@ const mockDeviceImplementation = {
       dataPoints: data.dataPoints || [],
       createdAt: new Date(),
       updatedAt: new Date(),
-      
+
       // Add instance methods
-      save: jest.fn().mockImplementation(function(this: any) {
+      save: jest.fn().mockImplementation(function (this: any) {
         this.updatedAt = new Date();
         mockDeviceData.set(this._id.toString(), this);
         return Promise.resolve(this);
       }),
-      
-      deleteOne: jest.fn().mockImplementation(function(this: any) {
+
+      deleteOne: jest.fn().mockImplementation(function (this: any) {
         mockDeviceData.delete(this._id.toString());
         return Promise.resolve({ acknowledged: true, deletedCount: 1 });
       }),
     };
-    
+
     mockDeviceData.set(doc._id.toString(), doc);
     return Promise.resolve(doc);
   }),
-  
+
   find: jest.fn().mockImplementation((query = {}) => {
     // Deep query match function for nested objects
     const matchesQuery = (doc: any, query: any) => {
@@ -71,25 +73,27 @@ const mockDeviceImplementation = {
         if (key.includes('.')) {
           const parts = key.split('.');
           let current = doc;
-          
+
           // Navigate down the object path
           for (let i = 0; i < parts.length - 1; i++) {
             if (!current || typeof current !== 'object') return false;
             current = current[parts[i]];
           }
-          
+
           // Check the final property
           return current && current[parts[parts.length - 1]] === value;
         }
-        
+
         return doc[key] === value;
       });
     };
-    
-    const matchingDocs = Array.from(mockDeviceData.values()).filter(doc => matchesQuery(doc, query));
+
+    const matchingDocs = Array.from(mockDeviceData.values()).filter(doc =>
+      matchesQuery(doc, query),
+    );
     return matchingDocs;
   }),
-  
+
   findOne: jest.fn().mockImplementation((query = {}) => {
     // Deep query match function (same as find)
     const matchesQuery = (doc: any, query: any) => {
@@ -98,64 +102,64 @@ const mockDeviceImplementation = {
         if (key.includes('.')) {
           const parts = key.split('.');
           let current = doc;
-          
+
           // Navigate down the object path
           for (let i = 0; i < parts.length - 1; i++) {
             if (!current || typeof current !== 'object') return false;
             current = current[parts[i]];
           }
-          
+
           // Check the final property
           return current && current[parts[parts.length - 1]] === value;
         }
-        
+
         return doc[key] === value;
       });
     };
-    
+
     const doc = Array.from(mockDeviceData.values()).find(doc => matchesQuery(doc, query));
     return Promise.resolve(doc || null);
   }),
-  
-  findById: jest.fn().mockImplementation((id) => {
+
+  findById: jest.fn().mockImplementation(id => {
     return Promise.resolve(mockDeviceData.get(id.toString()) || null);
   }),
-  
+
   findByIdAndUpdate: jest.fn().mockImplementation((id, update, options) => {
     const doc = mockDeviceData.get(id.toString());
     if (!doc) return Promise.resolve(null);
-    
+
     // Handle dot notation update objects like {'connectionSetting.tcp.port': 503}
     const updatedDoc = { ...doc };
-    
+
     Object.entries(update).forEach(([key, value]) => {
       if (key.includes('.')) {
         const parts = key.split('.');
         let current = updatedDoc;
-        
+
         // Navigate down the object path
         for (let i = 0; i < parts.length - 1; i++) {
           if (!current[parts[i]]) current[parts[i]] = {};
           current = current[parts[i]];
         }
-        
+
         // Set the final property
         current[parts[parts.length - 1]] = value;
       } else {
         updatedDoc[key] = value;
       }
     });
-    
+
     updatedDoc.updatedAt = new Date();
-    
+
     // Preserve instance methods
     updatedDoc.save = doc.save;
     updatedDoc.deleteOne = doc.deleteOne;
-    
+
     mockDeviceData.set(id.toString(), updatedDoc);
     return Promise.resolve(options?.new === true ? updatedDoc : doc);
   }),
-  
+
   deleteMany: jest.fn().mockImplementation(() => {
     mockDeviceData.clear();
     return Promise.resolve({ acknowledged: true, deletedCount: mockDeviceData.size });
@@ -191,19 +195,19 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.100',
           port: 502,
-          slaveId: 1
-        }
-      }
+          slaveId: 1,
+        },
+      },
     };
 
     const device = await Device.create(deviceData);
     expect(device._id).toBeDefined();
     expect(device.name).toBe('Minimal Device');
     expect(device.connectionSetting).toBeDefined();
-    
+
     if (device.connectionSetting) {
       expect(device.connectionSetting.connectionType).toBe('tcp');
-      
+
       if (device.connectionSetting.tcp) {
         expect(device.connectionSetting.tcp.ip).toBe('192.168.1.100');
         expect(device.connectionSetting.tcp.port).toBe(502);
@@ -214,7 +218,7 @@ describe('Device Model', () => {
     } else {
       fail('Connection settings should be defined');
     }
-    
+
     // Check default values
     expect(device.enabled).toBe(true);
     expect(device.registers).toEqual([]);
@@ -231,8 +235,8 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.101',
           port: 503,
-          slaveId: 2
-        }
+          slaveId: 2,
+        },
       },
       enabled: false,
       dataPoints: [
@@ -240,7 +244,7 @@ describe('Device Model', () => {
           range: {
             startAddress: 100,
             count: 2,
-            fc: 3
+            fc: 3,
           },
           parser: {
             parameters: [
@@ -251,11 +255,11 @@ describe('Device Model', () => {
                 decimalPoint: 1,
                 byteOrder: 'ABCD',
                 registerIndex: 100,
-                unit: '°C'
-              }
-            ]
-          }
-        }
+                unit: '°C',
+              },
+            ],
+          },
+        },
       ],
       registers: [
         {
@@ -276,7 +280,7 @@ describe('Device Model', () => {
     expect(device.connectionSetting).toBeDefined();
     if (device.connectionSetting) {
       expect(device.connectionSetting.connectionType).toBe('tcp');
-      
+
       if (device.connectionSetting.tcp) {
         expect(device.connectionSetting.tcp.ip).toBe('192.168.1.101');
         expect(device.connectionSetting.tcp.port).toBe(503);
@@ -287,9 +291,9 @@ describe('Device Model', () => {
     } else {
       fail('Connection settings should be defined');
     }
-    
+
     expect(device.enabled).toBe(false);
-    
+
     // Check legacy registers
     expect(device.registers).toBeDefined();
     if (device.registers) {
@@ -304,7 +308,7 @@ describe('Device Model', () => {
     } else {
       fail('Registers should be defined');
     }
-    
+
     // Check new dataPoints
     expect(device.dataPoints).toBeDefined();
     if (device.dataPoints) {
@@ -316,7 +320,7 @@ describe('Device Model', () => {
       expect(device.dataPoints[0].parser.parameters[0].dataType).toBe('FLOAT');
       expect(device.dataPoints[0].parser.parameters[0].unit).toBe('°C');
     }
-    
+
     expect(device.lastSeen).toEqual(now);
   });
 
@@ -329,20 +333,20 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.102',
           port: 502,
-          slaveId: 3
-        }
-      }
+          slaveId: 3,
+        },
+      },
     });
-    
+
     const originalUpdatedAt = device.updatedAt;
-    
+
     // Wait a bit to ensure timestamp would change
     await new Promise(resolve => setTimeout(resolve, 10));
-    
+
     // Update the device
     device.name = 'Updated Device Name';
     await device.save();
-    
+
     // Check that updatedAt has changed
     expect(device.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime());
   });
@@ -355,9 +359,9 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.103',
           port: 502,
-          slaveId: 4
-        }
-      }
+          slaveId: 4,
+        },
+      },
     };
 
     await expect(Device.create(invalidDeviceData)).rejects.toThrow();
@@ -372,8 +376,8 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.104',
           port: 502,
-          slaveId: 5
-        }
+          slaveId: 5,
+        },
       },
       registers: [
         {
@@ -383,7 +387,7 @@ describe('Device Model', () => {
         },
       ],
     });
-    
+
     // Update using findByIdAndUpdate
     const updatedDevice = await Device.findByIdAndUpdate(
       device._id,
@@ -391,11 +395,11 @@ describe('Device Model', () => {
         name: 'Updated Device',
         enabled: false,
         'registers.0.name': 'Updated Register',
-        'connectionSetting.tcp.port': 503
+        'connectionSetting.tcp.port': 503,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
-    
+
     expect(updatedDevice).not.toBeNull();
     if (updatedDevice) {
       expect(updatedDevice.name).toBe('Updated Device');
@@ -422,18 +426,18 @@ describe('Device Model', () => {
         tcp: {
           ip: '192.168.1.105',
           port: 502,
-          slaveId: 6
-        }
-      }
+          slaveId: 6,
+        },
+      },
     });
-    
+
     // Verify it exists
     const deviceId = device._id;
     expect(await Device.findById(deviceId)).not.toBeNull();
-    
+
     // Delete it
     await device.deleteOne();
-    
+
     // Verify it's gone
     expect(await Device.findById(deviceId)).toBeNull();
   });
@@ -449,16 +453,16 @@ describe('Device Model', () => {
           dataBits: 8,
           stopBits: 1,
           parity: 'none',
-          slaveId: 5
-        }
-      }
+          slaveId: 5,
+        },
+      },
     };
 
     const device = await Device.create(deviceData);
     expect(device._id).toBeDefined();
     expect(device.name).toBe('RTU Device');
     expect(device.connectionSetting).toBeDefined();
-    
+
     if (device.connectionSetting) {
       expect(device.connectionSetting.connectionType).toBe('rtu');
       if (device.connectionSetting.rtu) {
@@ -482,8 +486,8 @@ describe('Device Model', () => {
           tcp: {
             ip: '192.168.1.110',
             port: 502,
-            slaveId: 10
-          }
+            slaveId: 10,
+          },
         },
         enabled: true,
       },
@@ -494,8 +498,8 @@ describe('Device Model', () => {
           tcp: {
             ip: '192.168.1.111',
             port: 502,
-            slaveId: 11
-          }
+            slaveId: 11,
+          },
         },
         enabled: false,
       },
@@ -506,23 +510,23 @@ describe('Device Model', () => {
           tcp: {
             ip: '192.168.1.112',
             port: 502,
-            slaveId: 12
-          }
+            slaveId: 12,
+          },
         },
         enabled: true,
       },
     ]);
-    
+
     // Query all enabled devices
     const enabledDevices = await Device.find({ enabled: true });
     expect(enabledDevices).toHaveLength(2);
     expect(enabledDevices.map(d => d.name)).toEqual(['Device A', 'Device C']);
-    
+
     // Query by IP in the new nested structure
     const deviceByIp = await Device.findOne({ 'connectionSetting.tcp.ip': '192.168.1.111' });
     expect(deviceByIp).not.toBeNull();
     expect(deviceByIp?.name).toBe('Device B');
-    
+
     // Query by multiple criteria
     const deviceByMultiple = await Device.findOne({
       enabled: true,

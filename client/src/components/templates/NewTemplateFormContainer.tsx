@@ -42,7 +42,23 @@ const TemplateFormContent: React.FC<{
 
   // Validate the form - but only show errors when explicitly requested
   const validateForm = (showErrors = false) => {
-    const validationErrors = validateTemplateForm(state);
+    // Ensure all parameters have a bufferIndex by setting defaults
+    const updatedParameters = state.parameters.map(param => {
+      if (param.bufferIndex === undefined || param.bufferIndex === null) {
+        return {
+          ...param,
+          bufferIndex: param.registerIndex * 2
+        };
+      }
+      return param;
+    });
+    
+    const stateWithBufferIndices = {
+      ...state,
+      parameters: updatedParameters
+    };
+    
+    const validationErrors = validateTemplateForm(stateWithBufferIndices);
     const newValidationState = convertValidationErrorsToState(validationErrors);
 
     // Only update UI with error state if showErrors is true
@@ -87,10 +103,28 @@ const TemplateFormContent: React.FC<{
     // Run full validation before submitting and show errors
     console.log("Form submission - validating form");
     console.log("Register ranges:", state.registerRanges);
-    console.log("Parameters:", state.parameters);
     
-    const validationErrors = validateTemplateForm(state);
-    console.log("Validation errors:", validationErrors);
+    // Ensure all parameters have a bufferIndex
+    const updatedParameters = state.parameters.map(param => {
+      if (param.bufferIndex === undefined || param.bufferIndex === null) {
+        // Set default bufferIndex based on registerIndex
+        return {
+          ...param,
+          bufferIndex: param.registerIndex * 2
+        };
+      }
+      return param;
+    });
+    
+    // Use updated parameters for validation and submission
+    const stateWithBufferIndices = {
+      ...state,
+      parameters: updatedParameters
+    };
+    console.log("Parameters with buffer indices:", stateWithBufferIndices.parameters);
+    
+    const validationErrors = validateTemplateForm(stateWithBufferIndices);
+    console.log("Validation errors:", JSON.stringify(validationErrors, null, 2));
     
     const isValid = validationErrors.isValid;
     setHasAttemptedNextStep(true);
@@ -105,7 +139,7 @@ const TemplateFormContent: React.FC<{
       state.deviceBasics,
       state.connectionSettings,
       state.registerRanges,
-      state.parameters,
+      updatedParameters, // Use the parameters with bufferIndex added
       user
     );
     
@@ -236,6 +270,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
                 byteOrder: param.byteOrder,
                 registerRange: `Range ${rangeIndex + 1}`,
                 registerIndex: param.registerIndex || 0,
+                bufferIndex: param.bufferIndex !== undefined ? param.bufferIndex : (param.registerIndex || 0) * 2,
                 wordCount: param.wordCount || 1,
               }))
             )

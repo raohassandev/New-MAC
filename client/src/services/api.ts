@@ -213,6 +213,7 @@ export const readDeviceRegisters = async (id: string) => {
     // Try with correct API path
     try {
       const response = await api.get(`/client/api/devices/${id}/read`);
+      console.log("Reading Data is =>" , response.data)
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {

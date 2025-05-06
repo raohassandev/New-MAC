@@ -25,6 +25,10 @@ export interface Device {
   usage?: string;           // Usage category
   usageNotes?: string;      // Additional notes about device usage
   location?: string;        // Physical location information
+  pollingInterval?: number; // Device-specific polling interval in milliseconds
+  
+  // Advanced communication settings
+  advancedSettings?: AdvancedSettings;
   
   // Legacy fields for backward compatibility
   registerRanges?: RegisterRange[];
@@ -107,19 +111,19 @@ export interface DeviceReading {
 
 // TCP Connection Settings
 export interface TcpSettings {
-  ip: string;
-  port: number;
-  slaveId: number;
+  ip?: string;
+  port?: number;
+  slaveId?: number;
 }
 
 // RTU Connection Settings
 export interface RtuSettings {
-  serialPort: string;
-  baudRate: number;
-  dataBits: number;
-  stopBits: number;
-  parity: string;
-  slaveId: number;
+  serialPort?: string;
+  baudRate?: number;
+  dataBits?: number;
+  stopBits?: number;
+  parity?: string;
+  slaveId?: number;
 }
 
 // Connection Setting interface
@@ -203,4 +207,42 @@ export interface DeviceType {
     username: string;
     email: string;
   };
+}
+
+// Connection options interface for advanced settings
+export interface ConnectionOptions {
+  timeout?: number;
+  retries?: number;
+  retryInterval?: number;
+  autoReconnect?: boolean;
+  reconnectInterval?: number;
+}
+
+// Cache options interface
+export interface CacheOptions {
+  enabled?: boolean;
+  defaultTtl?: number;
+  maxSize?: number;
+  checkInterval?: number;
+}
+
+// Log options interface
+export interface LogOptions {
+  level?: string;
+  console?: boolean;
+  file?: {
+    enabled?: boolean;
+    path?: string;
+    maxSize?: number;
+    maxFiles?: number;
+  };
+}
+
+// Advanced settings interface
+export interface AdvancedSettings {
+  defaultPollInterval?: number;
+  defaultRequestTimeout?: number;
+  connectionOptions?: ConnectionOptions;
+  cacheOptions?: CacheOptions;
+  logOptions?: LogOptions;
 }

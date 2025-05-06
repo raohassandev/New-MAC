@@ -17,35 +17,35 @@ const HistoricalDataSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Device',
       required: [true, 'Device ID is required'],
-      index: true
+      index: true,
     },
     parameterName: {
       type: String,
       required: [true, 'Parameter name is required'],
-      index: true
+      index: true,
     },
     value: {
       type: Schema.Types.Mixed,
-      required: [true, 'Value is required']
+      required: [true, 'Value is required'],
     },
     unit: {
       type: String,
-      default: ''
+      default: '',
     },
     timestamp: {
       type: Date,
       default: Date.now,
-      index: true
+      index: true,
     },
     quality: {
       type: String,
       enum: ['good', 'bad', 'uncertain'],
-      default: 'good'
-    }
+      default: 'good',
+    },
   },
   {
-    timestamps: true
-  }
+    timestamps: true,
+  },
 );
 
 // Create compound indexes for efficient querying
@@ -57,7 +57,7 @@ HistoricalDataSchema.virtual('device', {
   ref: 'Device',
   localField: 'deviceId',
   foreignField: '_id',
-  justOne: true
+  justOne: true,
 });
 
 // Create the model

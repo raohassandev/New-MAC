@@ -16,14 +16,14 @@ export interface DataTypeConverter {
    * @param byteOrder Byte ordering
    */
   fromRegisters(registers: number[], byteOrder?: ByteOrder): any;
-  
+
   /**
    * Convert from a typed value to raw register values
    * @param value Value to convert
    * @param byteOrder Byte ordering
    */
   toRegisters(value: any, byteOrder?: ByteOrder): number[];
-  
+
   /**
    * Get the size of this data type in registers
    */
@@ -40,12 +40,12 @@ export const BooleanConverter: DataTypeConverter = {
     }
     return registers[0] !== 0;
   },
-  
+
   toRegisters(value: boolean): number[] {
     return [value ? 1 : 0];
   },
-  
-  size: 1
+
+  size: 1,
 };
 
 /**
@@ -56,39 +56,39 @@ export const Int16Converter: DataTypeConverter = {
     if (registers.length < 1) {
       throw new ConversionError('Not enough registers for Int16 conversion');
     }
-    
+
     let value = registers[0];
-    
+
     // Apply byte swapping if needed
     if (byteOrder === ByteOrder.BA) {
-      value = ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
+      value = ((value & 0xff) << 8) | ((value >> 8) & 0xff);
     }
-    
+
     // Convert to signed
-    if (value > 0x7FFF) {
+    if (value > 0x7fff) {
       value = value - 0x10000;
     }
-    
+
     return value;
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.AB): number[] {
     if (value < -32768 || value > 32767) {
       throw new ConversionError('Value out of range for Int16');
     }
-    
+
     // Convert to unsigned 16-bit
     let unsignedValue = value < 0 ? value + 0x10000 : value;
-    
+
     // Apply byte swapping if needed
     if (byteOrder === ByteOrder.BA) {
-      unsignedValue = ((unsignedValue & 0xFF) << 8) | ((unsignedValue >> 8) & 0xFF);
+      unsignedValue = ((unsignedValue & 0xff) << 8) | ((unsignedValue >> 8) & 0xff);
     }
-    
+
     return [unsignedValue];
   },
-  
-  size: 1
+
+  size: 1,
 };
 
 /**
@@ -99,32 +99,32 @@ export const UInt16Converter: DataTypeConverter = {
     if (registers.length < 1) {
       throw new ConversionError('Not enough registers for UInt16 conversion');
     }
-    
+
     let value = registers[0];
-    
+
     // Apply byte swapping if needed
     if (byteOrder === ByteOrder.BA) {
-      value = ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
+      value = ((value & 0xff) << 8) | ((value >> 8) & 0xff);
     }
-    
+
     return value;
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.AB): number[] {
     if (value < 0 || value > 65535) {
       throw new ConversionError('Value out of range for UInt16');
     }
-    
+
     // Apply byte swapping if needed
     let unsignedValue = value;
     if (byteOrder === ByteOrder.BA) {
-      unsignedValue = ((unsignedValue & 0xFF) << 8) | ((unsignedValue >> 8) & 0xFF);
+      unsignedValue = ((unsignedValue & 0xff) << 8) | ((unsignedValue >> 8) & 0xff);
     }
-    
+
     return [unsignedValue];
   },
-  
-  size: 1
+
+  size: 1,
 };
 
 /**
@@ -135,10 +135,10 @@ export const Int32Converter: DataTypeConverter = {
     if (registers.length < 2) {
       throw new ConversionError('Not enough registers for Int32 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -160,21 +160,21 @@ export const Int32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Int32: ${byteOrder}`);
     }
-    
+
     return buffer.readInt32BE(0);
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     if (value < -2147483648 || value > 2147483647) {
       throw new ConversionError('Value out of range for Int32');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Write the value to the buffer
     buffer.writeInt32BE(value, 0);
-    
+
     // Read the registers based on the byte order
     let highWord, lowWord;
     switch (byteOrder) {
@@ -197,11 +197,11 @@ export const Int32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Int32: ${byteOrder}`);
     }
-    
+
     return [highWord, lowWord];
   },
-  
-  size: 2
+
+  size: 2,
 };
 
 /**
@@ -212,10 +212,10 @@ export const UInt32Converter: DataTypeConverter = {
     if (registers.length < 2) {
       throw new ConversionError('Not enough registers for UInt32 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -237,21 +237,21 @@ export const UInt32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for UInt32: ${byteOrder}`);
     }
-    
+
     return buffer.readUInt32BE(0);
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     if (value < 0 || value > 4294967295) {
       throw new ConversionError('Value out of range for UInt32');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Write the value to the buffer
     buffer.writeUInt32BE(value, 0);
-    
+
     // Read the registers based on the byte order
     let highWord, lowWord;
     switch (byteOrder) {
@@ -274,11 +274,11 @@ export const UInt32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for UInt32: ${byteOrder}`);
     }
-    
+
     return [highWord, lowWord];
   },
-  
-  size: 2
+
+  size: 2,
 };
 
 /**
@@ -289,10 +289,10 @@ export const Float32Converter: DataTypeConverter = {
     if (registers.length < 2) {
       throw new ConversionError('Not enough registers for Float32 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -314,17 +314,17 @@ export const Float32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Float32: ${byteOrder}`);
     }
-    
+
     return buffer.readFloatBE(0);
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(4);
-    
+
     // Write the value to the buffer
     buffer.writeFloatBE(value, 0);
-    
+
     // Read the registers based on the byte order
     let highWord, lowWord;
     switch (byteOrder) {
@@ -347,11 +347,11 @@ export const Float32Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Float32: ${byteOrder}`);
     }
-    
+
     return [highWord, lowWord];
   },
-  
-  size: 2
+
+  size: 2,
 };
 
 /**
@@ -362,10 +362,10 @@ export const Float64Converter: DataTypeConverter = {
     if (registers.length < 4) {
       throw new ConversionError('Not enough registers for Float64 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -395,17 +395,17 @@ export const Float64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Float64: ${byteOrder}`);
     }
-    
+
     return buffer.readDoubleBE(0);
   },
-  
+
   toRegisters(value: number, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Write the value to the buffer
     buffer.writeDoubleBE(value, 0);
-    
+
     // Read the registers based on the byte order
     const result = new Array(4);
     switch (byteOrder) {
@@ -436,11 +436,11 @@ export const Float64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Float64: ${byteOrder}`);
     }
-    
+
     return result;
   },
-  
-  size: 4
+
+  size: 4,
 };
 
 /**
@@ -452,10 +452,10 @@ export const Int64Converter: DataTypeConverter = {
     if (registers.length < 4) {
       throw new ConversionError('Not enough registers for Int64 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -485,17 +485,17 @@ export const Int64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Int64: ${byteOrder}`);
     }
-    
+
     return buffer.readBigInt64BE(0);
   },
-  
+
   toRegisters(value: bigint, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Write the value to the buffer
     buffer.writeBigInt64BE(value, 0);
-    
+
     // Read the registers based on the byte order
     const result = new Array(4);
     switch (byteOrder) {
@@ -526,11 +526,11 @@ export const Int64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for Int64: ${byteOrder}`);
     }
-    
+
     return result;
   },
-  
-  size: 4
+
+  size: 4,
 };
 
 /**
@@ -542,10 +542,10 @@ export const UInt64Converter: DataTypeConverter = {
     if (registers.length < 4) {
       throw new ConversionError('Not enough registers for UInt64 conversion');
     }
-    
+
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Fill the buffer based on the byte order
     switch (byteOrder) {
       case ByteOrder.ABCD:
@@ -575,17 +575,17 @@ export const UInt64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for UInt64: ${byteOrder}`);
     }
-    
+
     return buffer.readBigUInt64BE(0);
   },
-  
+
   toRegisters(value: bigint, byteOrder: ByteOrder = ByteOrder.ABCD): number[] {
     // Create a buffer to hold the bytes
     const buffer = Buffer.alloc(8);
-    
+
     // Write the value to the buffer
     buffer.writeBigUInt64BE(value, 0);
-    
+
     // Read the registers based on the byte order
     const result = new Array(4);
     switch (byteOrder) {
@@ -616,11 +616,11 @@ export const UInt64Converter: DataTypeConverter = {
       default:
         throw new ConversionError(`Unsupported byte order for UInt64: ${byteOrder}`);
     }
-    
+
     return result;
   },
-  
-  size: 4
+
+  size: 4,
 };
 
 /**
@@ -631,10 +631,10 @@ export const StringConverter: DataTypeConverter = {
     if (registers.length < 1) {
       throw new ConversionError('Not enough registers for String conversion');
     }
-    
+
     // Create a buffer to hold all the bytes
     const buffer = Buffer.alloc(registers.length * 2);
-    
+
     // Fill the buffer based on the byte order
     for (let i = 0; i < registers.length; i++) {
       if (byteOrder === ByteOrder.AB) {
@@ -645,25 +645,25 @@ export const StringConverter: DataTypeConverter = {
         throw new ConversionError(`Unsupported byte order for String: ${byteOrder}`);
       }
     }
-    
+
     // Convert buffer to string and trim nulls
     let string = buffer.toString('ascii');
     const nullIndex = string.indexOf('\0');
     if (nullIndex !== -1) {
       string = string.substring(0, nullIndex);
     }
-    
+
     return string;
   },
-  
+
   toRegisters(value: string, byteOrder: ByteOrder = ByteOrder.AB): number[] {
     const stringBuffer = Buffer.from(value, 'ascii');
     const registers: number[] = [];
-    
+
     // Ensure even length
     const buffer = Buffer.alloc(Math.ceil(stringBuffer.length / 2) * 2);
     stringBuffer.copy(buffer);
-    
+
     // Convert bytes to registers based on byte order
     for (let i = 0; i < buffer.length; i += 2) {
       if (byteOrder === ByteOrder.AB) {
@@ -674,13 +674,13 @@ export const StringConverter: DataTypeConverter = {
         throw new ConversionError(`Unsupported byte order for String: ${byteOrder}`);
       }
     }
-    
+
     return registers;
   },
-  
+
   get size(): number {
     throw new Error('Size of String is variable');
-  }
+  },
 };
 
 /**
@@ -689,7 +689,11 @@ export const StringConverter: DataTypeConverter = {
  * @param dataType Target data type
  * @param byteOrder Byte ordering
  */
-export function convertFromRegisters(registers: number[], dataType: DataType, byteOrder?: ByteOrder): any {
+export function convertFromRegisters(
+  registers: number[],
+  dataType: DataType,
+  byteOrder?: ByteOrder,
+): any {
   switch (dataType) {
     case DataType.BOOLEAN:
       return BooleanConverter.fromRegisters(registers);
@@ -725,7 +729,11 @@ export function convertFromRegisters(registers: number[], dataType: DataType, by
  * @param dataType Source data type
  * @param byteOrder Byte ordering
  */
-export function convertToRegisters(value: any, dataType: DataType, byteOrder?: ByteOrder): number[] {
+export function convertToRegisters(
+  value: any,
+  dataType: DataType,
+  byteOrder?: ByteOrder,
+): number[] {
   switch (dataType) {
     case DataType.BOOLEAN:
       return BooleanConverter.toRegisters(value);

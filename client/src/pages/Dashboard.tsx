@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, AlertTriangle, ArrowDown, ArrowUp, Clock } from 'lucide-react';
+import { Activity, AlertCircle, AlertTriangle, ArrowDown, ArrowUp, Clock, Settings, Sliders } from 'lucide-react';
 import {
   CartesianGrid,
   Line,
@@ -8,7 +8,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import type { TypedUseSelectorHook } from 'react-redux';
+import type { RootState } from '../redux/store';
+import { selectSystemMonitorRefreshInterval, selectRealTimeUpdatesEnabled } from '../redux/features/siteConfiguration';
+
+// Define useAppSelector to avoid circular dependencies
+const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
 import { dashboardApi } from '../api/endpoints';
 import { format } from 'date-fns';
@@ -42,33 +49,65 @@ const Dashboard = () => {
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
+  
+  // Get configuration values from siteConfiguration
+  const systemRefreshInterval = useAppSelector(selectSystemMonitorRefreshInterval);
+  const realTimeUpdatesEnabled = useAppSelector(selectRealTimeUpdatesEnabled);
+  
+  // Timer reference for auto-refresh
+  const refreshTimerRef = useRef<number | null>(null);
 
+  // Function to fetch dashboard data - memoized with useCallback
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // Fetch dashboard summary
+      const summaryResponse = await dashboardApi.getSummary();
+      setSummary(summaryResponse.data);
+
+      // Fetch performance metrics
+      const days = timeframe === 'day' ? 1 : timeframe === 'week' ? 7 : 30;
+      const performanceResponse = await dashboardApi.getPerformanceMetrics(days);
+      setPerformanceData(performanceResponse.data);
+
+      // Fetch recent activity
+      const activityResponse = await dashboardApi.getRecentActivity(5);
+      setRecentActivities(activityResponse.data);
+    } catch (error) {
+      console.error('Error fetching dashboard data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [timeframe]);
+  
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-
-        // Fetch dashboard summary
-        const summaryResponse = await dashboardApi.getSummary();
-        setSummary(summaryResponse.data);
-
-        // Fetch performance metrics
-        const days = timeframe === 'day' ? 1 : timeframe === 'week' ? 7 : 30;
-        const performanceResponse = await dashboardApi.getPerformanceMetrics(days);
-        setPerformanceData(performanceResponse.data);
-
-        // Fetch recent activity
-        const activityResponse = await dashboardApi.getRecentActivity(5);
-        setRecentActivities(activityResponse.data);
-      } catch (error) {
-        console.error('Error fetching dashboard data', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, [timeframe]);
+  
+  // Set up auto-refresh based on configuration
+  useEffect(() => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      window.clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    
+    // Only set up auto-refresh if real-time updates are enabled
+    if (realTimeUpdatesEnabled) {
+      refreshTimerRef.current = window.setInterval(() => {
+        console.log(`Auto-refreshing dashboard every ${systemRefreshInterval / 1000} seconds`);
+        fetchDashboardData();
+      }, systemRefreshInterval);
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, [systemRefreshInterval, realTimeUpdatesEnabled]);
 
   // Sample data (in case the API is not available yet)
   const samplePerformanceData = [
@@ -183,18 +222,34 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          {realTimeUpdatesEnabled && (
+            <p className="text-xs text-green-600">
+              Auto-refreshing every {systemRefreshInterval / 1000} seconds
+            </p>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Timeframe:</span>
-          <select
-            value={timeframe}
-            onChange={e => setTimeframe(e.target.value as 'day' | 'week' | 'month')}
-            className="rounded-md border border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          <button 
+            onClick={() => window.location.href = '/system-configuration'}
+            className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
           >
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-          </select>
+            <Sliders size={16} />
+            Configure Refresh
+          </button>
+          <div className="ml-2 flex items-center">
+            <span className="text-sm text-gray-600">Timeframe:</span>
+            <select
+              value={timeframe}
+              onChange={e => setTimeframe(e.target.value as 'day' | 'week' | 'month')}
+              className="ml-2 rounded-md border border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            >
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+          </div>
         </div>
       </div>
 

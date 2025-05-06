@@ -9,10 +9,7 @@ import { Profile } from '../models';
 // @access  Private
 export const getProfiles = async (req: Request, res: Response) => {
   try {
-    const profiles = await Profile.find({}).populate(
-      'assignedDevices',
-      'name ip enabled'
-    );
+    const profiles = await Profile.find({}).populate('assignedDevices', 'name ip enabled');
     res.json(profiles);
   } catch (error: any) {
     console.error('Get profiles error:', error);
@@ -27,7 +24,7 @@ export const getProfileById = async (req: Request, res: Response) => {
   try {
     const profile = await Profile.findById(req.params.id).populate(
       'assignedDevices',
-      'name ip enabled'
+      'name ip enabled',
     );
 
     if (!profile) {
@@ -66,11 +63,10 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     // Update profile
-    const updatedProfile = await Profile.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const updatedProfile = await Profile.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     res.json(updatedProfile);
   } catch (error: any) {
@@ -131,18 +127,14 @@ export const duplicateProfile = async (req: Request, res: Response) => {
 // @access  Private
 export const applyProfile = async (req: Request, res: Response) => {
   try {
-    const profile = await Profile.findById(req.params.id).populate(
-      'assignedDevices'
-    );
+    const profile = await Profile.findById(req.params.id).populate('assignedDevices');
 
     if (!profile) {
       return res.status(404).json({ message: 'Profile not found' });
     }
 
     if (!profile.assignedDevices || profile.assignedDevices.length === 0) {
-      return res
-        .status(400)
-        .json({ message: 'No devices assigned to this profile' });
+      return res.status(400).json({ message: 'No devices assigned to this profile' });
     }
 
     // Results of applying profile to each device
@@ -172,7 +164,7 @@ export const applyProfile = async (req: Request, res: Response) => {
         } else {
           throw new Error('Missing device connection information');
         }
-        
+
         // Set slave ID with default if not defined
         client.setID(device.slaveId || 1);
 
@@ -180,9 +172,7 @@ export const applyProfile = async (req: Request, res: Response) => {
         // This is just an example - the actual implementation would depend on device specifics
 
         // Setting target temperature (assuming register address 100)
-        await client.writeRegisters(100, [
-          Math.round(profile.targetTemperature * 10),
-        ]);
+        await client.writeRegisters(100, [Math.round(profile.targetTemperature * 10)]);
 
         // Setting fan speed (assuming register address 101)
         await client.writeRegisters(101, [profile.fanSpeed]);
@@ -209,10 +199,7 @@ export const applyProfile = async (req: Request, res: Response) => {
           message: 'Profile applied successfully',
         });
       } catch (modbusError: any) {
-        console.error(
-          `Modbus error applying profile to device ${device.name}:`,
-          modbusError
-        );
+        console.error(`Modbus error applying profile to device ${device.name}:`, modbusError);
         results.push({
           deviceId: device._id,
           deviceName: device.name,
@@ -262,9 +249,7 @@ export const createFromTemplate = async (req: Request, res: Response) => {
     }
 
     if (!template.isTemplate) {
-      return res
-        .status(400)
-        .json({ message: 'Specified profile is not a template' });
+      return res.status(400).json({ message: 'Specified profile is not a template' });
     }
 
     // Create a new profile based on the template

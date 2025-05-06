@@ -27,9 +27,7 @@ export interface IProfile extends Document {
 }
 
 const ScheduleTimeSchema = new Schema<IScheduleTime>({
-  days: [
-    { type: String, enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
-  ],
+  days: [{ type: String, enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }],
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
 });
@@ -46,10 +44,7 @@ const ProfileSchema = new Schema<IProfile>({
   temperatureRange: {
     type: [Number],
     required: true,
-    validate: [
-      (val: number[]) => val.length === 2,
-      'Temperature range must have exactly 2 values',
-    ],
+    validate: [(val: number[]) => val.length === 2, 'Temperature range must have exactly 2 values'],
   },
   fanSpeed: { type: Number, required: true, min: 0, max: 100 },
   mode: {
