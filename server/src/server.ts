@@ -7,6 +7,8 @@ import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes';
 import { amxRouter } from './amx/routes';
 import { initializeDevicePolling } from './client/services/deviceInitializer';
+// Import the device controller for explicit route registration
+import * as deviceController from './client/controllers/deviceController';
 
 // Load environment variables
 dotenv.config();
@@ -44,9 +46,21 @@ const startServer = async () => {
       next();
     });
 
-    // API routes
+    // API routes with explicit route mapping for better debugging
+    console.log('Setting up API routes...');
+    
+    // Mounting client API routes
     app.use('/client/api', clientRouter);
+    console.log(`✓ Mounted client API routes at /client/api`);
+    
+    // Mounting AMX API routes
     app.use('/amx/api', amxRouter);
+    console.log(`✓ Mounted AMX API routes at /amx/api`);
+    
+    // Add explicit route for device test endpoint to ensure it works
+    // This is a temporary fix until we resolve the route registration issue
+    app.post('/client/api/devices/:id/test', deviceController.testDeviceConnection as express.RequestHandler);
+    console.log(`✓ Added explicit device test endpoint at /client/api/devices/:id/test`);
 
     app.get('/', (req, res) => {
       res.send('MacSys Backend is working');

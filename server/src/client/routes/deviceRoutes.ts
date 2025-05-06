@@ -37,7 +37,10 @@ router
     deviceController.deleteDevice as express.RequestHandler,
   );
 
+// Add device connection testing endpoint
 router.post('/:id/test', deviceController.testDeviceConnection as express.RequestHandler);
+
+// Add device register reading endpoint
 router.get('/:id/read', deviceController.readDeviceRegisters as express.RequestHandler);
 
 export default router;
