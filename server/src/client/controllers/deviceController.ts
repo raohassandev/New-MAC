@@ -953,14 +953,14 @@ export const deleteDevice = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
   try {
-    console.log('[deviceController] testDeviceConnection: Starting device connection test');
+    console.log(chalk.bgYellow.white('[deviceController] testDeviceConnection: Starting device connection test'));
     
     // Try to get the cached client device model first
     let DeviceModel: mongoose.Model<IDevice> | null = null;
     
     // Always try to get it from other sources
     if (!DeviceModel) {
-      console.log('[deviceController] No cached device model for testDeviceConnection, trying alternatives');
+      console.log(chalk.bgRed.white('[deviceController] No cached device model for testDeviceConnection, trying alternatives'));
       
       // Get the client database connection and models
       const clientModels = req.app.locals.clientModels;
@@ -969,45 +969,45 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
       // Check if we have client models
       if (clientModels && clientModels.Device) {
         DeviceModel = clientModels.Device;
-        console.log('[deviceController] Using client-specific Device model from app.locals');
+        console.log(chalk.bgYellow.white('[deviceController] Using client-specific Device model from app.locals'));
       } else if (mainDBConnection && mainDBConnection.readyState === 1) {
         // Check if mainDBConnection (client connection) is available 
-        console.log('[deviceController] Creating Device model with client connection');
+        console.log(chalk.bgGreen.white('[deviceController] Creating Device model with client connection'));
         try {
           DeviceModel = createDeviceModel(mainDBConnection);
         } catch (err) {
-          console.error('[deviceController] Error creating Device model with client connection:', err);
-          console.warn('[deviceController] Falling back to default Device model');
+          console.error(chalk.bgRed.white('[deviceController] Error creating Device model with client connection:'), err);
+          console.warn(chalk.bgYellow.white('[deviceController] Falling back to default Device model'));
           DeviceModel = Device;
         }
       } else {
-        console.warn('[deviceController] No client database connection available');
+        console.warn(chalk.bgYellow.white('[deviceController] No client database connection available'));
         DeviceModel = Device;
       }
     } else {
-      console.log('[deviceController] Using cached client device model');
+      console.log(chalk.bgYellow.white('[deviceController] Using cached client device model'));
     }
     
     // Safety check to ensure we only use client database models
     if (!DeviceModel || DeviceModel.db?.name !== 'client') {
-      console.error(`[deviceController] ERROR: Model connected to wrong database: ${DeviceModel?.db?.name || 'unknown'}`);
-      console.log('[deviceController] Forcing reconnection to client database');
+      console.error(chalk.bgRed.white(`[deviceController] ERROR: Model connected to wrong database: ${DeviceModel?.db?.name || 'unknown'}`));
+      console.log(chalk.bgBlue.white('[deviceController] Forcing reconnection to client database'));
       
       // Try to force create a new model with the client DB
       const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
       if (mainDBConnection && mainDBConnection.readyState === 1 && mainDBConnection.name === 'client') {
         try {
           DeviceModel = createDeviceModel(mainDBConnection);
-          console.log(`[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`);
+          console.log(chalk.green.white(`[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`));
         } catch (reconnectError) {
-          console.error('[deviceController] Could not reconnect to client database:', reconnectError);
+          console.error(chalk.bgRed.white('[deviceController] Could not reconnect to client database:'), reconnectError);
         }
       }
     }
     
     // Make sure we have a valid model
     if (!DeviceModel) {
-      console.error('[deviceController] Failed to get a valid Device model');
+      console.error(chalk.bgRed.white('[deviceController] Failed to get a valid Device model'));
       return res.status(500).json({ 
         message: 'Database connection error', 
         error: 'Could not initialize database model'
@@ -1050,11 +1050,11 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
       const slaveId = connectionType === 'tcp' ? tcpSlaveId : (rtuSlaveId || device.slaveId || 1);
 
       // Log connection details for debugging
-      console.log(`[deviceController] Testing connection to ${connectionType.toUpperCase()} device:`);
+      console.log(chalk.cyan(`[deviceController] Testing connection to ${connectionType.toUpperCase()} device:`));
       if (connectionType === 'tcp') {
-        console.log(`[deviceController] IP: ${ip}, Port: ${port}, SlaveID: ${slaveId}`);
+        console.log(chalk.cyan(`[deviceController] IP: ${ip}, Port: ${port}, SlaveID: ${slaveId}`));
       } else {
-        console.log(`[deviceController] Serial Port: ${serialPort}, Baud Rate: ${baudRate}, SlaveID: ${slaveId}`);
+        console.log(chalk.cyan(`[deviceController] Serial Port: ${serialPort}, Baud Rate: ${baudRate}, SlaveID: ${slaveId}`));
       }
 
       // Set connection timeout to handle non-responsive devices
@@ -1074,7 +1074,7 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
             timeoutPromise
           ]);
           
-          console.log(`[deviceController] Successfully connected to TCP device at ${ip}:${port}`);
+          console.log(chalk.green(`[deviceController] Successfully connected to TCP device at ${ip}:${port}`));
         } else if (connectionType === 'rtu' && serialPort) {
           const rtuOptions: any = {};
           if (baudRate) rtuOptions.baudRate = baudRate;
@@ -1093,13 +1093,13 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
             timeoutPromise
           ]);
           
-          console.log(`[deviceController] Successfully connected to RTU device at ${serialPort}`);
+          console.log(chalk.green(`[deviceController] Successfully connected to RTU device at ${serialPort}`));
         } else {
           throw new Error('Invalid connection configuration');
         }
       } catch (connectionError: any) {
         // Add more detailed error reporting
-        console.error(`[deviceController] Connection error:`, connectionError);
+        console.error(chalk.red(`[deviceController] Connection error:`), connectionError);
         
         if (connectionError.code === 'ECONNREFUSED') {
           throw new Error(`Connection refused at ${ip}:${port}. The device may be offline or unreachable.`);
@@ -1130,6 +1130,8 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
         address = device.registers[0].address;
       }
 
+      console.log(chalk.yellow(`[deviceController] Testing read operation with address ${address} using function code ${functionCode}`));
+
       // Read register based on function code
       switch (functionCode) {
         case 1:
@@ -1148,16 +1150,34 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
           await client.readHoldingRegisters(address, 1);
       }
 
+      console.log(chalk.bgGreen.black(`[deviceController] Read operation successful!`));
+
       // Update device lastSeen timestamp
       device.lastSeen = new Date();
       await device.save();
+      console.log(chalk.green(`[deviceController] Updated device lastSeen timestamp to ${device.lastSeen}`));
 
-      res.json({
+      // Send a clear success response with additional details for the frontend
+      const successResponse = {
         success: true,
         message: 'Successfully connected to device',
-      });
+        deviceInfo: {
+          name: device.name,
+          id: device._id,
+          connectionType: device.connectionSetting?.connectionType || device.connectionType || 'tcp',
+          address: device.connectionSetting?.connectionType === 'tcp' && device.connectionSetting?.tcp ? 
+            `${device.connectionSetting.tcp.ip || ''}:${device.connectionSetting.tcp.port || ''}` : 
+            device.connectionSetting?.rtu?.serialPort || '',
+          lastSeen: device.lastSeen
+        },
+        timestamp: new Date().toISOString(),
+        status: 'CONNECTED'
+      };
+      
+      console.log(chalk.green(`[deviceController] Sending success response to client: ${JSON.stringify(successResponse)}`));
+      res.json(successResponse);
     } catch (modbusError: any) {
-      console.error('Modbus connection error:', modbusError);
+      console.error(chalk.bgRed.white('Modbus connection error:'), modbusError);
       
       // Create a more detailed error message based on error type
       let errorMessage = 'Connection failed';
@@ -1176,40 +1196,57 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
         errorType = 'CONNECTION_REFUSED';
         errorMessage = `Connection refused at ${deviceIp}:${devicePort}. The device may be offline or unreachable.`;
         troubleshooting = 'Please check:\n• Device is powered on and network is connected\n• IP address and port are correct\n• Any firewalls or network security is allowing the connection\n• The device is properly configured to accept Modbus TCP connections';
+        console.log(chalk.red(`[deviceController] Connection refused at ${deviceIp}:${devicePort}`));
       } else if (modbusError.code === 'ETIMEDOUT') {
         errorType = 'CONNECTION_TIMEOUT';
         errorMessage = `Connection timed out when connecting to ${deviceIp}:${devicePort}. The device is not responding.`;
         troubleshooting = 'Please check:\n• Network connectivity to the device\n• Device is powered on and functioning\n• Device is not in a busy state or overloaded\n• Network latency is not too high';
+        console.log(chalk.red(`[deviceController] Connection timed out for device at ${deviceIp}:${devicePort}`));
       } else if (modbusError.message.includes('No such file or directory')) {
         errorType = 'PORT_NOT_FOUND';
         errorMessage = `Serial port ${deviceSerialPort} does not exist on this system.`;
         troubleshooting = 'Please check:\n• Serial port name is correct (COM ports on Windows, /dev/tty* on Linux/Mac)\n• Serial device is properly connected to the computer\n• Serial-to-USB adapter drivers are installed if applicable\n• The port is not being used by another application';
+        console.log(chalk.red(`[deviceController] Serial port not found: ${deviceSerialPort}`));
       } else if (modbusError.message.includes('Access denied')) {
         errorType = 'PERMISSION_DENIED';
         errorMessage = `Permission denied for serial port ${deviceSerialPort}.`;
         troubleshooting = 'Please check:\n• Your account has permissions to access serial ports\n• On Linux/Mac, you may need to add your user to the "dialout" group\n• Serial port is not locked by another process\n• Try running the application with administrator/root privileges';
+        console.log(chalk.red(`[deviceController] Permission denied for serial port: ${deviceSerialPort}`));
       } else if (modbusError.message.includes('Port is opening')) {
         errorType = 'PORT_BUSY';
         errorMessage = 'The serial port is in use by another process.';
         troubleshooting = 'Please check:\n• Close any other applications that might be using the serial port\n• Restart the device to release any locked port connections\n• On Windows, check Device Manager to see if the port has any conflicts';
+        console.log(chalk.red(`[deviceController] Serial port busy: ${deviceSerialPort}`));
       } else if (modbusError.message.includes('Received no valid response')) {
         errorType = 'DEVICE_NO_RESPONSE';
         errorMessage = 'The device did not respond correctly to the Modbus request.';
         troubleshooting = 'Please check:\n• The slave/unit ID is correct\n• The Modbus device is configured to respond to the function code being used\n• The device supports the Modbus commands being sent\n• The register address is within the valid range for this device';
+        console.log(chalk.red(`[deviceController] No valid response from device, slave ID: ${device.slaveId}`));
       } else if (modbusError.message.includes('Illegal function')) {
         errorType = 'ILLEGAL_FUNCTION';
         errorMessage = 'The device does not support the Modbus function being used.';
         troubleshooting = 'Please check:\n• The device documentation for supported Modbus function codes\n• Verify the correct function code is being used for this device\n• Some devices only support a subset of Modbus functions';
+        console.log(chalk.red(`[deviceController] Illegal function code`));
       } else if (modbusError.message.includes('Illegal data address')) {
         errorType = 'ILLEGAL_ADDRESS';
         errorMessage = 'The register address requested does not exist on this device.';
         troubleshooting = 'Please check:\n• The register address map documentation for your device\n• Address mapping (e.g., some devices start at 0, others at 1)\n• Address offsets and ranges for this specific device model';
+        console.log(chalk.red(`[deviceController] Illegal data address error`));
+      } else if (modbusError.message.includes('Port Not Open')) {
+        errorType = 'PORT_NOT_OPEN';
+        errorMessage = 'The connection was lost during communication.';
+        troubleshooting = 'Please check:\n• Device power and network stability\n• Connection issues or interference\n• Try restarting both the device and the application';
+        console.log(chalk.red(`[deviceController] Port Not Open error - connection lost`));
       } else if (modbusError.message) {
         errorMessage = `${errorMessage}: ${modbusError.message}`;
         troubleshooting = 'Review device documentation and Modbus specifications for more specific guidance.';
+        console.log(chalk.red(`[deviceController] Error: ${modbusError.message}`));
       }
       
-      res.status(400).json({
+      console.log(chalk.yellow(`[deviceController] Sending error response with type: ${errorType}`));
+      
+      // Structure the error response to be more easily interpretable by the frontend
+      const errorResponse = {
         success: false,
         message: errorMessage,
         error: modbusError.message,
@@ -1217,27 +1254,53 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
         errorType: errorType,
         deviceInfo: {
           name: device.name,
+          id: device._id,
           connectionType: deviceConnectionType,
-          address: deviceConnectionType === 'tcp' ? `${deviceIp}:${devicePort}` : deviceSerialPort,
-        }
-      });
+          // Safely build the address string with null checks and defaults
+          address: deviceConnectionType === 'tcp' ? 
+            `${deviceIp || 'unknown'}:${devicePort || 'unknown'}` : 
+            deviceSerialPort || 'unknown',
+        },
+        timestamp: new Date().toISOString(),
+        status: 'ERROR'
+      };
+      
+      console.log(chalk.yellow(`[deviceController] Error response: ${JSON.stringify(errorResponse)}`));
+      
+      // Use 200 status with success: false instead of 400 to ensure the frontend always receives and can display the response
+      res.status(200).json(errorResponse);
     } finally {
       // Close the connection if open
       try {
         if (client.isOpen) {
           await client.close();
+          console.log(chalk.blue(`[deviceController] Closed Modbus connection`));
         }
       } catch (closeError) {
-        console.warn('Error closing Modbus connection:', closeError);
+        console.warn(chalk.yellow('Error closing Modbus connection:'), closeError);
       }
     }
   } catch (error: any) {
-    console.error('Test connection error:', error);
-    res.status(500).json({
+    console.error(chalk.bgRed.white('Test connection error:'), error);
+    
+    // Structure server errors consistently with other responses
+    const serverErrorResponse = {
       success: false,
-      message: 'Server error',
+      message: 'Server error processing the connection test',
       error: error.message,
-    });
+      errorType: 'SERVER_ERROR',
+      timestamp: new Date().toISOString(),
+      status: 'ERROR',
+      deviceInfo: {
+        id: req.params.id,
+        // We don't have the device info here since the error happened before we could retrieve it
+      }
+    };
+    
+    console.log(chalk.bgRed.white(`[deviceController] Server error response: ${JSON.stringify(serverErrorResponse)}`));
+    
+    // Use 200 status with success: false for consistency with other error responses
+    res.status(200).json(serverErrorResponse);
   }
 };
 
