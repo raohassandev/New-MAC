@@ -1,14 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  getDeviceDrivers, 
+import {
+  getDeviceDrivers,
   getDeviceDriverById,
-  createDeviceDriver, 
-  updateDeviceDriver, 
+  createDeviceDriver,
+  updateDeviceDriver,
   deleteDeviceDriver,
   getDeviceTypes,
-  createDeviceType
+  createDeviceType,
 } from '../services/deviceDrivers';
-import { DeviceDriver, DeviceType, DeviceDriverFormData, NewDeviceType } from '../types/deviceDriver.types';
+import {
+  DeviceDriver,
+  DeviceType,
+  DeviceDriverFormData,
+  NewDeviceType,
+} from '../types/deviceDriver.types';
 
 export const useDeviceDrivers = () => {
   const [deviceDrivers, setDeviceDrivers] = useState<DeviceDriver[]>([]);
@@ -52,28 +57,28 @@ export const useDeviceDrivers = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // If it's a new device type, handle that
       if (deviceDriverData.deviceType === 'new' && deviceDriverData.newDeviceType) {
         const newDeviceType = await createDeviceType({
           name: deviceDriverData.newDeviceType.name,
           description: deviceDriverData.newDeviceType.description,
-          category: deviceDriverData.newDeviceType.category
+          category: deviceDriverData.newDeviceType.category,
         });
-        
+
         // Update the device driver with the new device type
         deviceDriverData.deviceType = newDeviceType.name;
-        
+
         // Update the device types list
         setDeviceTypes(prev => [...prev, newDeviceType]);
       }
-      
+
       // Ensure device driver has isDeviceDriver flag
       const deviceDriverToCreate: DeviceDriverFormData = {
         ...deviceDriverData,
-        isDeviceDriver: true
+        isDeviceDriver: true,
       };
-      
+
       const newDeviceDriver = await createDeviceDriver(deviceDriverToCreate);
       setDeviceDrivers(prev => [...prev, newDeviceDriver]);
       return newDeviceDriver;
@@ -103,23 +108,26 @@ export const useDeviceDrivers = () => {
   }, []);
 
   // Update a device driver
-  const updateDeviceDriverById = useCallback(async (id: string, deviceDriverData: Partial<DeviceDriver>) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedDeviceDriver = await updateDeviceDriver(id, deviceDriverData);
-      setDeviceDrivers(prev => prev.map(deviceDriver => 
-        deviceDriver._id === id ? updatedDeviceDriver : deviceDriver
-      ));
-      return updatedDeviceDriver;
-    } catch (err) {
-      setError(err as Error);
-      console.error('Failed to update device driver:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const updateDeviceDriverById = useCallback(
+    async (id: string, deviceDriverData: Partial<DeviceDriver>) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const updatedDeviceDriver = await updateDeviceDriver(id, deviceDriverData);
+        setDeviceDrivers(prev =>
+          prev.map(deviceDriver => (deviceDriver._id === id ? updatedDeviceDriver : deviceDriver))
+        );
+        return updatedDeviceDriver;
+      } catch (err) {
+        setError(err as Error);
+        console.error('Failed to update device driver:', err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   // Delete a device driver
   const removeDeviceDriver = useCallback(async (id: string) => {
@@ -147,6 +155,6 @@ export const useDeviceDrivers = () => {
     addDeviceDriver,
     getDeviceDriver,
     updateDeviceDriver: updateDeviceDriverById,
-    deleteDeviceDriver: removeDeviceDriver
+    deleteDeviceDriver: removeDeviceDriver,
   };
 };

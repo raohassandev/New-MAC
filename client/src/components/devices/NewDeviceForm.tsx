@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Server, Settings, Tag, Info, Database, HelpCircle, AlertCircle, Zap, Clock, RefreshCw, TerminalSquare } from 'lucide-react';
+import {
+  X,
+  Save,
+  Plus,
+  Server,
+  Settings,
+  Tag,
+  Info,
+  Database,
+  HelpCircle,
+  AlertCircle,
+  Zap,
+  Clock,
+  RefreshCw,
+  TerminalSquare,
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 
 // Import UI components
@@ -20,12 +35,36 @@ import { DataPoint } from '../../types/device.types';
 
 // Device usage categories
 const DEVICE_USAGE_CATEGORIES = [
-  { id: 'energy_analysis', name: 'Energy Analyzer', description: 'Devices that measure and analyze energy consumption' },
-  { id: 'power_source', name: 'Power Source', description: 'Power generation or synchronization modules' },
-  { id: 'temperature', name: 'Temperature Sensor', description: 'Devices measuring temperature in industrial settings' },
-  { id: 'motion', name: 'Motion Sensor', description: 'RPM sensors, motion detectors, and speed measurements' },
-  { id: 'level', name: 'Level Sensor', description: 'Liquid or solid material level measurement devices' },
-  { id: 'pressure', name: 'Pressure Sensor', description: 'Devices measuring pressure in industrial processes' },
+  {
+    id: 'energy_analysis',
+    name: 'Energy Analyzer',
+    description: 'Devices that measure and analyze energy consumption',
+  },
+  {
+    id: 'power_source',
+    name: 'Power Source',
+    description: 'Power generation or synchronization modules',
+  },
+  {
+    id: 'temperature',
+    name: 'Temperature Sensor',
+    description: 'Devices measuring temperature in industrial settings',
+  },
+  {
+    id: 'motion',
+    name: 'Motion Sensor',
+    description: 'RPM sensors, motion detectors, and speed measurements',
+  },
+  {
+    id: 'level',
+    name: 'Level Sensor',
+    description: 'Liquid or solid material level measurement devices',
+  },
+  {
+    id: 'pressure',
+    name: 'Pressure Sensor',
+    description: 'Devices measuring pressure in industrial processes',
+  },
   { id: 'flow', name: 'Flow Meter', description: 'Devices measuring flow of liquids or gases' },
   { id: 'automation', name: 'Automation Control', description: 'PLCs and other control systems' },
   { id: 'other', name: 'Other', description: 'Other device types not listed above' },
@@ -61,7 +100,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       tcp: {
         ip: '',
         port: 502,
-        slaveId: 1
+        slaveId: 1,
       },
       rtu: {
         serialPort: '',
@@ -69,8 +108,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         dataBits: 8,
         stopBits: 1,
         parity: 'none',
-        slaveId: 1
-      }
+        slaveId: 1,
+      },
     },
     make: '',
     model: '',
@@ -85,13 +124,13 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         retries: 3,
         retryInterval: 1000, // 1 second
         autoReconnect: true,
-        reconnectInterval: 5000 // 5 seconds
+        reconnectInterval: 5000, // 5 seconds
       },
       cacheOptions: {
         enabled: true,
         defaultTtl: 60000, // 1 minute
         maxSize: 10000,
-        checkInterval: 60000 // 1 minute
+        checkInterval: 60000, // 1 minute
       },
       logOptions: {
         level: 'info',
@@ -100,12 +139,12 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
           enabled: false,
           path: '',
           maxSize: 5, // 5 MB
-          maxFiles: 5
-        }
-      }
-    }
+          maxFiles: 5,
+        },
+      },
+    },
   });
-  
+
   const [deviceDrivers, setDeviceDrivers] = useState<DeviceDriver[]>([]);
   const [selectedDeviceDriver, setSelectedDeviceDriver] = useState<DeviceDriver | null>(null);
   const [newTag, setNewTag] = useState('');
@@ -166,8 +205,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         dataPoints: driver.dataPoints || [],
         connectionSetting: {
           ...prevData.connectionSetting,
-          connectionType: driver.connectionSetting?.connectionType || prevData.connectionSetting.connectionType,
-        }
+          connectionType:
+            driver.connectionSetting?.connectionType || prevData.connectionSetting.connectionType,
+        },
       }));
     }
 
@@ -189,7 +229,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     // Handle nested properties using path notation (e.g. 'tcp.ip', 'advancedSettings.defaultPollInterval')
     if (name.includes('.')) {
       const paths = name.split('.');
-      
+
       // Handle connection settings (special case for backward compatibility)
       if (paths[0] === 'tcp' || paths[0] === 'rtu') {
         setDeviceData({
@@ -199,10 +239,10 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             [paths[0]]: {
               ...deviceData.connectionSetting[paths[0] as 'tcp' | 'rtu'],
               [paths[1]]: newValue,
-            }
-          }
+            },
+          },
         });
-      } 
+      }
       // Handle advanced settings with up to 3 levels of nesting
       else if (paths[0] === 'advancedSettings') {
         if (paths.length === 2) {
@@ -212,7 +252,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             advancedSettings: {
               ...deviceData.advancedSettings,
               [paths[1]]: newValue,
-            }
+            },
           });
         } else if (paths.length === 3) {
           // Handle 'advancedSettings.connectionOptions.timeout'
@@ -221,20 +261,23 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             advancedSettings: {
               ...deviceData.advancedSettings,
               [paths[1]]: {
-                ...deviceData.advancedSettings[paths[1] as keyof typeof deviceData.advancedSettings],
+                ...deviceData.advancedSettings[
+                  paths[1] as keyof typeof deviceData.advancedSettings
+                ],
                 [paths[2]]: newValue,
-              }
-            }
+              },
+            },
           });
         } else if (paths.length === 4) {
           // Handle 'advancedSettings.logOptions.file.enabled'
           const level1 = paths[1]; // logOptions
           const level2 = paths[2]; // file
           const level3 = paths[3]; // enabled
-          
+
           // Safely cast to avoid TypeScript errors
-          const level1Obj = deviceData.advancedSettings[level1 as keyof typeof deviceData.advancedSettings];
-          
+          const level1Obj =
+            deviceData.advancedSettings[level1 as keyof typeof deviceData.advancedSettings];
+
           setDeviceData({
             ...deviceData,
             advancedSettings: {
@@ -244,9 +287,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                 [level2]: {
                   ...(level1Obj as any)[level2],
                   [level3]: newValue,
-                }
-              }
-            }
+                },
+              },
+            },
           });
         }
       } else {
@@ -276,8 +319,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       ...deviceData,
       connectionSetting: {
         ...deviceData.connectionSetting,
-        connectionType: type as 'tcp' | 'rtu'
-      }
+        connectionType: type as 'tcp' | 'rtu',
+      },
     });
   };
 
@@ -311,7 +354,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       newErrors.deviceDriverId = 'Please select a device driver';
     } else if (deviceDrivers.length === 0) {
       // Add a more descriptive top-level error when no device drivers available
-      newErrors.noDeviceDrivers = 'No device drivers available. Please create a device driver first before adding a device.';
+      newErrors.noDeviceDrivers =
+        'No device drivers available. Please create a device driver first before adding a device.';
     }
 
     // Validate usage category
@@ -334,7 +378,10 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         }
 
         // Ensure slave ID is a valid number
-        if (tcp && (isNaN(Number(tcp.slaveId)) || Number(tcp.slaveId) <= 0 || Number(tcp.slaveId) > 255)) {
+        if (
+          tcp &&
+          (isNaN(Number(tcp.slaveId)) || Number(tcp.slaveId) <= 0 || Number(tcp.slaveId) > 255)
+        ) {
           newErrors['tcp.slaveId'] = 'Slave ID must be a valid number between 1-255';
         }
       } else if (deviceData.connectionSetting.connectionType === 'rtu') {
@@ -345,7 +392,10 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
         }
 
         // Additional RTU validations if needed
-        if (rtu && (isNaN(Number(rtu.slaveId)) || Number(rtu.slaveId) <= 0 || Number(rtu.slaveId) > 255)) {
+        if (
+          rtu &&
+          (isNaN(Number(rtu.slaveId)) || Number(rtu.slaveId) <= 0 || Number(rtu.slaveId) > 255)
+        ) {
           newErrors['rtu.slaveId'] = 'Slave ID must be a valid number between 1-255';
         }
       }
@@ -353,73 +403,93 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       // Connection settings must exist
       newErrors['connectionSetting'] = 'Connection settings are required';
     }
-    
+
     // Advanced settings validation
     if (deviceData.advancedSettings) {
       // Validate polling interval
-      if (isNaN(Number(deviceData.advancedSettings.defaultPollInterval)) || 
-          Number(deviceData.advancedSettings.defaultPollInterval) < 100) {
+      if (
+        isNaN(Number(deviceData.advancedSettings.defaultPollInterval)) ||
+        Number(deviceData.advancedSettings.defaultPollInterval) < 100
+      ) {
         newErrors['advancedSettings.defaultPollInterval'] = 'Poll interval must be at least 100ms';
       }
-      
+
       // Validate request timeout
-      if (isNaN(Number(deviceData.advancedSettings.defaultRequestTimeout)) || 
-          Number(deviceData.advancedSettings.defaultRequestTimeout) < 100) {
-        newErrors['advancedSettings.defaultRequestTimeout'] = 'Request timeout must be at least 100ms';
+      if (
+        isNaN(Number(deviceData.advancedSettings.defaultRequestTimeout)) ||
+        Number(deviceData.advancedSettings.defaultRequestTimeout) < 100
+      ) {
+        newErrors['advancedSettings.defaultRequestTimeout'] =
+          'Request timeout must be at least 100ms';
       }
-      
+
       // Validate connection options
       if (deviceData.advancedSettings.connectionOptions) {
         const connOpts = deviceData.advancedSettings.connectionOptions;
-        
+
         if (isNaN(Number(connOpts.timeout)) || Number(connOpts.timeout) < 100) {
-          newErrors['advancedSettings.connectionOptions.timeout'] = 'Connection timeout must be at least 100ms';
+          newErrors['advancedSettings.connectionOptions.timeout'] =
+            'Connection timeout must be at least 100ms';
         }
-        
+
         if (isNaN(Number(connOpts.retries)) || Number(connOpts.retries) < 0) {
-          newErrors['advancedSettings.connectionOptions.retries'] = 'Retries must be a non-negative number';
+          newErrors['advancedSettings.connectionOptions.retries'] =
+            'Retries must be a non-negative number';
         }
-        
+
         if (isNaN(Number(connOpts.retryInterval)) || Number(connOpts.retryInterval) < 100) {
-          newErrors['advancedSettings.connectionOptions.retryInterval'] = 'Retry interval must be at least 100ms';
+          newErrors['advancedSettings.connectionOptions.retryInterval'] =
+            'Retry interval must be at least 100ms';
         }
-        
-        if (connOpts.autoReconnect && 
-            (isNaN(Number(connOpts.reconnectInterval)) || Number(connOpts.reconnectInterval) < 100)) {
-          newErrors['advancedSettings.connectionOptions.reconnectInterval'] = 'Reconnect interval must be at least 100ms';
+
+        if (
+          connOpts.autoReconnect &&
+          (isNaN(Number(connOpts.reconnectInterval)) || Number(connOpts.reconnectInterval) < 100)
+        ) {
+          newErrors['advancedSettings.connectionOptions.reconnectInterval'] =
+            'Reconnect interval must be at least 100ms';
         }
       }
-      
+
       // Validate cache options
-      if (deviceData.advancedSettings.cacheOptions && deviceData.advancedSettings.cacheOptions.enabled) {
+      if (
+        deviceData.advancedSettings.cacheOptions &&
+        deviceData.advancedSettings.cacheOptions.enabled
+      ) {
         const cacheOpts = deviceData.advancedSettings.cacheOptions;
-        
+
         if (isNaN(Number(cacheOpts.defaultTtl)) || Number(cacheOpts.defaultTtl) < 1000) {
-          newErrors['advancedSettings.cacheOptions.defaultTtl'] = 'Cache TTL must be at least 1000ms (1 second)';
+          newErrors['advancedSettings.cacheOptions.defaultTtl'] =
+            'Cache TTL must be at least 1000ms (1 second)';
         }
-        
+
         if (isNaN(Number(cacheOpts.maxSize)) || Number(cacheOpts.maxSize) < 100) {
-          newErrors['advancedSettings.cacheOptions.maxSize'] = 'Cache max size must be at least 100 entries';
+          newErrors['advancedSettings.cacheOptions.maxSize'] =
+            'Cache max size must be at least 100 entries';
         }
-        
+
         if (isNaN(Number(cacheOpts.checkInterval)) || Number(cacheOpts.checkInterval) < 1000) {
-          newErrors['advancedSettings.cacheOptions.checkInterval'] = 'Cache check interval must be at least 1000ms (1 second)';
+          newErrors['advancedSettings.cacheOptions.checkInterval'] =
+            'Cache check interval must be at least 1000ms (1 second)';
         }
       }
-      
+
       // Validate log file options
-      if (deviceData.advancedSettings.logOptions && 
-          deviceData.advancedSettings.logOptions.file && 
-          deviceData.advancedSettings.logOptions.file.enabled) {
-        
+      if (
+        deviceData.advancedSettings.logOptions &&
+        deviceData.advancedSettings.logOptions.file &&
+        deviceData.advancedSettings.logOptions.file.enabled
+      ) {
         const fileOpts = deviceData.advancedSettings.logOptions.file;
-        
+
         if (isNaN(Number(fileOpts.maxSize)) || Number(fileOpts.maxSize) <= 0) {
-          newErrors['advancedSettings.logOptions.file.maxSize'] = 'Max file size must be a positive number';
+          newErrors['advancedSettings.logOptions.file.maxSize'] =
+            'Max file size must be a positive number';
         }
-        
+
         if (isNaN(Number(fileOpts.maxFiles)) || Number(fileOpts.maxFiles) <= 0) {
-          newErrors['advancedSettings.logOptions.file.maxFiles'] = 'Max files must be a positive number';
+          newErrors['advancedSettings.logOptions.file.maxFiles'] =
+            'Max files must be a positive number';
         }
       }
     }
@@ -436,28 +506,36 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
     e.preventDefault();
     console.log('[NewDeviceForm] Form submission started');
     setSubmissionError(null);
-    
+
     if (!validateForm()) {
       console.log('[NewDeviceForm] Form validation failed', errors);
-      
+
       // Special case for no device drivers available
       if (errors.noDeviceDrivers) {
         toast.error('Cannot create device: No device drivers available');
         return;
       }
-      
+
       toast.error('Please fill in all required fields');
       // Automatically switch to first tab with errors
       if (errors.name || errors.deviceDriverId) {
         setActiveTab('basic');
-      } else if (errors['tcp.ip'] || errors['tcp.port'] || errors['tcp.slaveId'] || 
-                errors['rtu.serialPort'] || errors['rtu.baudRate'] || errors['rtu.slaveId']) {
+      } else if (
+        errors['tcp.ip'] ||
+        errors['tcp.port'] ||
+        errors['tcp.slaveId'] ||
+        errors['rtu.serialPort'] ||
+        errors['rtu.baudRate'] ||
+        errors['rtu.slaveId']
+      ) {
         setActiveTab('connection');
       } else if (errors.usage) {
         setActiveTab('metadata');
-      } else if (errors['advancedSettings.defaultPollInterval'] || 
-                errors['advancedSettings.defaultRequestTimeout'] || 
-                errors['advancedSettings.connectionOptions.timeout']) {
+      } else if (
+        errors['advancedSettings.defaultPollInterval'] ||
+        errors['advancedSettings.defaultRequestTimeout'] ||
+        errors['advancedSettings.connectionOptions.timeout']
+      ) {
         setActiveTab('advanced');
       }
       return;
@@ -477,16 +555,16 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
           tcp: {
             ...deviceData.connectionSetting.tcp,
             port: parseInt(deviceData.connectionSetting.tcp.port.toString()) || 502,
-            slaveId: parseInt(deviceData.connectionSetting.tcp.slaveId.toString()) || 1
+            slaveId: parseInt(deviceData.connectionSetting.tcp.slaveId.toString()) || 1,
           },
           rtu: {
             ...deviceData.connectionSetting.rtu,
             baudRate: parseInt(deviceData.connectionSetting.rtu.baudRate.toString()) || 9600,
             dataBits: parseInt(deviceData.connectionSetting.rtu.dataBits.toString()) || 8,
             stopBits: parseInt(deviceData.connectionSetting.rtu.stopBits.toString()) || 1,
-            slaveId: parseInt(deviceData.connectionSetting.rtu.slaveId.toString()) || 1
-          }
-        }
+            slaveId: parseInt(deviceData.connectionSetting.rtu.slaveId.toString()) || 1,
+          },
+        },
       };
 
       // Add default values for empty fields to prevent backend validation errors
@@ -495,7 +573,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
       if (!submissionData.model) submissionData.model = '';
       if (!submissionData.location) submissionData.location = '';
       if (!submissionData.usageNotes) submissionData.usageNotes = '';
-      
+
       // Ensure required arrays are defined
       submissionData.tags = submissionData.tags || [];
       submissionData.dataPoints = submissionData.dataPoints || [];
@@ -504,19 +582,20 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
 
       // Call the onSubmit handler with the prepared data
       console.log('[NewDeviceForm] Calling onSubmit handler');
-      
+
       try {
         await onSubmit(submissionData);
         // If we get here, submission was successful
         console.log('[NewDeviceForm] Submission successful');
       } catch (error: any) {
         console.error('[NewDeviceForm] Error during form submission:', error);
-        
+
         // Set error message to display to user
-        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create device';
+        const errorMessage =
+          error?.response?.data?.message || error?.message || 'Failed to create device';
         setSubmissionError(errorMessage);
         toast.error(errorMessage);
-        
+
         // Do not close the form - keep it open so user can see the error and try again
       } finally {
         setIsSubmitting(false);
@@ -563,13 +642,15 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   <h3 className="text-sm font-medium text-yellow-800">Device Driver Required</h3>
                   <div className="mt-2 text-sm text-yellow-700">
                     <p>{errors.noDeviceDrivers}</p>
-                    <p className="mt-1">You must have at least one device driver defined before you can add devices.</p>
+                    <p className="mt-1">
+                      You must have at least one device driver defined before you can add devices.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           )}
-          
+
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} variant="boxed">
             {/* Basic Details Tab */}
             {activeTab === 'basic' && (
@@ -635,7 +716,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   <Form.Label htmlFor="deviceDriverId" required>
                     Select Device Driver
                   </Form.Label>
-                  
+
                   {isLoadingDrivers ? (
                     <div className="flex items-center space-x-2 text-gray-500">
                       <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-500"></div>
@@ -646,7 +727,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   ) : deviceDrivers.length === 0 ? (
                     <div className="space-y-3">
                       <Alert variant="warning">
-                        No device drivers available in the database. You need to create device drivers before adding devices.
+                        No device drivers available in the database. You need to create device
+                        drivers before adding devices.
                       </Alert>
                       <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
                         <p>Device drivers define:</p>
@@ -655,7 +737,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                           <li>Data points and their properties</li>
                           <li>Default connection settings</li>
                         </ul>
-                        <p className="mt-2">Go to Device Drivers section to create device drivers first.</p>
+                        <p className="mt-2">
+                          Go to Device Drivers section to create device drivers first.
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -664,13 +748,13 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         id="deviceDriverId"
                         name="deviceDriverId"
                         value={deviceData.deviceDriverId}
-                        onChange={(e) => handleDeviceDriverChange(e.target.value)}
+                        onChange={e => handleDeviceDriverChange(e.target.value)}
                         options={[
                           { value: '', label: 'Select a device driver' },
                           ...deviceDrivers.map(driver => ({
                             value: driver._id,
-                            label: `${driver.name} ${driver.make ? `(${driver.make} ${driver.model || ''})`.trim() : ''}`
-                          }))
+                            label: `${driver.name} ${driver.make ? `(${driver.make} ${driver.model || ''})`.trim() : ''}`,
+                          })),
                         ]}
                         error={errors.deviceDriverId}
                       />
@@ -691,19 +775,27 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Manufacturer</dt>
-                            <dd className="text-sm text-gray-900">{selectedDeviceDriver.make || 'N/A'}</dd>
+                            <dd className="text-sm text-gray-900">
+                              {selectedDeviceDriver.make || 'N/A'}
+                            </dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Model</dt>
-                            <dd className="text-sm text-gray-900">{selectedDeviceDriver.model || 'N/A'}</dd>
+                            <dd className="text-sm text-gray-900">
+                              {selectedDeviceDriver.model || 'N/A'}
+                            </dd>
                           </div>
                           <div className="col-span-2">
                             <dt className="text-sm font-medium text-gray-500">Description</dt>
-                            <dd className="text-sm text-gray-900">{selectedDeviceDriver.description || 'No description provided'}</dd>
+                            <dd className="text-sm text-gray-900">
+                              {selectedDeviceDriver.description || 'No description provided'}
+                            </dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Device Type</dt>
-                            <dd className="text-sm text-gray-900">{selectedDeviceDriver.deviceType || 'N/A'}</dd>
+                            <dd className="text-sm text-gray-900">
+                              {selectedDeviceDriver.deviceType || 'N/A'}
+                            </dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Data Points</dt>
@@ -728,7 +820,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     id="connectionType"
                     name="connectionType"
                     value={deviceData.connectionSetting.connectionType}
-                    onChange={(e) => handleConnectionTypeChange(e.target.value)}
+                    onChange={e => handleConnectionTypeChange(e.target.value)}
                     options={[
                       { value: 'tcp', label: 'Modbus TCP' },
                       { value: 'rtu', label: 'Modbus RTU' },
@@ -903,8 +995,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                       { value: '', label: 'Select device usage' },
                       ...DEVICE_USAGE_CATEGORIES.map(category => ({
                         value: category.id,
-                        label: category.name
-                      }))
+                        label: category.name,
+                      })),
                     ]}
                     error={errors.usage}
                   />
@@ -966,7 +1058,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                 </Form.Group>
               </div>
             )}
-            
+
             {/* Advanced Settings Tab */}
             {activeTab === 'advanced' && (
               <div className="space-y-6 pt-4">
@@ -992,7 +1084,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         Default interval between polling requests (milliseconds)
                       </Form.Description>
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.defaultRequestTimeout">
                         Request Timeout (ms)
@@ -1010,7 +1102,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     </Form.Group>
                   </div>
                 </div>
-                
+
                 {/* Connection Options */}
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
                   <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
@@ -1030,7 +1122,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                       />
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.connectionOptions.retries">
                         Retries
@@ -1043,7 +1135,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                       />
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.connectionOptions.retryInterval">
                         Retry Interval (ms)
@@ -1056,12 +1148,12 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                       />
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Switch
                         label="Auto Reconnect"
                         checked={deviceData.advancedSettings.connectionOptions.autoReconnect}
-                        onChange={(e) => {
+                        onChange={e => {
                           const checked = (e.target as HTMLInputElement).checked;
                           setDeviceData({
                             ...deviceData,
@@ -1069,14 +1161,14 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                               ...deviceData.advancedSettings,
                               connectionOptions: {
                                 ...deviceData.advancedSettings.connectionOptions,
-                                autoReconnect: checked
-                              }
-                            }
+                                autoReconnect: checked,
+                              },
+                            },
                           });
                         }}
                       />
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.connectionOptions.reconnectInterval">
                         Reconnect Interval (ms)
@@ -1092,7 +1184,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     </Form.Group>
                   </div>
                 </div>
-                
+
                 {/* Cache Options */}
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
                   <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
@@ -1103,7 +1195,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <Switch
                       label="Enable Caching"
                       checked={deviceData.advancedSettings.cacheOptions.enabled}
-                      onChange={(e) => {
+                      onChange={e => {
                         const checked = (e.target as HTMLInputElement).checked;
                         setDeviceData({
                           ...deviceData,
@@ -1111,14 +1203,14 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                             ...deviceData.advancedSettings,
                             cacheOptions: {
                               ...deviceData.advancedSettings.cacheOptions,
-                              enabled: checked
-                            }
-                          }
+                              enabled: checked,
+                            },
+                          },
                         });
                       }}
                     />
                   </Form.Group>
-                  
+
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.cacheOptions.defaultTtl">
@@ -1132,11 +1224,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                         disabled={!deviceData.advancedSettings.cacheOptions.enabled}
                       />
-                      <Form.Description>
-                        Time-to-live for cached values
-                      </Form.Description>
+                      <Form.Description>Time-to-live for cached values</Form.Description>
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.cacheOptions.maxSize">
                         Max Size
@@ -1149,11 +1239,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                         disabled={!deviceData.advancedSettings.cacheOptions.enabled}
                       />
-                      <Form.Description>
-                        Maximum items in cache
-                      </Form.Description>
+                      <Form.Description>Maximum items in cache</Form.Description>
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.cacheOptions.checkInterval">
                         Check Interval (ms)
@@ -1166,13 +1254,11 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                         onChange={handleInputChange}
                         disabled={!deviceData.advancedSettings.cacheOptions.enabled}
                       />
-                      <Form.Description>
-                        Interval to check for expired items
-                      </Form.Description>
+                      <Form.Description>Interval to check for expired items</Form.Description>
                     </Form.Group>
                   </div>
                 </div>
-                
+
                 {/* Logging Options */}
                 <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
                   <h3 className="mb-3 flex items-center text-base font-medium text-gray-900">
@@ -1181,9 +1267,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   </h3>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <Form.Group>
-                      <Form.Label htmlFor="advancedSettings.logOptions.level">
-                        Log Level
-                      </Form.Label>
+                      <Form.Label htmlFor="advancedSettings.logOptions.level">Log Level</Form.Label>
                       <Form.Select
                         id="advancedSettings.logOptions.level"
                         name="advancedSettings.logOptions.level"
@@ -1193,19 +1277,17 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                           { value: 'debug', label: 'Debug (Most Verbose)' },
                           { value: 'info', label: 'Info (Standard)' },
                           { value: 'warn', label: 'Warning' },
-                          { value: 'error', label: 'Error (Least Verbose)' }
+                          { value: 'error', label: 'Error (Least Verbose)' },
                         ]}
                       />
-                      <Form.Description>
-                        Minimum level of messages to log
-                      </Form.Description>
+                      <Form.Description>Minimum level of messages to log</Form.Description>
                     </Form.Group>
-                    
+
                     <Form.Group>
                       <Switch
                         label="Console Logging"
                         checked={deviceData.advancedSettings.logOptions.console}
-                        onChange={(e) => {
+                        onChange={e => {
                           const checked = (e.target as HTMLInputElement).checked;
                           setDeviceData({
                             ...deviceData,
@@ -1213,23 +1295,21 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                               ...deviceData.advancedSettings,
                               logOptions: {
                                 ...deviceData.advancedSettings.logOptions,
-                                console: checked
-                              }
-                            }
+                                console: checked,
+                              },
+                            },
                           });
                         }}
                       />
-                      <Form.Description>
-                        Output logs to server console
-                      </Form.Description>
+                      <Form.Description>Output logs to server console</Form.Description>
                     </Form.Group>
                   </div>
-                  
+
                   <div className="mt-3">
                     <Switch
                       label="Enable File Logging"
                       checked={deviceData.advancedSettings.logOptions.file?.enabled}
-                      onChange={(e) => {
+                      onChange={e => {
                         const checked = (e.target as HTMLInputElement).checked;
                         setDeviceData({
                           ...deviceData,
@@ -1239,14 +1319,14 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                               ...deviceData.advancedSettings.logOptions,
                               file: {
                                 ...deviceData.advancedSettings.logOptions.file,
-                                enabled: checked
-                              }
-                            }
-                          }
+                                enabled: checked,
+                              },
+                            },
+                          },
                         });
                       }}
                     />
-                    
+
                     {deviceData.advancedSettings.logOptions.file?.enabled && (
                       <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Form.Group>
@@ -1260,11 +1340,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                             onChange={handleInputChange}
                             placeholder="logs/device-{id}.log"
                           />
-                          <Form.Description>
-                            Path where log files will be stored
-                          </Form.Description>
+                          <Form.Description>Path where log files will be stored</Form.Description>
                         </Form.Group>
-                        
+
                         <Form.Group>
                           <Form.Label htmlFor="advancedSettings.logOptions.file.maxSize">
                             Max File Size (MB)
@@ -1277,7 +1355,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                             onChange={handleInputChange}
                           />
                         </Form.Group>
-                        
+
                         <Form.Group>
                           <Form.Label htmlFor="advancedSettings.logOptions.file.maxFiles">
                             Max Files
@@ -1297,14 +1375,16 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     )}
                   </div>
                 </div>
-                
+
                 <div className="mt-2 rounded-md bg-blue-50 p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <HelpCircle className="h-5 w-5 text-blue-400" aria-hidden="true" />
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">Advanced Settings Information</h3>
+                      <h3 className="text-sm font-medium text-blue-800">
+                        Advanced Settings Information
+                      </h3>
                       <div className="mt-2 text-sm text-blue-700">
                         <p>These settings control how the system communicates with this device:</p>
                         <ul className="list-disc space-y-1 pl-5 pt-2">
@@ -1336,15 +1416,17 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
               </div>
             </div>
           )}
-          
+
           <div className="mt-6 flex justify-end space-x-2 border-t pt-4">
             <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isSubmitting || deviceDrivers.length === 0}
-              title={deviceDrivers.length === 0 ? "Device drivers are required to create a device" : ""}
+              title={
+                deviceDrivers.length === 0 ? 'Device drivers are required to create a device' : ''
+              }
             >
               {isSubmitting ? (
                 <>

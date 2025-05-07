@@ -12,44 +12,44 @@ const edgeTypes = {
     color: '#007bff',
     label: 'Call',
     strokeDasharray: 'none',
-    thickness: 2
+    thickness: 2,
   },
   data: {
     color: '#28a745',
     label: 'Data Flow',
     strokeDasharray: '5,5',
-    thickness: 2
+    thickness: 2,
   },
   event: {
     color: '#dc3545',
     label: 'Event',
     strokeDasharray: '1,5',
-    thickness: 2
+    thickness: 2,
   },
   depend: {
     color: '#6c757d',
     label: 'Dependency',
     strokeDasharray: '10,3',
-    thickness: 1.5
+    thickness: 1.5,
   },
   compose: {
     color: '#17a2b8',
     label: 'Composes',
     strokeDasharray: 'none',
-    thickness: 2
+    thickness: 2,
   },
   use: {
     color: '#fd7e14',
     label: 'Uses',
     strokeDasharray: '5,2',
-    thickness: 2
+    thickness: 2,
   },
   route: {
     color: '#6f42c1',
     label: 'Routes',
     strokeDasharray: '10,2,2,2',
-    thickness: 2
-  }
+    thickness: 2,
+  },
 };
 
 const CustomEdge: React.FC<CustomEdgeProps> = ({
@@ -67,11 +67,11 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
   markerEnd,
 }) => {
   const { setSelectedEdge } = useDiagram();
-  
+
   // Get edge type styles
   const edgeType = data?.type || 'call';
   const edgeStyle = edgeTypes[edgeType] || edgeTypes.call;
-  
+
   // Calculate bezier path
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -81,7 +81,7 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
     targetY,
     targetPosition,
   });
-  
+
   const handleEdgeClick = () => {
     setSelectedEdge({
       id,
@@ -90,7 +90,7 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
       data,
     } as SystemEdge);
   };
-  
+
   return (
     <>
       <path
@@ -107,7 +107,7 @@ const CustomEdge: React.FC<CustomEdgeProps> = ({
         }}
         onClick={handleEdgeClick}
       />
-      
+
       {/* Label only shown for certain edge types or if label exists */}
       {data && data.description && (
         <g transform={`translate(${labelX}, ${labelY})`} onClick={handleEdgeClick}>

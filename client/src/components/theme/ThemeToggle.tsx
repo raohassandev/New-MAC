@@ -14,7 +14,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
   const handleToggle = () => {
     // Cycle through modes: light -> dark -> system -> light
     let newMode: ThemeMode;
-    
+
     switch (themeMode) {
       case 'light':
         newMode = 'dark';
@@ -27,7 +27,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
         newMode = 'light';
         break;
     }
-    
+
     dispatch(setTheme(newMode));
   };
 

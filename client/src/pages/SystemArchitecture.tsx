@@ -22,11 +22,7 @@ function TabPanel(props: TabPanelProps) {
       {...other}
       style={{ height: 'calc(100vh - 130px)' }}
     >
-      {value === index && (
-        <Box sx={{ p: 3, height: '100%' }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3, height: '100%' }}>{children}</Box>}
     </div>
   );
 }
@@ -49,8 +45,8 @@ const SystemArchitecture: React.FC = () => {
     <Box sx={{ width: '100%', height: '100%' }}>
       <Paper sx={{ mb: 2 }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs 
-            value={tabValue} 
+          <Tabs
+            value={tabValue}
             onChange={handleTabChange}
             aria-label="architecture tabs"
             sx={{ pl: 2 }}
@@ -61,9 +57,9 @@ const SystemArchitecture: React.FC = () => {
         </Box>
         <Box sx={{ p: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            {tabValue === 0 
-              ? "Interactive visualization of the complete system architecture showing components, relationships, and data flow."
-              : "Plan and manage system upgrades with detailed component parameter visualization and impact analysis."}
+            {tabValue === 0
+              ? 'Interactive visualization of the complete system architecture showing components, relationships, and data flow.'
+              : 'Plan and manage system upgrades with detailed component parameter visualization and impact analysis.'}
           </Typography>
         </Box>
       </Paper>

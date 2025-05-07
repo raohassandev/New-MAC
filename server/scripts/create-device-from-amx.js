@@ -1,14 +1,14 @@
-const mongoose = require('mongoose');
+import { createConnection, Schema } from 'mongoose';
 
 // Create a connection to AMX database
 async function main() {
   try {
     console.log('Connecting to AMX database...');
-    const amxConnection = await mongoose.createConnection('mongodb://localhost:27017/amx');
+    const amxConnection = await createConnection('mongodb://localhost:27017/amx');
     console.log('Connected to AMX database');
 
     console.log('Connecting to client database...');
-    const clientConnection = await mongoose.createConnection('mongodb://localhost:27017/client');
+    const clientConnection = await createConnection('mongodb://localhost:27017/client');
     console.log('Connected to client database');
 
     // Get device types from AMX database
@@ -17,7 +17,7 @@ async function main() {
     console.log(deviceTypes.map(type => ({ id: type._id, name: type.name })));
 
     // Create device schema
-    const deviceSchema = new mongoose.Schema({
+    const deviceSchema = new Schema({
       name: { type: String, required: true, unique: true },
       description: { type: String, default: '' },
       enabled: { type: Boolean, default: true },
@@ -28,7 +28,7 @@ async function main() {
         tcp: {
           ip: { type: String, default: '' },
           port: { type: Number, default: 502 },
-          slaveId: { type: Number, default: 1 }
+          slaveId: { type: Number, default: 1 },
         },
         rtu: {
           serialPort: { type: String, default: '' },
@@ -36,28 +36,32 @@ async function main() {
           dataBits: { type: Number, default: 8 },
           stopBits: { type: Number, default: 1 },
           parity: { type: String, default: 'none' },
-          slaveId: { type: Number, default: 1 }
-        }
-      },
-      dataPoints: [{ 
-        range: {
-          startAddress: { type: Number, required: true },
-          count: { type: Number, required: true, default: 1 },
-          fc: { type: Number, required: true, default: 3 }
+          slaveId: { type: Number, default: 1 },
         },
-        parser: {
-          parameters: [{
-            name: { type: String, required: true },
-            dataType: { type: String, default: 'INT16' },
-            registerIndex: { type: Number, required: true },
-            scalingFactor: { type: Number, default: 1 },
-            unit: { type: String }
-          }]
-        }
-      }],
+      },
+      dataPoints: [
+        {
+          range: {
+            startAddress: { type: Number, required: true },
+            count: { type: Number, required: true, default: 1 },
+            fc: { type: Number, required: true, default: 3 },
+          },
+          parser: {
+            parameters: [
+              {
+                name: { type: String, required: true },
+                dataType: { type: String, default: 'INT16' },
+                registerIndex: { type: Number, required: true },
+                scalingFactor: { type: Number, default: 1 },
+                unit: { type: String },
+              },
+            ],
+          },
+        },
+      ],
       lastSeen: { type: Date },
       createdAt: { type: Date, default: Date.now },
-      updatedAt: { type: Date, default: Date.now }
+      updatedAt: { type: Date, default: Date.now },
     });
 
     // Create device model
@@ -66,7 +70,7 @@ async function main() {
     // Create device from first device type in AMX database
     if (deviceTypes.length > 0) {
       const deviceType = deviceTypes[0];
-      
+
       const testDevice = {
         name: `${deviceType.name} from AMX`,
         description: 'Created from AMX device type',
@@ -78,15 +82,15 @@ async function main() {
           tcp: {
             ip: '192.168.1.100',
             port: 502,
-            slaveId: 1
-          }
+            slaveId: 1,
+          },
         },
         dataPoints: [
           {
             range: {
               startAddress: 0,
               count: 10,
-              fc: 3
+              fc: 3,
             },
             parser: {
               parameters: [
@@ -95,13 +99,13 @@ async function main() {
                   dataType: 'FLOAT',
                   registerIndex: 0,
                   scalingFactor: 0.1,
-                  unit: '°C'
-                }
-              ]
-            }
-          }
+                  unit: '°C',
+                },
+              ],
+            },
+          },
         ],
-        lastSeen: new Date()
+        lastSeen: new Date(),
       };
 
       try {

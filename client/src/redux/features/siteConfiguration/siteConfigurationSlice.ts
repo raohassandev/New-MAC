@@ -94,19 +94,19 @@ const siteConfigurationSlice = createSlice({
         state.hasAppliedChanges = false;
       }
     },
-    resetConfig: (state) => {
+    resetConfig: state => {
       state.data = defaultConfiguration;
       state.isDirty = true;
       state.hasAppliedChanges = false;
     },
-    markConfigApplied: (state) => {
+    markConfigApplied: state => {
       state.isDirty = false;
       state.hasAppliedChanges = true;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Fetch configuration reducers
-    builder.addCase(fetchConfiguration.pending, (state) => {
+    builder.addCase(fetchConfiguration.pending, state => {
       state.loading = true;
       state.error = null;
     });
@@ -127,7 +127,7 @@ const siteConfigurationSlice = createSlice({
     });
 
     // Save configuration reducers
-    builder.addCase(saveConfiguration.pending, (state) => {
+    builder.addCase(saveConfiguration.pending, state => {
       state.loading = true;
       state.error = null;
     });

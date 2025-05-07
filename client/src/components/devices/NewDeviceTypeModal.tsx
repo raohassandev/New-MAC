@@ -15,7 +15,7 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
   const [deviceType, setDeviceType] = useState<NewDeviceType>({
     name: '',
     description: '',
-    category: ''
+    category: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -24,43 +24,43 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
     const { name, value } = e.target;
     setDeviceType(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
-const getDeviceTypeOptions = (loading = false) => {
-  if (loading) {
-    return [{ value: '', label: 'Loading device types...', disabled: true }];
-  }
+  const getDeviceTypeOptions = (loading = false) => {
+    if (loading) {
+      return [{ value: '', label: 'Loading device types...', disabled: true }];
+    }
 
-  // Default categories
-  const defaultCategories = [
-    { value: 'energy', label: 'Energy Monitoring' },
-    { value: 'hvac', label: 'HVAC' },
-    { value: 'plc', label: 'PLC' },
-    { value: 'sensor', label: 'Sensor' },
-    { value: 'other', label: 'Other' }
-  ];
+    // Default categories
+    const defaultCategories = [
+      { value: 'energy', label: 'Energy Monitoring' },
+      { value: 'hvac', label: 'HVAC' },
+      { value: 'plc', label: 'PLC' },
+      { value: 'sensor', label: 'Sensor' },
+      { value: 'other', label: 'Other' },
+    ];
 
-  return [
-    { value: '', label: 'Select Category', disabled: true },
-    ...defaultCategories,
-    { value: 'custom', label: '+ Custom Category' },
-  ];
-};
+    return [
+      { value: '', label: 'Select Category', disabled: true },
+      ...defaultCategories,
+      { value: 'custom', label: '+ Custom Category' },
+    ];
+  };
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!deviceType.name.trim()) {
       newErrors.name = 'Device type name is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validate()) {
       onSubmit(deviceType);
     }
@@ -78,7 +78,7 @@ const getDeviceTypeOptions = (loading = false) => {
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="p-4">
           <Form onSubmit={handleSubmit}>
             <Form.Group>
@@ -93,15 +93,11 @@ const getDeviceTypeOptions = (loading = false) => {
                 placeholder="Energy Analyzer, PLC, Temperature Sensor, etc."
                 className={errors.name ? 'border-red-300' : ''}
               />
-              {errors.name && (
-                <div className="mt-1 text-sm text-red-500">{errors.name}</div>
-              )}
+              {errors.name && <div className="mt-1 text-sm text-red-500">{errors.name}</div>}
             </Form.Group>
-            
+
             <Form.Group>
-              <Form.Label htmlFor="category">
-                Category
-              </Form.Label>
+              <Form.Label htmlFor="category">Category</Form.Label>
               {/* <Input
               type='dropdown'
                 id="category"
@@ -111,23 +107,21 @@ const getDeviceTypeOptions = (loading = false) => {
                 placeholder="Power Monitoring, Process Control, etc."
               /> */}
               <Select
-                            id="category"
-                            name="category"
-                            value={deviceType.category}
-                            onChange={(value) => {
-                              setDeviceType(prev => ({
-                                ...prev,
-                                category: value
-                              }));
-                            }}
-                            options={getDeviceTypeOptions(false)}
-                          />
+                id="category"
+                name="category"
+                value={deviceType.category}
+                onChange={value => {
+                  setDeviceType(prev => ({
+                    ...prev,
+                    category: value,
+                  }));
+                }}
+                options={getDeviceTypeOptions(false)}
+              />
             </Form.Group>
-            
+
             <Form.Group>
-              <Form.Label htmlFor="description">
-                Description
-              </Form.Label>
+              <Form.Label htmlFor="description">Description</Form.Label>
               <Input
                 id="description"
                 name="description"
@@ -136,19 +130,12 @@ const getDeviceTypeOptions = (loading = false) => {
                 placeholder="Short description of this device type"
               />
             </Form.Group>
-            
+
             <div className="mt-6 flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                type="button"
-              >
+              <Button variant="outline" onClick={onClose} type="button">
                 Cancel
               </Button>
-              <Button
-                variant="default"
-                type="submit"
-              >
+              <Button variant="default" type="submit">
                 Create Device Type
               </Button>
             </div>

@@ -20,7 +20,7 @@ export const {
   selectThemeMode,
   selectActiveTheme,
   selectSystemPreference,
-  selectThemeLastUpdated
+  selectThemeLastUpdated,
 } = themeSelectors;
 
 // Default export is the reducer

@@ -162,8 +162,7 @@ const generateDeviceControllerNodeData = (): DetailedNodeData => {
     id: 'device-controller',
     label: 'Device Controller',
     type: 'controller',
-    description:
-      'Handles CRUD operations and device interactions through the API',
+    description: 'Handles CRUD operations and device interactions through the API',
     methods: [
       {
         name: 'getDevices',
@@ -322,8 +321,7 @@ const generateDataPollingServiceNodeData = (): DetailedNodeData => {
     id: 'data-polling-service',
     label: 'Data Polling Service',
     type: 'service',
-    description:
-      'Periodically reads data from devices via Modbus and stores it in the database',
+    description: 'Periodically reads data from devices via Modbus and stores it in the database',
     methods: [
       {
         name: 'pollDevice',
@@ -1107,7 +1105,16 @@ const SystemArchitectureDiagram: React.FC = () => {
       edge => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
     );
     setEdges(filteredEdges);
-  }, [searchTerm, showTypes, showBackend, showFrontend, initialNodes, initialEdges, setNodes, setEdges]);
+  }, [
+    searchTerm,
+    showTypes,
+    showBackend,
+    showFrontend,
+    initialNodes,
+    initialEdges,
+    setNodes,
+    setEdges,
+  ]);
 
   // Handle node type visibility toggle
   const handleTypeToggle = (type: string) => {
@@ -1157,7 +1164,9 @@ const SystemArchitectureDiagram: React.FC = () => {
   // Handle export as image
   const handleExport = () => {
     if (diagramRef.current) {
-      const svg = diagramRef.current.querySelector('.react-flow__renderer')?.cloneNode(true) as SVGElement;
+      const svg = diagramRef.current
+        .querySelector('.react-flow__renderer')
+        ?.cloneNode(true) as SVGElement;
       if (svg) {
         // Clean up SVG
         const controls = svg.querySelector('.react-flow__controls');
@@ -1327,7 +1336,7 @@ const SystemArchitectureDiagram: React.FC = () => {
               nodeStrokeWidth={3}
               zoomable
               pannable
-              nodeColor={(node) => {
+              nodeColor={node => {
                 switch (node.data.type) {
                   case 'model':
                     return '#4caf50'; // Green
@@ -1364,7 +1373,9 @@ const SystemArchitectureDiagram: React.FC = () => {
         </ReactFlowProvider>
       </Box>
 
-      <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', bgcolor: 'background.paper' }}>
+      <Box
+        sx={{ p: 1, display: 'flex', justifyContent: 'space-between', bgcolor: 'background.paper' }}
+      >
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Nodes: {nodes.length} of {initialNodes.length}

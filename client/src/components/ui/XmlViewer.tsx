@@ -7,10 +7,10 @@ interface XmlViewerProps {
   expandAll?: boolean;
 }
 
-const XmlViewer: React.FC<XmlViewerProps> = ({ 
-  xmlContent, 
-  title = 'XML Viewer', 
-  expandAll = false 
+const XmlViewer: React.FC<XmlViewerProps> = ({
+  xmlContent,
+  title = 'XML Viewer',
+  expandAll = false,
 }) => {
   // Parse XML string to DOM
   const parseXml = (xmlStr: string) => {
@@ -24,7 +24,7 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
   const toggleNode = (nodeId: string) => {
     setExpanded(prev => ({
       ...prev,
-      [nodeId]: !prev[nodeId]
+      [nodeId]: !prev[nodeId],
     }));
   };
 
@@ -37,16 +37,14 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
     const isExpanded = expanded[nodeId] ?? expandAll;
     const hasChildren = node.children.length > 0;
     const attributes = Array.from(node.attributes);
-    
+
     return (
       <div key={nodeId} className="ml-4">
-        <div 
-          className="flex items-center cursor-pointer text-sm py-1"
+        <div
+          className="flex cursor-pointer items-center py-1 text-sm"
           onClick={() => hasChildren && toggleNode(nodeId)}
         >
-          {hasChildren && (
-            <span className="mr-2">{isExpanded ? '▼' : '►'}</span>
-          )}
+          {hasChildren && <span className="mr-2">{isExpanded ? '▼' : '►'}</span>}
           <span className="font-medium text-blue-600">&lt;{node.nodeName}</span>
           {attributes.length > 0 && (
             <span className="text-green-600">
@@ -63,15 +61,13 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
             <span className="text-blue-600">&gt;</span>
           )}
         </div>
-        
+
         {hasChildren && isExpanded && (
           <div className="ml-4">
-            {Array.from(node.children).map((child, index) => 
+            {Array.from(node.children).map((child, index) =>
               renderNode(child as Element, `${path}-${node.nodeName}`, index)
             )}
-            <div className="text-sm text-blue-600 py-1">
-              &lt;/{node.nodeName}&gt;
-            </div>
+            <div className="py-1 text-sm text-blue-600">&lt;/{node.nodeName}&gt;</div>
           </div>
         )}
       </div>
@@ -81,13 +77,13 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
   // Main render
   try {
     const xmlDoc = parseXml(xmlContent);
-    
+
     if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
       return (
         <Card>
           <div className="p-4">
             <h3 className="text-lg font-medium">{title}</h3>
-            <div className="mt-2 p-4 bg-red-50 text-red-700 rounded">
+            <div className="mt-2 rounded bg-red-50 p-4 text-red-700">
               Invalid XML: Could not parse the provided XML string
             </div>
           </div>
@@ -98,16 +94,16 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
     return (
       <Card>
         <div className="p-4">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">{title}</h3>
             <button
               onClick={() => setExpanded(expandAll ? {} : { root: true })}
-              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded transition"
+              className="rounded bg-gray-100 px-3 py-1 text-sm transition hover:bg-gray-200"
             >
               {expandAll ? 'Collapse All' : 'Expand All'}
             </button>
           </div>
-          <div className="mt-4 font-mono text-sm overflow-x-auto border rounded bg-gray-50 p-4">
+          <div className="mt-4 overflow-x-auto rounded border bg-gray-50 p-4 font-mono text-sm">
             <div className="text-blue-600">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</div>
             {renderNode(xmlDoc.documentElement, 'root', 0)}
           </div>
@@ -119,7 +115,7 @@ const XmlViewer: React.FC<XmlViewerProps> = ({
       <Card>
         <div className="p-4">
           <h3 className="text-lg font-medium">{title}</h3>
-          <div className="mt-2 p-4 bg-red-50 text-red-700 rounded">
+          <div className="mt-2 rounded bg-red-50 p-4 text-red-700">
             Error: {error instanceof Error ? error.message : 'Unknown error occurred'}
           </div>
         </div>

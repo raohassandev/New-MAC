@@ -305,8 +305,8 @@ const ParameterStructureViewer: React.FC<{ device: IDevice }> = ({ device }) => 
                       param.dataType.includes('FLOAT')
                         ? 'info'
                         : param.dataType.includes('INT')
-                        ? 'primary'
-                        : 'default'
+                          ? 'primary'
+                          : 'default'
                     }
                   />
                 </TableCell>
@@ -503,8 +503,7 @@ const DeviceDetailsViewer: React.FC<{ device: IDevice }> = ({ device }) => {
         </Typography>
         {(device.make || device.model) && (
           <Typography variant="body2" color="text.secondary">
-            {device.make && `Make: ${device.make}`}{' '}
-            {device.model && `Model: ${device.model}`}
+            {device.make && `Make: ${device.make}`} {device.model && `Model: ${device.model}`}
           </Typography>
         )}
       </Box>
@@ -559,8 +558,8 @@ const DeviceDetailsViewer: React.FC<{ device: IDevice }> = ({ device }) => {
                           dp.range.fc === 3
                             ? 'primary'
                             : dp.range.fc === 4
-                            ? 'secondary'
-                            : 'default'
+                              ? 'secondary'
+                              : 'default'
                         }
                       />
                     </TableCell>
@@ -900,11 +899,7 @@ const UpgradePlanner: React.FC = () => {
                   }}
                 >
                   <Typography variant="h6">Upgrade Plans</Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={handleCreateUpgrade}
-                  >
+                  <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateUpgrade}>
                     New Upgrade
                   </Button>
                 </Box>
@@ -928,9 +923,7 @@ const UpgradePlanner: React.FC = () => {
                         {deviceUpgrades.map(item => (
                           <TableRow key={item.id}>
                             <TableCell>
-                              <Tooltip title={item.status}>
-                                {getStatusIcon(item.status)}
-                              </Tooltip>
+                              <Tooltip title={item.status}>{getStatusIcon(item.status)}</Tooltip>
                             </TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell>{item.description}</TableCell>
@@ -953,8 +946,8 @@ const UpgradePlanner: React.FC = () => {
                                   item.priority === 'high'
                                     ? 'error'
                                     : item.priority === 'medium'
-                                    ? 'warning'
-                                    : 'default'
+                                      ? 'warning'
+                                      : 'default'
                                 }
                               />
                             </TableCell>
@@ -966,8 +959,8 @@ const UpgradePlanner: React.FC = () => {
                                   item.impact === 'high'
                                     ? 'error'
                                     : item.impact === 'medium'
-                                    ? 'warning'
-                                    : 'default'
+                                      ? 'warning'
+                                      : 'default'
                                 }
                               />
                             </TableCell>

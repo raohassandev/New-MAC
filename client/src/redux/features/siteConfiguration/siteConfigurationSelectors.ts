@@ -12,7 +12,7 @@ const selectSiteConfigurationState = (state: RootState) => state.siteConfigurati
  */
 export const selectSiteConfiguration = createSelector(
   selectSiteConfigurationState,
-  (siteConfig) => siteConfig.data || defaultConfiguration
+  siteConfig => siteConfig.data || defaultConfiguration
 );
 
 /**
@@ -20,7 +20,7 @@ export const selectSiteConfiguration = createSelector(
  */
 export const selectConfigurationLoading = createSelector(
   selectSiteConfigurationState,
-  (siteConfig) => siteConfig.loading
+  siteConfig => siteConfig.loading
 );
 
 /**
@@ -28,7 +28,7 @@ export const selectConfigurationLoading = createSelector(
  */
 export const selectConfigurationError = createSelector(
   selectSiteConfigurationState,
-  (siteConfig) => siteConfig.error
+  siteConfig => siteConfig.error
 );
 
 /**
@@ -36,7 +36,7 @@ export const selectConfigurationError = createSelector(
  */
 export const selectIsConfigurationDirty = createSelector(
   selectSiteConfigurationState,
-  (siteConfig) => siteConfig.isDirty
+  siteConfig => siteConfig.isDirty
 );
 
 /**
@@ -44,7 +44,7 @@ export const selectIsConfigurationDirty = createSelector(
  */
 export const selectHasConfigurationBeenApplied = createSelector(
   selectSiteConfigurationState,
-  (siteConfig) => siteConfig.hasAppliedChanges
+  siteConfig => siteConfig.hasAppliedChanges
 );
 
 /**
@@ -52,7 +52,7 @@ export const selectHasConfigurationBeenApplied = createSelector(
  */
 export const selectDeviceRefreshInterval = createSelector(
   selectSiteConfiguration,
-  (config) => config.deviceRefreshInterval
+  config => config.deviceRefreshInterval
 );
 
 /**
@@ -60,7 +60,7 @@ export const selectDeviceRefreshInterval = createSelector(
  */
 export const selectSystemMonitorRefreshInterval = createSelector(
   selectSiteConfiguration,
-  (config) => config.systemMonitorRefreshInterval
+  config => config.systemMonitorRefreshInterval
 );
 
 /**
@@ -68,7 +68,7 @@ export const selectSystemMonitorRefreshInterval = createSelector(
  */
 export const selectDevicePollingEnabled = createSelector(
   selectSiteConfiguration,
-  (config) => config.devicePollingEnabled
+  config => config.devicePollingEnabled
 );
 
 /**
@@ -76,7 +76,7 @@ export const selectDevicePollingEnabled = createSelector(
  */
 export const selectRealTimeUpdatesEnabled = createSelector(
   selectSiteConfiguration,
-  (config) => config.realTimeUpdatesEnabled
+  config => config.realTimeUpdatesEnabled
 );
 
 /**
@@ -84,7 +84,7 @@ export const selectRealTimeUpdatesEnabled = createSelector(
  */
 export const selectServerPollInterval = createSelector(
   selectSiteConfiguration,
-  (config) => config.serverPollInterval
+  config => config.serverPollInterval
 );
 
 /**
@@ -92,7 +92,7 @@ export const selectServerPollInterval = createSelector(
  */
 export const selectConnectionTimeout = createSelector(
   selectSiteConfiguration,
-  (config) => config.connectionTimeout
+  config => config.connectionTimeout
 );
 
 /**
@@ -100,5 +100,5 @@ export const selectConnectionTimeout = createSelector(
  */
 export const selectDebugModeEnabled = createSelector(
   selectSiteConfiguration,
-  (config) => config.debugModeEnabled
+  config => config.debugModeEnabled
 );

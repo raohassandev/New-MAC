@@ -67,17 +67,44 @@ jest.mock('bcryptjs', () => ({
 // Mock the User model
 jest.mock('../client/models/User', () => ({
   __esModule: true,
-  default: UserMock,
+  default: jest.fn().mockImplementation(() => ({
+    findById: jest.fn().mockReturnThis(),
+    findOne: jest.fn().mockReturnThis(),
+    find: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue({}),
+    select: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis()
+  }))
 }));
 
 // Mock the Device model
 jest.mock('../client/models/Device', () => ({
   __esModule: true,
-  default: DeviceMock,
+  default: jest.fn().mockImplementation(() => ({
+    findById: jest.fn().mockReturnThis(),
+    findOne: jest.fn().mockReturnThis(),
+    find: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue({}),
+    select: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis()
+  }))
 }));
 
 // Mock the Profile model
 jest.mock('../client/models/Profile', () => ({
   __esModule: true,
-  default: ProfileMock,
+  default: jest.fn().mockImplementation(() => ({
+    findById: jest.fn().mockReturnThis(),
+    findOne: jest.fn().mockReturnThis(),
+    find: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue({}),
+    select: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis()
+  }))
 }));

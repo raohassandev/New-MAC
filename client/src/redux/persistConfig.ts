@@ -12,9 +12,9 @@ export const persistConfig: PersistConfig<any> = {
   // Whitelist specific reducers to persist (alternative to blacklist)
   whitelist: ['auth', 'theme', 'global'],
   // Blacklist specific reducers to NOT persist
-  // blacklist: ['devices', 'users'], 
+  // blacklist: ['devices', 'users'],
   // Note: Using whitelist is preferred for security reasons
-  
+
   // Custom merge strategies (optional)
   // stateReconciler: autoMergeLevel2,
 };

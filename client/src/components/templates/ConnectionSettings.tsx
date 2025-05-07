@@ -25,29 +25,31 @@ interface SelectProps {
 }
 
 // Custom Select component with forwardRef to support refs
-const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ id, value, onChange, options, error }, ref) => {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange(e.target.value);
-  };
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ id, value, onChange, options, error }, ref) => {
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      onChange(e.target.value);
+    };
 
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={handleChange}
-      ref={ref}
-      className={`block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm ${
-        error ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500' : ''
-      }`}
-    >
-      {options.map(option => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-});
+    return (
+      <select
+        id={id}
+        value={value}
+        onChange={handleChange}
+        ref={ref}
+        className={`block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm ${
+          error ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500' : ''
+        }`}
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+);
 
 // Field Error component to display validation errors
 const FieldError: React.FC<{ message?: string }> = ({ message }) => {
@@ -65,12 +67,12 @@ const TemplateConnectionSettings: React.FC = () => {
   const { state, actions } = useTemplateForm();
   const { deviceBasics, connectionSettings, validationState } = state;
   const { refs } = useContext(FormFieldRefsContext);
-  
+
   // State for device types and modal
   const [deviceTypes, setDeviceTypes] = useState<NewDeviceType[]>([]);
   const [showNewDeviceTypeModal, setShowNewDeviceTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Function to load device types
   const loadDeviceTypes = async () => {
     try {
@@ -84,7 +86,7 @@ const TemplateConnectionSettings: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   // Load device types on component mount and when modal is closed
   useEffect(() => {
     loadDeviceTypes();
@@ -105,12 +107,12 @@ const TemplateConnectionSettings: React.FC = () => {
   // Handle device basics changes with validation
   const handleDeviceBasicsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     // For template name, enforce minimum length of 3 characters
     if (name === 'name') {
       // Always update the state, but users will see validation error if too short
       actions.setDeviceBasics({ [name]: value });
-      
+
       // Print debug message
       console.log(`Template name updated to "${value}" (length: ${value.length})`);
     } else {
@@ -130,7 +132,7 @@ const TemplateConnectionSettings: React.FC = () => {
   const handleSelectChange = (name: string) => (value: string) => {
     actions.setConnectionSettings({ [name]: value });
   };
-  
+
   // Handle device type changes
   const handleDeviceTypeChange = (value: string) => {
     if (value === 'new') {
@@ -140,40 +142,40 @@ const TemplateConnectionSettings: React.FC = () => {
       actions.setDeviceBasics({ deviceType: value });
     }
   };
-  
+
   // Handle new device type creation
   const handleNewDeviceTypeSubmit = async (deviceType: NewDeviceType) => {
     try {
       // Show user feedback
       setLoading(true);
-      
+
       // First create the device type in the database
       const createdDeviceType = await createDeviceType(deviceType);
       console.log('Successfully created device type:', createdDeviceType);
-      
+
       // Add the new device type to the local state
       setDeviceTypes(prev => [...prev, createdDeviceType]);
-      
+
       // Set the form data to include the new device type
-      actions.setDeviceBasics({ 
-        deviceType: deviceType.name
+      actions.setDeviceBasics({
+        deviceType: deviceType.name,
       });
-      
+
       // Close the modal
       setShowNewDeviceTypeModal(false);
       alert('Device type created successfully!');
     } catch (error: any) {
       console.error('Failed to create device type:', error);
-      
+
       // Show detailed error message to user
       let errorMessage = 'Failed to create device type. Please try again.';
-      
+
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = `Error: ${error.response.data.message}`;
       } else if (error.message) {
         errorMessage = `Error: ${error.message}`;
       }
-      
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -215,13 +217,13 @@ const TemplateConnectionSettings: React.FC = () => {
               value={deviceBasics.deviceType}
               onChange={handleDeviceTypeChange}
               options={
-                loading 
-                ? [{ value: '', label: 'Loading device types...', disabled: true }]
-                : [
-                    { value: '', label: 'Select Device Type', disabled: true },
-                    ...deviceTypes.map(type => ({ value: type.name, label: type.name })),
-                    { value: 'new', label: '+ Add New Type' }
-                  ]
+                loading
+                  ? [{ value: '', label: 'Loading device types...', disabled: true }]
+                  : [
+                      { value: '', label: 'Select Device Type', disabled: true },
+                      ...deviceTypes.map(type => ({ value: type.name, label: type.name })),
+                      { value: 'new', label: '+ Add New Type' },
+                    ]
               }
               error={getBasicFieldError('deviceType')}
               ref={refs.deviceType as React.RefObject<HTMLSelectElement>}
@@ -230,7 +232,7 @@ const TemplateConnectionSettings: React.FC = () => {
           <FieldError message={getBasicFieldError('deviceType')} />
         </Form.Group>
       </Form.Row>
-      
+
       <Form.Row>
         <Form.Group>
           <Form.Label htmlFor="make" required>
@@ -432,7 +434,7 @@ const TemplateConnectionSettings: React.FC = () => {
         />
         <FieldError message={getFieldError('slaveId')} />
       </Form.Group>
-      
+
       {/* New Device Type Modal */}
       {showNewDeviceTypeModal && (
         <NewDeviceTypeModal

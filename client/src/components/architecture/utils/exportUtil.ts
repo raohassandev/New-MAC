@@ -8,7 +8,7 @@ export const exportToImage = async (
   format: 'png' | 'svg'
 ): Promise<void> => {
   const reactFlowElem = document.querySelector<HTMLElement>('.react-flow');
-  
+
   if (!reactFlowElem) {
     console.error('React Flow container not found');
     return;
@@ -17,12 +17,12 @@ export const exportToImage = async (
   // Prepare the element
   const transform = reactFlowInstance.getTransform();
   reactFlowInstance.fitView({ padding: 0.2 });
-  
+
   try {
     // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
     const filename = `architecture-diagram-${timestamp}.${format}`;
-    
+
     // Create and trigger download
     let dataUrl;
     if (format === 'png') {
@@ -37,13 +37,13 @@ export const exportToImage = async (
         quality: 1,
       });
     }
-    
+
     // Create download link and trigger click
     const a = document.createElement('a');
     a.setAttribute('download', filename);
     a.setAttribute('href', dataUrl);
     a.click();
-    
+
     // Reset view transform after download
     reactFlowInstance.setTransform(transform);
   } catch (error) {
@@ -56,21 +56,21 @@ export const exportToJson = (data: DiagramData): void => {
   try {
     // Convert diagram data to JSON string
     const jsonData = JSON.stringify(data, null, 2);
-    
+
     // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
     const filename = `architecture-diagram-${timestamp}.json`;
-    
+
     // Create Blob and download link
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     // Create download link and trigger click
     const a = document.createElement('a');
     a.setAttribute('download', filename);
     a.setAttribute('href', url);
     a.click();
-    
+
     // Clean up
     URL.revokeObjectURL(url);
   } catch (error) {
@@ -79,13 +79,11 @@ export const exportToJson = (data: DiagramData): void => {
 };
 
 // Import diagram data from JSON
-export const importFromJson = (
-  file: File
-): Promise<DiagramData> => {
+export const importFromJson = (file: File): Promise<DiagramData> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
-    reader.onload = (event) => {
+
+    reader.onload = event => {
       try {
         if (event.target?.result) {
           const data = JSON.parse(event.target.result as string) as DiagramData;
@@ -97,11 +95,11 @@ export const importFromJson = (
         reject(error);
       }
     };
-    
+
     reader.onerror = () => {
       reject(new Error('Error reading file'));
     };
-    
+
     reader.readAsText(file);
   });
 };

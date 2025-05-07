@@ -21,6 +21,13 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "cd server && npm run lint",
     "lint:client": "cd client && npm run lint",
+    "format": "npm run format:server && npm run format:client",
+    "format:server": "cd server && npm run format",
+    "format:client": "cd client && npm run format",
+    "format:check": "npm run format:check:server && npm run format:check:client",
+    "format:check:server": "cd server && npm run format:check",
+    "format:check:client": "cd client && npm run format:check",
+    "fix": "npm run format && npm run lint",
     "prepare": "husky install"
   },
   "keywords": [
@@ -42,7 +49,8 @@
     }
   },
   "lint-staged": {
-    "*.ts": [
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write",
       "eslint --fix",
       "git add"
     ]

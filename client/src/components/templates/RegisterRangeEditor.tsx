@@ -203,7 +203,9 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">{initialData ? 'Update Template Range' : 'Add Template Range'}</Button>
+        <Button type="submit">
+          {initialData ? 'Update Template Range' : 'Add Template Range'}
+        </Button>
       </Form.Actions>
     </Form>
   );

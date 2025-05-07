@@ -74,11 +74,7 @@ interface FormDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement
 const FormDescription = React.forwardRef<HTMLParagraphElement, FormDescriptionProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <p
-        ref={ref}
-        className={cn('mt-1 text-sm text-gray-500', className)}
-        {...props}
-      >
+      <p ref={ref} className={cn('mt-1 text-sm text-gray-500', className)} {...props}>
         {children}
       </p>
     );

@@ -1,7 +1,14 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Device, DeviceFilter } from '../../../types/device.types';
 import { EntityState } from '../../types';
-import { fetchDevices, fetchDeviceById, createDevice, updateDevice, deleteDevice, testDeviceConnection } from './devicesAPI';
+import {
+  fetchDevices,
+  fetchDeviceById,
+  createDevice,
+  updateDevice,
+  deleteDevice,
+  testDeviceConnection,
+} from './devicesAPI';
 
 /**
  * Devices state interface
@@ -48,39 +55,37 @@ const devicesSlice = createSlice({
     selectDevice: (state, action: PayloadAction<string>) => {
       state.selectedDeviceId = action.payload;
     },
-    clearSelectedDevice: (state) => {
+    clearSelectedDevice: state => {
       state.selectedDeviceId = null;
     },
     setFilters: (state, action: PayloadAction<DeviceFilter>) => {
       state.filters = action.payload;
     },
-    clearFilters: (state) => {
+    clearFilters: state => {
       state.filters = {};
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Fetch devices list reducers
-    builder.addCase(fetchDevices.pending, (state) => {
+    builder.addCase(fetchDevices.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchDevices.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       // Handle different API response formats
-      const devices = Array.isArray(action.payload) 
-        ? action.payload 
-        : action.payload.devices || [];
-      
+      const devices = Array.isArray(action.payload) ? action.payload : action.payload.devices || [];
+
       // Normalize devices data
       const byId: Record<string, Device> = {};
       const allIds: string[] = [];
-      
+
       devices.forEach(device => {
         byId[device._id] = device;
         allIds.push(device._id);
       });
-      
+
       state.byId = byId;
       state.allIds = allIds;
       state.lastUpdated = Date.now();
@@ -91,20 +96,20 @@ const devicesSlice = createSlice({
     });
 
     // Fetch device by ID reducers
-    builder.addCase(fetchDeviceById.pending, (state) => {
+    builder.addCase(fetchDeviceById.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchDeviceById.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const device = action.payload;
       state.byId[device._id] = device;
-      
+
       if (!state.allIds.includes(device._id)) {
         state.allIds.push(device._id);
       }
-      
+
       state.selectedDeviceId = device._id;
       state.lastUpdated = Date.now();
     });
@@ -114,13 +119,13 @@ const devicesSlice = createSlice({
     });
 
     // Create device reducers
-    builder.addCase(createDevice.pending, (state) => {
+    builder.addCase(createDevice.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(createDevice.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const device = action.payload;
       state.byId[device._id] = device;
       state.allIds.push(device._id);
@@ -132,13 +137,13 @@ const devicesSlice = createSlice({
     });
 
     // Update device reducers
-    builder.addCase(updateDevice.pending, (state) => {
+    builder.addCase(updateDevice.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(updateDevice.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const device = action.payload;
       state.byId[device._id] = device;
       state.lastUpdated = Date.now();
@@ -149,21 +154,21 @@ const devicesSlice = createSlice({
     });
 
     // Delete device reducers
-    builder.addCase(deleteDevice.pending, (state) => {
+    builder.addCase(deleteDevice.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(deleteDevice.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const deviceId = action.payload;
       delete state.byId[deviceId];
       state.allIds = state.allIds.filter(id => id !== deviceId);
-      
+
       if (state.selectedDeviceId === deviceId) {
         state.selectedDeviceId = null;
       }
-      
+
       state.lastUpdated = Date.now();
     });
     builder.addCase(deleteDevice.rejected, (state, action) => {
@@ -203,11 +208,6 @@ const devicesSlice = createSlice({
 });
 
 // Export actions and reducer
-export const { 
-  selectDevice, 
-  clearSelectedDevice,
-  setFilters,
-  clearFilters,
-} = devicesSlice.actions;
+export const { selectDevice, clearSelectedDevice, setFilters, clearFilters } = devicesSlice.actions;
 
 export default devicesSlice.reducer;

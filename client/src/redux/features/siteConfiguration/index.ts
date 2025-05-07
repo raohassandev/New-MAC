@@ -33,7 +33,7 @@ export const {
   selectRealTimeUpdatesEnabled,
   selectServerPollInterval,
   selectConnectionTimeout,
-  selectDebugModeEnabled
+  selectDebugModeEnabled,
 } = siteConfigurationSelectors;
 
 // Re-export actions from the API

@@ -19,7 +19,7 @@ const rootReducer = {
   devices: devicesReducer,
   theme: themeReducer,
   siteConfiguration: siteConfigurationReducer,
-  
+
   // Global reducers
   global: globalReducer,
 };

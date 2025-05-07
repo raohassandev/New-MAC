@@ -17,12 +17,26 @@ const api = axios.create({
 api.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token');
+    
+    console.log(`[API client] Making request to: ${config.url}`);
+    
+    // Always inject token if it exists (even in development mode)
     if (token) {
+      console.log('[API client] Adding auth token to request');
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // In development, use a demo token if no real token exists
+      // This helps with testing when auth is required but not fully implemented
+      console.log('[API client] No auth token found, using development token');
+      config.headers.Authorization = 'Bearer dev_token_for_testing';
     }
+    
+    // Also set CORS headers for all requests
+    config.headers['Access-Control-Allow-Origin'] = '*';
     return config;
   },
   error => {
+    console.error('[API client] Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -35,7 +49,7 @@ api.interceptors.response.use(
   error => {
     const { response } = error;
     console.log('[API client] Error intercepted:', error);
-    
+
     // Always log the error response for debugging
     if (response) {
       console.log('[API client] Response status:', response.status);
@@ -50,11 +64,13 @@ api.interceptors.response.use(
           // Unauthorized - Token expired or invalid
           localStorage.removeItem('token');
           toast.error('Your session has expired. Please log in again.');
-          
+
           // Prevent automatic redirection for device creation actions
           // to allow debugging errors from the device form
-          if (!response.config?.url?.includes('/client/api/devices') || 
-              !response.config?.method?.toLowerCase() === 'post') {
+          if (
+            !response.config?.url?.includes('/client/api/devices') ||
+            !response.config?.method?.toLowerCase() === 'post'
+          ) {
             window.location.href = '/login';
           }
           break;
@@ -75,12 +91,12 @@ api.interceptors.response.use(
           if (response.data?.message) {
             // Special handling for connection test, device read operations, and device creation
             // Don't show toast notifications for these since we'll display them in the component UI
-            const isSpecialEndpoint = 
-              response.config.url?.includes('/test') || 
-              response.config.url?.includes('/read') || 
-              (response.config.url?.includes('/client/api/devices') && 
-               response.config.method?.toLowerCase() === 'post');
-            
+            const isSpecialEndpoint =
+              response.config.url?.includes('/test') ||
+              response.config.url?.includes('/read') ||
+              (response.config.url?.includes('/client/api/devices') &&
+                response.config.method?.toLowerCase() === 'post');
+
             if (!isSpecialEndpoint) {
               // For other errors without specific handling, show toast notification
               toast.error(response.data.message);

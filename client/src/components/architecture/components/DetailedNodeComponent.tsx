@@ -240,7 +240,7 @@ const DetailedNodeComponent: React.FC<NodeProps<DetailedNodeData>> = ({ data, is
                 <Button
                   size="small"
                   endIcon={showParameters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     setShowParameters(!showParameters);
                   }}
@@ -256,9 +256,7 @@ const DetailedNodeComponent: React.FC<NodeProps<DetailedNodeData>> = ({ data, is
                       <Box>
                         <Typography variant="body2" fontWeight="medium">
                           {param.name}
-                          {param.required && (
-                            <span style={{ color: 'red', marginLeft: 2 }}>*</span>
-                          )}
+                          {param.required && <span style={{ color: 'red', marginLeft: 2 }}>*</span>}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {param.type}
@@ -293,7 +291,7 @@ const DetailedNodeComponent: React.FC<NodeProps<DetailedNodeData>> = ({ data, is
                 <Button
                   size="small"
                   endIcon={showMethods ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     setShowMethods(!showMethods);
                   }}
@@ -362,7 +360,7 @@ const DetailedNodeComponent: React.FC<NodeProps<DetailedNodeData>> = ({ data, is
                 <Button
                   size="small"
                   endIcon={showConnections ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     setShowConnections(!showConnections);
                   }}
@@ -413,8 +411,8 @@ const DetailedNodeComponent: React.FC<NodeProps<DetailedNodeData>> = ({ data, is
                   data.importance === 'high'
                     ? 'error'
                     : data.importance === 'medium'
-                    ? 'warning'
-                    : 'default'
+                      ? 'warning'
+                      : 'default'
                 }
               />
               {data.modifiable !== undefined && (

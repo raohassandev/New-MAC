@@ -2,7 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 import type { RootState } from '../redux/store';
-import { Save, RefreshCw, Settings, Clock, Server, Sliders, Code, Database, Shield, Info } from 'lucide-react';
+import {
+  Save,
+  RefreshCw,
+  Settings,
+  Clock,
+  Server,
+  Sliders,
+  Code,
+  Database,
+  Shield,
+  Info,
+} from 'lucide-react';
 import {
   fetchConfiguration,
   saveConfiguration,
@@ -22,33 +33,35 @@ const SystemConfiguration: React.FC = () => {
   const configuration = useAppSelector(selectSiteConfiguration);
   const isLoading = useAppSelector(selectConfigurationLoading);
   const isDirty = useAppSelector(selectIsConfigurationDirty);
-  
-  const [activeTab, setActiveTab] = useState<'performance' | 'server' | 'ui' | 'development'>('performance');
-  
+
+  const [activeTab, setActiveTab] = useState<'performance' | 'server' | 'ui' | 'development'>(
+    'performance'
+  );
+
   // Local state for the form
   const [formState, setFormState] = useState<SiteConfigurationSettings>(configuration);
-  
+
   // Fetch configuration on component mount
   useEffect(() => {
     dispatch(fetchConfiguration());
   }, [dispatch]);
-  
+
   // Update local form state when configuration changes
   useEffect(() => {
     setFormState(configuration);
   }, [configuration]);
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     let parsedValue: any = value;
-    
+
     // Parse numbers and booleans
     if (type === 'number') {
       parsedValue = parseFloat(value);
     } else if (type === 'checkbox') {
       parsedValue = (e.target as HTMLInputElement).checked;
     }
-    
+
     setFormState(prev => {
       // Handle dot notation for nested properties
       if (name.includes('.')) {
@@ -61,34 +74,34 @@ const SystemConfiguration: React.FC = () => {
           },
         };
       }
-      
+
       return {
         ...prev,
         [name]: parsedValue,
       };
     });
   };
-  
+
   const handleSaveConfig = async () => {
     try {
       // Update Redux state
       dispatch(updateConfig(formState));
-      
+
       // Save to persistence
       await dispatch(saveConfiguration(formState)).unwrap();
-      
+
       toast.success('Configuration saved successfully');
     } catch (error) {
       console.error('Error saving configuration:', error);
       toast.error('Failed to save configuration');
     }
   };
-  
+
   const handleResetConfig = () => {
     dispatch(resetConfig());
     toast.info('Configuration reset to defaults');
   };
-  
+
   // Helper for creating consistent form groups
   const FormGroup: React.FC<{
     label: string;
@@ -107,7 +120,7 @@ const SystemConfiguration: React.FC = () => {
         <label htmlFor={name} className="mb-1 block text-sm font-medium text-gray-700">
           {label}
         </label>
-        
+
         {type === 'select' ? (
           <select
             id={name}
@@ -153,7 +166,7 @@ const SystemConfiguration: React.FC = () => {
       </div>
     );
   };
-  
+
   if (isLoading && !configuration) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -161,7 +174,7 @@ const SystemConfiguration: React.FC = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -216,17 +229,19 @@ const SystemConfiguration: React.FC = () => {
           </button>
         </div>
       </div>
-      
+
       <div className="mb-6 rounded border-l-4 border-blue-500 bg-blue-50 p-4 text-blue-700">
         <div className="flex">
           <Info size={20} className="mr-2 flex-shrink-0" />
           <div>
             <p className="text-sm">
-              These configuration settings define how the application interacts with devices and servers. 
-              Adjusting these values can improve performance in local development environments.
+              These configuration settings define how the application interacts with devices and
+              servers. Adjusting these values can improve performance in local development
+              environments.
             </p>
             <p className="mt-2 text-sm font-semibold">
-              Default values have been reduced from 30 seconds to 5 seconds to provide more real-time updates during development.
+              Default values have been reduced from 30 seconds to 5 seconds to provide more
+              real-time updates during development.
             </p>
           </div>
         </div>
@@ -296,7 +311,7 @@ const SystemConfiguration: React.FC = () => {
                 step={500}
                 helpText="How often to refresh device data in the UI (milliseconds)"
               />
-              
+
               <FormGroup
                 label="System Monitor Refresh Interval (ms)"
                 name="systemMonitorRefreshInterval"
@@ -307,7 +322,7 @@ const SystemConfiguration: React.FC = () => {
                 step={1000}
                 helpText="How often to refresh system monitor metrics (milliseconds)"
               />
-              
+
               <FormGroup
                 label="Enable Device Polling"
                 name="devicePollingEnabled"
@@ -315,7 +330,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.devicePollingEnabled}
                 helpText="Enable automatic polling of device data"
               />
-              
+
               <FormGroup
                 label="Enable Real-time Updates"
                 name="realTimeUpdatesEnabled"
@@ -325,10 +340,12 @@ const SystemConfiguration: React.FC = () => {
               />
             </div>
           )}
-          
+
           {activeTab === 'server' && (
             <div>
-              <h2 className="mb-4 text-lg font-semibold text-gray-700">Server Connection Settings</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-700">
+                Server Connection Settings
+              </h2>
               <FormGroup
                 label="Server Poll Interval (ms)"
                 name="serverPollInterval"
@@ -339,7 +356,7 @@ const SystemConfiguration: React.FC = () => {
                 step={500}
                 helpText="How often the server polls devices for data (milliseconds)"
               />
-              
+
               <FormGroup
                 label="Connection Timeout (ms)"
                 name="connectionTimeout"
@@ -350,7 +367,7 @@ const SystemConfiguration: React.FC = () => {
                 step={500}
                 helpText="Maximum time to wait for device connections (milliseconds)"
               />
-              
+
               <FormGroup
                 label="Max Retry Attempts"
                 name="maxRetryAttempts"
@@ -361,7 +378,7 @@ const SystemConfiguration: React.FC = () => {
                 step={1}
                 helpText="Maximum number of connection retry attempts"
               />
-              
+
               <FormGroup
                 label="Retry Backoff Multiplier"
                 name="retryBackoffMultiplier"
@@ -374,7 +391,7 @@ const SystemConfiguration: React.FC = () => {
               />
             </div>
           )}
-          
+
           {activeTab === 'ui' && (
             <div>
               <h2 className="mb-4 text-lg font-semibold text-gray-700">UI Behavior Settings</h2>
@@ -385,7 +402,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.showDetailedErrors}
                 helpText="Show detailed error information in the UI"
               />
-              
+
               <FormGroup
                 label="Persist Device Readings"
                 name="persistDeviceReadings"
@@ -393,7 +410,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.persistDeviceReadings}
                 helpText="Keep device readings in memory between page navigations"
               />
-              
+
               <FormGroup
                 label="Auto-expand Device Groups"
                 name="autoExpandDeviceGroups"
@@ -401,7 +418,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.autoExpandDeviceGroups}
                 helpText="Automatically expand device groups in the device list"
               />
-              
+
               <FormGroup
                 label="Default Data Display Mode"
                 name="defaultDataDisplayMode"
@@ -416,7 +433,7 @@ const SystemConfiguration: React.FC = () => {
               />
             </div>
           )}
-          
+
           {activeTab === 'development' && (
             <div>
               <h2 className="mb-4 text-lg font-semibold text-gray-700">Development Options</h2>
@@ -424,12 +441,12 @@ const SystemConfiguration: React.FC = () => {
                 <div className="flex">
                   <Shield size={20} className="mr-2 flex-shrink-0" />
                   <p className="text-sm">
-                    These settings are intended for development and testing purposes only. 
-                    They should be disabled in production environments.
+                    These settings are intended for development and testing purposes only. They
+                    should be disabled in production environments.
                   </p>
                 </div>
               </div>
-              
+
               <FormGroup
                 label="Enable Debug Mode"
                 name="debugModeEnabled"
@@ -437,7 +454,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.debugModeEnabled}
                 helpText="Enable additional logging and debugging information"
               />
-              
+
               <FormGroup
                 label="Use Sample Data"
                 name="useSampleData"
@@ -445,7 +462,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.useSampleData}
                 helpText="Use sample data instead of actual device data"
               />
-              
+
               <FormGroup
                 label="Simulate Network Latency"
                 name="simulateNetworkLatency"
@@ -453,7 +470,7 @@ const SystemConfiguration: React.FC = () => {
                 checked={formState.simulateNetworkLatency}
                 helpText="Add artificial delay to API calls to simulate network latency"
               />
-              
+
               <FormGroup
                 label="Simulated Latency (ms)"
                 name="simulatedLatencyMs"

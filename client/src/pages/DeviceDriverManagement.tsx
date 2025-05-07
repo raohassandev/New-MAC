@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import NewDeviceDriverForm from '../components/templates/index';
 import { useDeviceDrivers } from '../hooks/useDeviceDrivers';
 import { Button } from '../components/ui/Button';
- 
+
 interface DeviceDriver {
   id?: string;
   _id: string;
@@ -22,15 +22,15 @@ const DeviceDriverManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewDeviceDriverFormOpen, setIsNewDeviceDriverFormOpen] = useState(false);
-  
+
   // Get deviceDrivers functions from useDeviceDrivers hook
-  const { 
-    deviceDrivers: apiDeviceDrivers, 
-    loading: apiLoading, 
-    error: apiError, 
-    addDeviceDriver, 
+  const {
+    deviceDrivers: apiDeviceDrivers,
+    loading: apiLoading,
+    error: apiError,
+    addDeviceDriver,
     refreshDeviceDrivers,
-    deleteDeviceDriver
+    deleteDeviceDriver,
   } = useDeviceDrivers();
 
   // This will convert the API deviceDriver format to our UI format
@@ -44,16 +44,23 @@ const DeviceDriverManagement: React.FC = () => {
         description: deviceDriver.description || '',
         deviceType: deviceDriver.deviceType || '',
         registerCount: deviceDriver.dataPoints?.length || 0,
-        createdAt: deviceDriver.createdAt ? new Date(deviceDriver.createdAt).toISOString() : new Date().toISOString(),
-        updatedAt: deviceDriver.updatedAt ? new Date(deviceDriver.updatedAt).toISOString() : new Date().toISOString(),
+        createdAt: deviceDriver.createdAt
+          ? new Date(deviceDriver.createdAt).toISOString()
+          : new Date().toISOString(),
+        updatedAt: deviceDriver.updatedAt
+          ? new Date(deviceDriver.updatedAt).toISOString()
+          : new Date().toISOString(),
       }));
-      
-      console.log('Mapped device drivers with IDs:', mappedDeviceDrivers.map(d => ({name: d.name, _id: d._id, id: d.id})));
+
+      console.log(
+        'Mapped device drivers with IDs:',
+        mappedDeviceDrivers.map(d => ({ name: d.name, _id: d._id, id: d.id }))
+      );
       setDeviceDrivers(mappedDeviceDrivers);
       setLoading(apiLoading);
     }
   }, [apiDeviceDrivers, apiLoading]);
-  
+
   // Call the API to refresh deviceDrivers
   const fetchDeviceDrivers = async () => {
     try {
@@ -71,7 +78,7 @@ const DeviceDriverManagement: React.FC = () => {
   const handleAddDeviceDriver = () => {
     setIsNewDeviceDriverFormOpen(true);
   };
-  
+
   // Add handler functions for deviceDriver form
   const onNewDeviceDriverFormSubmit = async (deviceDriverData: any) => {
     console.log('Submitting device driver data:', deviceDriverData);
@@ -79,9 +86,9 @@ const DeviceDriverManagement: React.FC = () => {
       // Add isDeviceDriver flag to ensure it's saved as a deviceDriver
       const deviceDriverWithFlags = {
         ...deviceDriverData,
-        isDeviceDriver: true
+        isDeviceDriver: true,
       };
-      
+
       await addDeviceDriver(deviceDriverWithFlags);
       setIsNewDeviceDriverFormOpen(false);
       // Refresh the deviceDrivers list
@@ -227,9 +234,9 @@ const DeviceDriverManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredDeviceDrivers.map(deviceDriver => (
-                  <tr 
-                    key={deviceDriver.id} 
-                    className="hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                  <tr
+                    key={deviceDriver.id}
+                    className="cursor-pointer transition-colors duration-150 hover:bg-gray-100"
                     onClick={() => handleEditDeviceDriver(deviceDriver)}
                     title="Click to view details"
                   >
@@ -237,7 +244,9 @@ const DeviceDriverManagement: React.FC = () => {
                       <div className="flex items-center">
                         <CreditCard className="h-5 w-5 flex-shrink-0 text-gray-400" />
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{deviceDriver.name}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {deviceDriver.name}
+                          </div>
                           <div className="max-w-xs truncate text-sm text-gray-500">
                             {deviceDriver.description}
                           </div>
@@ -255,9 +264,12 @@ const DeviceDriverManagement: React.FC = () => {
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {formatDate(deviceDriver.updatedAt)}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium"
+                      onClick={e => e.stopPropagation()}
+                    >
                       <button
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           handleDeleteDeviceDriver(deviceDriver._id);
                         }}
@@ -276,13 +288,16 @@ const DeviceDriverManagement: React.FC = () => {
 
       {/* Device Driver Form Modal */}
       {isNewDeviceDriverFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50" onClick={(e) => {
-          // Close modal when clicking the overlay (background)
-          if (e.target === e.currentTarget) {
-            console.log('Modal background clicked, closing modal');
-            onNewDeviceDriverFormClose();
-          }
-        }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50"
+          onClick={e => {
+            // Close modal when clicking the overlay (background)
+            if (e.target === e.currentTarget) {
+              console.log('Modal background clicked, closing modal');
+              onNewDeviceDriverFormClose();
+            }
+          }}
+        >
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-lg">
             <div className="flex items-center justify-between border-b border-gray-200 p-4">
               <h2 className="text-xl font-semibold">Create New Device Driver</h2>
@@ -297,7 +312,10 @@ const DeviceDriverManagement: React.FC = () => {
               </button>
             </div>
             <div className="p-4">
-              <NewDeviceDriverForm onClose={onNewDeviceDriverFormClose} onSubmit={onNewDeviceDriverFormSubmit} />
+              <NewDeviceDriverForm
+                onClose={onNewDeviceDriverFormClose}
+                onSubmit={onNewDeviceDriverFormSubmit}
+              />
             </div>
           </div>
         </div>
@@ -309,4 +327,3 @@ const DeviceDriverManagement: React.FC = () => {
 };
 
 export default DeviceDriverManagement;
-

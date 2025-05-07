@@ -5,36 +5,36 @@ export interface Device {
   _id: string;
   name: string;
   enabled: boolean;
-  deviceType?: string;     // Added for template categorization
-  isTemplate?: boolean;    // Flag to mark this as a template
+  deviceType?: string; // Added for template categorization
+  isTemplate?: boolean; // Flag to mark this as a template
   isDeviceDriver?: boolean; // Flag to mark this as a device driver
   lastSeen?: Date | string;
   make?: string;
   model?: string;
   description?: string;
   tags?: string[];
-  
+
   // New consolidated structure
   connectionSetting?: ConnectionSetting;
   dataPoints?: DataPoint[];
-  
+
   // Device driver linkage
   deviceDriverId?: string; // Reference to the template/driver this device is based on
-  
+
   // Metadata fields
-  usage?: string;           // Usage category
-  usageNotes?: string;      // Additional notes about device usage
-  location?: string;        // Physical location information
+  usage?: string; // Usage category
+  usageNotes?: string; // Additional notes about device usage
+  location?: string; // Physical location information
   pollingInterval?: number; // Device-specific polling interval in milliseconds
-  
+
   // Advanced communication settings
   advancedSettings?: AdvancedSettings;
-  
+
   // Legacy fields for backward compatibility
   registerRanges?: RegisterRange[];
   parameterConfigs?: ParameterConfig[];
   registers?: any[]; // For DeviceDetails component
-  
+
   // Connection properties (directly on Device for backward compatibility)
   connectionType?: string;
   ip?: string;

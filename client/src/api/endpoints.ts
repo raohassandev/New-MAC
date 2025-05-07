@@ -53,7 +53,7 @@ export const dashboardApi = {
 // Device endpoints
 export const deviceApi = {
   getDevices: (filters?: Record<string, any>) => {
-    let url = '/client/api/devices'; 
+    let url = '/client/api/devices';
     if (filters) {
       const queryParams = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -66,17 +66,42 @@ export const deviceApi = {
         url += `?${queryString}`;
       }
     }
+    console.log('[endpoints.ts] Getting devices from URL:', url);
     return api.get(url);
   },
-  getDeviceById: (id: string, includeDriver: boolean = false) =>
-    api.get(`/client/api/devices/${id}${includeDriver ? '?includeDriver=true' : ''}`),
-  createDevice: (deviceData: any) => api.post('/client/api/devices', deviceData),
-  updateDevice: (id: string, deviceData: any) => api.put(`/client/api/devices/${id}`, deviceData),
-  deleteDevice: (id: string) => api.delete(`/client/api/devices/${id}`),
-  testConnection: (id: string) => api.post(`/client/api/devices/${id}/test`),
-  readRegisters: (id: string) => api.get(`/client/api/devices/${id}/read`),
-  getDevicesByDriver: (driverId: string, page: number = 1, limit: number = 50) =>
-    api.get(`/client/api/devices/by-driver/${driverId}?page=${page}&limit=${limit}`),
-  getDevicesByUsage: (usage: string, page: number = 1, limit: number = 50) =>
-    api.get(`/client/api/devices/by-usage/${usage}?page=${page}&limit=${limit}`),
+  getDeviceById: (id: string, includeDriver: boolean = false) => {
+    const url = `/client/api/devices/${id}${includeDriver ? '?includeDriver=true' : ''}`;
+    console.log('[endpoints.ts] Getting device by ID from URL:', url);
+    return api.get(url);
+  },
+  createDevice: (deviceData: any) => {
+    console.log('[endpoints.ts] Creating device with data:', deviceData);
+    return api.post('/client/api/devices', deviceData);
+  },
+  updateDevice: (id: string, deviceData: any) => {
+    console.log('[endpoints.ts] Updating device with ID:', id);
+    return api.put(`/client/api/devices/${id}`, deviceData);
+  },
+  deleteDevice: (id: string) => {
+    console.log('[endpoints.ts] Deleting device with ID:', id);
+    return api.delete(`/client/api/devices/${id}`);
+  },
+  testConnection: (id: string) => {
+    console.log('[endpoints.ts] Testing connection for device with ID:', id);
+    return api.post(`/client/api/devices/${id}/test`);
+  },
+  readRegisters: (id: string) => {
+    console.log('[endpoints.ts] Reading registers for device with ID:', id);
+    return api.get(`/client/api/devices/${id}/read`);
+  },
+  getDevicesByDriver: (driverId: string, page: number = 1, limit: number = 50) => {
+    const url = `/client/api/devices/by-driver/${driverId}?page=${page}&limit=${limit}`;
+    console.log('[endpoints.ts] Getting devices by driver from URL:', url);
+    return api.get(url);
+  },
+  getDevicesByUsage: (usage: string, page: number = 1, limit: number = 50) => {
+    const url = `/client/api/devices/by-usage/${usage}?page=${page}&limit=${limit}`;
+    console.log('[endpoints.ts] Getting devices by usage from URL:', url);
+    return api.get(url);
+  },
 };

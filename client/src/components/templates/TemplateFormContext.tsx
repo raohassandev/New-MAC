@@ -6,7 +6,7 @@ import { RegisterRange, ParameterConfig } from '../../types/form.types';
 export interface TemplateFormState {
   deviceBasics: {
     name: string;
-    deviceType: string;  // Device type for this template
+    deviceType: string; // Device type for this template
     make: string;
     model: string;
     description: string;
@@ -100,7 +100,10 @@ const initialTemplateFormState: TemplateFormState = {
 };
 
 // Reducer function
-const templateFormReducer = (state: TemplateFormState, action: TemplateFormAction): TemplateFormState => {
+const templateFormReducer = (
+  state: TemplateFormState,
+  action: TemplateFormAction
+): TemplateFormState => {
   switch (action.type) {
     case 'SET_DEVICE_BASICS':
       return {

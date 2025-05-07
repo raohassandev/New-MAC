@@ -3,15 +3,9 @@ import { useDiagram } from '../context/DiagramContext';
 import { NodeType } from '../types/diagram.types';
 
 const ControlPanel: React.FC = () => {
-  const { 
-    config, 
-    updateConfig, 
-    filterOptions, 
-    updateFilterOptions,
-    resetView,
-    exportDiagram
-  } = useDiagram();
-  
+  const { config, updateConfig, filterOptions, updateFilterOptions, resetView, exportDiagram } =
+    useDiagram();
+
   const nodeTypes: { label: string; value: NodeType }[] = [
     { label: 'Controllers', value: 'controller' },
     { label: 'Services', value: 'service' },
@@ -21,39 +15,42 @@ const ControlPanel: React.FC = () => {
     { label: 'Hooks', value: 'hook' },
     { label: 'Redux', value: 'redux' },
     { label: 'Context', value: 'context' },
-    { label: 'Routes', value: 'route' }
+    { label: 'Routes', value: 'route' },
   ];
-  
+
   const handleNodeTypeToggle = (type: NodeType) => {
     const updatedNodeTypes = filterOptions.nodeTypes.includes(type)
       ? filterOptions.nodeTypes.filter(t => t !== type)
       : [...filterOptions.nodeTypes, type];
-    
+
     updateFilterOptions({ nodeTypes: updatedNodeTypes });
   };
-  
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateFilterOptions({ searchTerm: e.target.value });
   };
-  
+
   const handleLayoutChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateConfig({ 
-      layoutAlgorithm: e.target.value as 'hierarchical' | 'force-directed' | 'radial' 
+    updateConfig({
+      layoutAlgorithm: e.target.value as 'hierarchical' | 'force-directed' | 'radial',
     });
   };
-  
+
   const handleExport = (format: 'png' | 'svg' | 'json') => {
     exportDiagram(format);
   };
-  
+
   return (
-    <div className="control-panel" style={{
-      padding: '16px',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-      marginBottom: '16px'
-    }}>
+    <div
+      className="control-panel"
+      style={{
+        padding: '16px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+        marginBottom: '16px',
+      }}
+    >
       <div style={{ marginBottom: '16px' }}>
         <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Search</h3>
         <input
@@ -66,11 +63,11 @@ const ControlPanel: React.FC = () => {
             padding: '8px 12px',
             border: '1px solid #ddd',
             borderRadius: '4px',
-            fontSize: '14px'
+            fontSize: '14px',
           }}
         />
       </div>
-      
+
       <div style={{ marginBottom: '16px' }}>
         <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Filter By Type</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -80,18 +77,16 @@ const ControlPanel: React.FC = () => {
               onClick={() => handleNodeTypeToggle(type.value)}
               style={{
                 padding: '6px 12px',
-                backgroundColor: filterOptions.nodeTypes.includes(type.value) 
-                  ? '#e0f7fa' 
+                backgroundColor: filterOptions.nodeTypes.includes(type.value)
+                  ? '#e0f7fa'
                   : '#f5f5f5',
-                border: `1px solid ${filterOptions.nodeTypes.includes(type.value) 
-                  ? '#80deea' 
-                  : '#ddd'}`,
+                border: `1px solid ${
+                  filterOptions.nodeTypes.includes(type.value) ? '#80deea' : '#ddd'
+                }`,
                 borderRadius: '4px',
                 fontSize: '12px',
                 cursor: 'pointer',
-                color: filterOptions.nodeTypes.includes(type.value) 
-                  ? '#00838f' 
-                  : '#555'
+                color: filterOptions.nodeTypes.includes(type.value) ? '#00838f' : '#555',
               }}
             >
               {type.label}
@@ -99,7 +94,7 @@ const ControlPanel: React.FC = () => {
           ))}
         </div>
       </div>
-      
+
       <div style={{ marginBottom: '16px' }}>
         <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>View Options</h3>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -112,7 +107,7 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             {filterOptions.showBackend ? '✓ Backend' : 'Backend'}
@@ -126,13 +121,13 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             {filterOptions.showFrontend ? '✓ Frontend' : 'Frontend'}
           </button>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
           <label style={{ marginRight: '10px', fontSize: '14px' }}>Layout:</label>
           <select
@@ -143,7 +138,7 @@ const ControlPanel: React.FC = () => {
               border: '1px solid #ddd',
               borderRadius: '4px',
               fontSize: '14px',
-              flex: 1
+              flex: 1,
             }}
           >
             <option value="hierarchical">Hierarchical</option>
@@ -151,7 +146,7 @@ const ControlPanel: React.FC = () => {
             <option value="radial">Radial</option>
           </select>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ marginRight: '10px', fontSize: '14px' }}>Theme:</label>
           <button
@@ -163,14 +158,14 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             {config.theme === 'light' ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
       </div>
-      
+
       <div>
         <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Actions</h3>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -183,7 +178,7 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             Reset View
@@ -197,13 +192,13 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             {config.autoLayout ? 'Auto Layout: On' : 'Auto Layout: Off'}
           </button>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => handleExport('png')}
@@ -214,7 +209,7 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             Export PNG
@@ -228,7 +223,7 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             Export SVG
@@ -242,7 +237,7 @@ const ControlPanel: React.FC = () => {
               borderRadius: '4px',
               fontSize: '14px',
               cursor: 'pointer',
-              flex: 1
+              flex: 1,
             }}
           >
             Export JSON

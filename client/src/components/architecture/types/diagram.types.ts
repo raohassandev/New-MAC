@@ -1,14 +1,14 @@
 import { Node, Edge, Position } from 'reactflow';
 
-export type NodeType = 
-  | 'controller' 
-  | 'service' 
-  | 'model' 
-  | 'middleware' 
-  | 'component' 
-  | 'hook' 
-  | 'redux' 
-  | 'context' 
+export type NodeType =
+  | 'controller'
+  | 'service'
+  | 'model'
+  | 'middleware'
+  | 'component'
+  | 'hook'
+  | 'redux'
+  | 'context'
   | 'route';
 
 export interface SystemNode extends Node {
@@ -24,6 +24,8 @@ export interface SystemNode extends Node {
 }
 
 export interface SystemEdge extends Edge {
+  source: ReactNode;
+  target: ReactNode;
   data?: {
     type: 'call' | 'data' | 'event' | 'depend';
     description?: string;

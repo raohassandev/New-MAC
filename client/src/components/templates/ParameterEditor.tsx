@@ -120,9 +120,9 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
   onCancel,
   availableRanges,
 }) => {
-  // Get access to the template form context 
+  // Get access to the template form context
   const { state } = useTemplateForm();
-  
+
   // Use a default value for registerRange to avoid undefined issues
   const defaultRegisterRange = availableRanges.length > 0 ? availableRanges[0].rangeName : '';
 
@@ -264,11 +264,12 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
 
     // Find the maximum buffer index plus its size
     let maxIndex = 0;
-    
+
     existingParams.forEach(p => {
       const byteSize = getByteSize(p.dataType);
-      const endIndex = (p.bufferIndex !== undefined ? p.bufferIndex : p.registerIndex * 2) + byteSize;
-      
+      const endIndex =
+        (p.bufferIndex !== undefined ? p.bufferIndex : p.registerIndex * 2) + byteSize;
+
       if (endIndex > maxIndex) {
         maxIndex = endIndex;
       }
@@ -294,12 +295,12 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
     // If this is a new parameter or the data type is changed, auto-increment buffer index
     if (!initialData || (initialData && initialData.dataType !== parameter.dataType)) {
       const nextBufferIndex = calculateNextBufferIndex();
-      
+
       setParameter(prev => ({
         ...prev,
         bufferIndex: nextBufferIndex,
-        // Keep registerIndex synced for backward compatibility 
-        registerIndex: Math.floor(nextBufferIndex / 2)
+        // Keep registerIndex synced for backward compatibility
+        registerIndex: Math.floor(nextBufferIndex / 2),
       }));
     }
 
@@ -336,7 +337,13 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       }
       registerDetail.textContent = message;
     }
-  }, [parameter.dataType, isMultiRegister, parameter.bufferIndex, parameter.registerRange, parameter.wordCount]);
+  }, [
+    parameter.dataType,
+    isMultiRegister,
+    parameter.bufferIndex,
+    parameter.registerRange,
+    parameter.wordCount,
+  ]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -366,7 +373,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       setParameter(prev => ({
         ...prev,
         bufferIndex,
-        registerIndex: Math.floor(bufferIndex / 2) // 2 bytes per register
+        registerIndex: Math.floor(bufferIndex / 2), // 2 bytes per register
       }));
     } else if (name === 'registerIndex') {
       // When registerIndex changes, update bufferIndex
@@ -374,7 +381,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       setParameter(prev => ({
         ...prev,
         registerIndex,
-        bufferIndex: registerIndex * 2 // 2 bytes per register
+        bufferIndex: registerIndex * 2, // 2 bytes per register
       }));
     } else {
       // Normal field update
@@ -412,32 +419,33 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
               const registersNeeded = getRequiredWordCount(parameter.dataType);
               const bytesNeeded = getByteSize(parameter.dataType);
               const lastValidRegisterIndex = selectedRange.length - registersNeeded;
-              
+
               // Different validation for bufferIndex vs registerIndex
               if (name === 'bufferIndex') {
                 const bufferIndex = parseFloat(value) || 0;
                 const lastValidBufferIndex = lastValidRegisterIndex * 2;
-                
+
                 if (bufferIndex < 0) {
                   newErrors.bufferIndex = 'Buffer index must be a positive number';
                 } else if (bufferIndex > lastValidBufferIndex) {
                   newErrors.bufferIndex = `Index too high. Max buffer index: ${lastValidBufferIndex} for this data type`;
                 }
-                
+
                 // Check for overlaps
                 const overlapError = checkForParameterOverlaps();
                 if (overlapError) {
                   newErrors.bufferIndex = overlapError;
                 }
-              } else { // registerIndex
+              } else {
+                // registerIndex
                 const registerIndex = parseFloat(value) || 0;
-                
+
                 if (registerIndex < 0) {
                   newErrors.registerIndex = 'Register index must be a positive number';
                 } else if (registerIndex > lastValidRegisterIndex) {
                   newErrors.registerIndex = `Index too high. Max index: ${lastValidRegisterIndex} for this data type`;
                 }
-                
+
                 // Check for overlaps
                 const overlapError = checkForParameterOverlaps();
                 if (overlapError) {
@@ -490,15 +498,15 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
     // ===================================================================
     // Names must be unique across ALL register ranges
     // ===================================================================
-    
+
     // Get all parameters from all register ranges
     const allParamsFromAllRanges = availableRanges.flatMap(range => range.dataParser || []);
-    
+
     // If we're editing an existing parameter, exclude it from the comparison
     const existingParamsAll = initialData
       ? allParamsFromAllRanges.filter(p => p.name !== initialData.name)
       : allParamsFromAllRanges;
-    
+
     // Check for duplicate name (case-insensitive)
     const hasDuplicateName = existingParamsAll.some(
       p => p.name && p.name.trim().toLowerCase() === parameter.name.trim().toLowerCase()
@@ -513,7 +521,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
     // ===================================================================
     // Buffer indices only need to be unique within the SAME register range
     // ===================================================================
-    
+
     // Find the selected range
     const selectedRange = availableRanges.find(
       range => range.rangeName === parameter.registerRange
@@ -542,7 +550,8 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       const conflictingBitParam = existingParameters.find(
         p =>
           ['BOOLEAN', 'BIT'].includes(p.dataType) &&
-          (p.bufferIndex === parameter.bufferIndex || p.registerIndex * 2 === parameter.bufferIndex) &&
+          (p.bufferIndex === parameter.bufferIndex ||
+            p.registerIndex * 2 === parameter.bufferIndex) &&
           p.bitPosition === parameter.bitPosition
       );
 
@@ -553,7 +562,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       return null; // Bit parameters can share buffer locations with other types
     }
 
-    // Check for buffer overlaps with non-bit parameters 
+    // Check for buffer overlaps with non-bit parameters
     // ONLY within the same register range
     for (const existing of existingParameters) {
       // Skip bit-level parameters as they can share buffer locations with other types
@@ -561,12 +570,11 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
 
       // Calculate existing parameter's buffer range
       const existingByteSize = getByteSize(existing.dataType);
-      
+
       // If bufferIndex is defined use it, otherwise calculate from registerIndex
-      const existingBufferIndex = existing.bufferIndex !== undefined 
-        ? existing.bufferIndex 
-        : existing.registerIndex * 2;
-      
+      const existingBufferIndex =
+        existing.bufferIndex !== undefined ? existing.bufferIndex : existing.registerIndex * 2;
+
       const existingEndBufferIndex = existingBufferIndex + existingByteSize - 1;
 
       // Special case: exact same buffer index
@@ -613,14 +621,14 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
         const bytesNeeded = getByteSize(parameter.dataType);
         const lastValidRegisterIndex = selectedRange.length - registersNeeded;
         const lastValidBufferIndex = lastValidRegisterIndex * 2;
-        
+
         // Validate bufferIndex
         if (parameter.bufferIndex < 0) {
           newErrors.bufferIndex = 'Buffer index must be a positive number';
         } else if (parameter.bufferIndex > lastValidBufferIndex) {
           newErrors.bufferIndex = `Index too high. This ${parameter.dataType} uses ${bytesNeeded} bytes, max buffer index: ${lastValidBufferIndex}`;
         }
-        
+
         // Validate registerIndex for backward compatibility
         if (parameter.registerIndex < 0) {
           newErrors.registerIndex = 'Register index must be a positive number';
@@ -1138,7 +1146,9 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">{initialData ? 'Update Template Parameter' : 'Add Template Parameter'}</Button>
+        <Button type="submit">
+          {initialData ? 'Update Template Parameter' : 'Add Template Parameter'}
+        </Button>
       </Form.Actions>
     </Form>
   );

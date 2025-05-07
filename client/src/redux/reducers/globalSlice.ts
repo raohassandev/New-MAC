@@ -54,18 +54,18 @@ const globalSlice = createSlice({
         notification => notification.id !== action.payload
       );
     },
-    clearAllNotifications: (state) => {
+    clearAllNotifications: state => {
       state.notifications = [];
     },
-    
+
     // Sidebar actions
-    toggleSidebar: (state) => {
+    toggleSidebar: state => {
       state.sidebar.collapsed = !state.sidebar.collapsed;
     },
     setSidebarVisibility: (state, action: PayloadAction<boolean>) => {
       state.sidebar.visible = action.payload;
     },
-    
+
     // Settings actions
     updateSettings: (state, action: PayloadAction<Partial<GlobalState['settings']>>) => {
       state.settings = {
@@ -73,14 +73,14 @@ const globalSlice = createSlice({
         ...action.payload,
       };
     },
-    resetSettings: (state) => {
+    resetSettings: state => {
       state.settings = initialState.settings;
     },
   },
 });
 
 // Export actions and reducer
-export const { 
+export const {
   addNotification,
   removeNotification,
   clearAllNotifications,

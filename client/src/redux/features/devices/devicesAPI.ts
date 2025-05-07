@@ -27,42 +27,40 @@ export const fetchDevices = createAsyncThunk<
 /**
  * Async thunk for fetching device by ID
  */
-export const fetchDeviceById = createAsyncThunk<
-  Device,
-  string,
-  ThunkApiConfig
->('devices/fetchDeviceById', async (deviceId, { rejectWithValue }) => {
-  try {
-    return await deviceService.getDevice(deviceId);
-  } catch (error: any) {
-    return rejectWithValue({
-      message: error.response?.data?.message || 'Failed to fetch device',
-      status: error.response?.status,
-      data: error.response?.data,
-      name: error.name || 'Error',
-    });
+export const fetchDeviceById = createAsyncThunk<Device, string, ThunkApiConfig>(
+  'devices/fetchDeviceById',
+  async (deviceId, { rejectWithValue }) => {
+    try {
+      return await deviceService.getDevice(deviceId);
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.response?.data?.message || 'Failed to fetch device',
+        status: error.response?.status,
+        data: error.response?.data,
+        name: error.name || 'Error',
+      });
+    }
   }
-});
+);
 
 /**
  * Async thunk for creating a new device
  */
-export const createDevice = createAsyncThunk<
-  Device,
-  Partial<Device>,
-  ThunkApiConfig
->('devices/createDevice', async (deviceData, { rejectWithValue }) => {
-  try {
-    return await deviceService.addDevice(deviceData as any);
-  } catch (error: any) {
-    return rejectWithValue({
-      message: error.response?.data?.message || 'Failed to create device',
-      status: error.response?.status,
-      data: error.response?.data,
-      name: error.name || 'Error',
-    });
+export const createDevice = createAsyncThunk<Device, Partial<Device>, ThunkApiConfig>(
+  'devices/createDevice',
+  async (deviceData, { rejectWithValue }) => {
+    try {
+      return await deviceService.addDevice(deviceData as any);
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.response?.data?.message || 'Failed to create device',
+        status: error.response?.status,
+        data: error.response?.data,
+        name: error.name || 'Error',
+      });
+    }
   }
-});
+);
 
 /**
  * Async thunk for updating a device
@@ -87,23 +85,22 @@ export const updateDevice = createAsyncThunk<
 /**
  * Async thunk for deleting a device
  */
-export const deleteDevice = createAsyncThunk<
-  string,
-  string,
-  ThunkApiConfig
->('devices/deleteDevice', async (deviceId, { rejectWithValue }) => {
-  try {
-    await deviceService.deleteDevice(deviceId);
-    return deviceId; // Return ID for state updates
-  } catch (error: any) {
-    return rejectWithValue({
-      message: error.response?.data?.message || 'Failed to delete device',
-      status: error.response?.status,
-      data: error.response?.data,
-      name: error.name || 'Error',
-    });
+export const deleteDevice = createAsyncThunk<string, string, ThunkApiConfig>(
+  'devices/deleteDevice',
+  async (deviceId, { rejectWithValue }) => {
+    try {
+      await deviceService.deleteDevice(deviceId);
+      return deviceId; // Return ID for state updates
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.response?.data?.message || 'Failed to delete device',
+        status: error.response?.status,
+        data: error.response?.data,
+        name: error.name || 'Error',
+      });
+    }
   }
-});
+);
 
 /**
  * Connection test response interface

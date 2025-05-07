@@ -1,10 +1,10 @@
 /**
  * A utility script to print out all registered routes in the Express application
- * 
+ *
  * To run: node scripts/print-routes.js
  */
 
-const { app } = require('../dist/server');
+import { app } from '../dist/server';
 
 function printRoutes() {
   // Function to print all routes in Express
@@ -12,9 +12,36 @@ function printRoutes() {
     if (layer.route) {
       layer.route.stack.forEach(print.bind(null, path));
     } else if (layer.name === 'router' && layer.handle.stack) {
-      layer.handle.stack.forEach(print.bind(null, path + (path ? "" : "") + (layer.regexp ? layer.regexp.toString().replace("\\/?(?=\\/|$)", "").replace("\\/?$", "").replace("^", "").replace("$", "") : "")));
+      layer.handle.stack.forEach(
+        print.bind(
+          null,
+          path +
+            (path ? '' : '') +
+            (layer.regexp
+              ? layer.regexp
+                  .toString()
+                  .replace('\\/?(?=\\/|$)', '')
+                  .replace('\\/?$', '')
+                  .replace('^', '')
+                  .replace('$', '')
+              : ''),
+        ),
+      );
     } else if (layer.method) {
-      console.log('%s %s', layer.method.toUpperCase(), path + (path ? "" : "") + (layer.regexp ? layer.regexp.toString().replace("\\/?(?=\\/|$)", "").replace("\\/?$", "").replace("^", "").replace("$", "") : ""));
+      console.log(
+        '%s %s',
+        layer.method.toUpperCase(),
+        path +
+          (path ? '' : '') +
+          (layer.regexp
+            ? layer.regexp
+                .toString()
+                .replace('\\/?(?=\\/|$)', '')
+                .replace('\\/?$', '')
+                .replace('^', '')
+                .replace('$', '')
+            : ''),
+      );
     }
   }
 
@@ -26,5 +53,7 @@ try {
   printRoutes();
 } catch (err) {
   console.error('Error printing routes:', err);
-  console.log('This script needs to be run after the server is built. Make sure to run "npm run build" first.');
+  console.log(
+    'This script needs to be run after the server is built. Make sure to run "npm run build" first.',
+  );
 }

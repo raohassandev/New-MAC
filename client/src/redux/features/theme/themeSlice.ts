@@ -11,7 +11,7 @@ export interface ThemeState {
 // Try to get saved theme from localStorage
 const getSavedTheme = (): ThemeMode => {
   if (typeof window === 'undefined') return 'system';
-  
+
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
     return savedTheme as ThemeMode;
@@ -22,10 +22,8 @@ const getSavedTheme = (): ThemeMode => {
 // Detect system preference
 const getSystemPreference = (): 'light' | 'dark' => {
   if (typeof window === 'undefined') return 'light';
-  
-  return window.matchMedia('(prefers-color-scheme: dark)').matches 
-    ? 'dark' 
-    : 'light';
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
 const initialState: ThemeState = {
@@ -41,7 +39,7 @@ const themeSlice = createSlice({
     setTheme: (state, action: PayloadAction<ThemeMode>) => {
       state.mode = action.payload;
       state.lastUpdated = Date.now();
-      
+
       // Save to localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('theme', action.payload);
@@ -50,7 +48,7 @@ const themeSlice = createSlice({
     setSystemPreference: (state, action: PayloadAction<'light' | 'dark'>) => {
       state.systemPreference = action.payload;
     },
-    toggleTheme: (state) => {
+    toggleTheme: state => {
       // Toggle between light and dark, keeping system as is
       if (state.mode === 'light') {
         state.mode = 'dark';
@@ -60,9 +58,9 @@ const themeSlice = createSlice({
         // If mode is system, toggle based on current system preference
         state.mode = state.systemPreference === 'dark' ? 'light' : 'dark';
       }
-      
+
       state.lastUpdated = Date.now();
-      
+
       // Save to localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('theme', state.mode);

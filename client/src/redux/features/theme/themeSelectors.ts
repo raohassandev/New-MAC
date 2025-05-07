@@ -9,17 +9,14 @@ const selectThemeState = (state: RootState) => state.theme;
 /**
  * Select theme mode (light, dark, or system)
  */
-export const selectThemeMode = createSelector(
-  selectThemeState,
-  (theme) => theme.mode
-);
+export const selectThemeMode = createSelector(selectThemeState, theme => theme.mode);
 
 /**
  * Select system theme preference
  */
 export const selectSystemPreference = createSelector(
   selectThemeState,
-  (theme) => theme.systemPreference
+  theme => theme.systemPreference
 );
 
 /**
@@ -38,7 +35,4 @@ export const selectActiveTheme = createSelector(
 /**
  * Select when theme was last updated
  */
-export const selectThemeLastUpdated = createSelector(
-  selectThemeState,
-  (theme) => theme.lastUpdated
-);
+export const selectThemeLastUpdated = createSelector(selectThemeState, theme => theme.lastUpdated);

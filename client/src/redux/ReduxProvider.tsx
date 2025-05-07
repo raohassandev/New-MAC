@@ -11,7 +11,7 @@ interface ReduxProviderProps {
 /**
  * Redux Provider component that wraps the application with Redux store,
  * PersistGate for state persistence, and additional providers like ThemeProvider
- * 
+ *
  * Usage:
  * ```tsx
  * <ReduxProvider loading={<LoadingSpinner />}>
@@ -19,16 +19,18 @@ interface ReduxProviderProps {
  * </ReduxProvider>
  * ```
  */
-const ReduxProvider: React.FC<ReduxProviderProps> = ({ 
-  children, 
-  loading = null 
-}) => {
+const ReduxProvider: React.FC<ReduxProviderProps> = ({ children, loading = null }) => {
+  // Add debug logging
+  console.log('[ReduxProvider] Initializing with Redux store');
+  
+  // Check if we have device-related state in Redux
+  const state = store.getState();
+  console.log('[ReduxProvider] Initial Redux state:', state);
+  
   return (
     <Provider store={store}>
       <PersistGate loading={loading} persistor={persistor}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </PersistGate>
     </Provider>
   );

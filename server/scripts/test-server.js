@@ -1,29 +1,28 @@
-const http = require('http');
-const { MongoClient } = require('mongodb');
+import { createServer } from 'http';
+import { MongoClient } from 'mongodb';
 
 // Create a simple HTTP server
-const server = http.createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   console.log(`Received request for ${req.url}`);
-  
+
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'OK', timestamp: new Date() }));
-  } 
-  else if (req.url === '/devices') {
+  } else if (req.url === '/devices') {
     try {
       // Connect to MongoDB
       const client = new MongoClient('mongodb://localhost:27017');
       await client.connect();
       console.log('Connected to MongoDB');
-      
+
       // Get devices from the client database
       const db = client.db('client');
       const devices = await db.collection('devices').find({}).toArray();
-      
+
       // Send response
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ devices }));
-      
+
       // Close the connection
       await client.close();
     } catch (error) {
@@ -31,8 +30,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Database error', message: error.message }));
     }
-  }
-  else {
+  } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   }

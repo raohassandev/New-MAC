@@ -29,8 +29,9 @@ const TemplateInfoPanel: React.FC = () => {
         <div>
           <h4 className="text-sm font-medium text-blue-800">About Template Parameters</h4>
           <p className="mt-1 text-sm text-blue-700">
-            Template parameters define how to read and interpret values from this type of device. Each parameter 
-            represents a specific measurement (like voltage, current, power, etc.) that devices of this type provide.
+            Template parameters define how to read and interpret values from this type of device.
+            Each parameter represents a specific measurement (like voltage, current, power, etc.)
+            that devices of this type provide.
           </p>
           <div className="mt-3 text-sm text-blue-700">
             <p className="font-medium">Key concepts:</p>
@@ -40,8 +41,8 @@ const TemplateInfoPanel: React.FC = () => {
                 in the previous tab
               </li>
               <li>
-                <span className="font-semibold">Buffer Index:</span> The position in the buffer for parsing response
-                (0-based byte index)
+                <span className="font-semibold">Buffer Index:</span> The position in the buffer for
+                parsing response (0-based byte index)
               </li>
               <li>
                 <span className="font-semibold">Data Type:</span> How to interpret the binary data
@@ -58,16 +59,20 @@ const TemplateInfoPanel: React.FC = () => {
             <h5 className="font-medium text-amber-800">Template Best Practices:</h5>
             <ul className="mt-1 list-inside list-disc space-y-1 text-amber-700">
               <li>
-                <span className="font-semibold">Descriptive Names:</span> Use clear, standardized parameter names
+                <span className="font-semibold">Descriptive Names:</span> Use clear, standardized
+                parameter names
               </li>
               <li>
-                <span className="font-semibold">Include Units:</span> Always specify units for measurements
+                <span className="font-semibold">Include Units:</span> Always specify units for
+                measurements
               </li>
               <li>
-                <span className="font-semibold">Comprehensive Coverage:</span> Include all common parameters for this device type
+                <span className="font-semibold">Comprehensive Coverage:</span> Include all common
+                parameters for this device type
               </li>
               <li>
-                <span className="font-semibold">Scaling Factors:</span> Set appropriate scaling and decimal points based on device specifications
+                <span className="font-semibold">Scaling Factors:</span> Set appropriate scaling and
+                decimal points based on device specifications
               </li>
             </ul>
           </div>
@@ -159,36 +164,37 @@ const TemplateDataReaderTab: React.FC = () => {
 
     // First filter existing parameters to ONLY include those in the SAME register range
     // This ensures parameters in different register ranges don't trigger conflict errors
-    const sameRangeParams = existingParams.filter(
-      p => p.registerRange === parameter.registerRange
-    );
-    
+    const sameRangeParams = existingParams.filter(p => p.registerRange === parameter.registerRange);
+
     // Calculate register ranges and buffer indices
     const wordCount = parameter.wordCount || getWordCount(parameter);
     const paramStart = parameter.registerIndex;
     const paramEnd = paramStart + wordCount - 1;
-    
+
     // Calculate buffer ranges
     const byteSize = getWordCount(parameter) * 2; // 2 bytes per register
-    const bufferStart = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+    const bufferStart =
+      parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
     const bufferEnd = bufferStart + byteSize - 1;
-    
+
     // For bit-level parameters, check bit position conflicts (only within the same register range)
     if (['BOOLEAN', 'BIT'].includes(parameter.dataType)) {
-      const conflictingBitParam = sameRangeParams.find(
-        p => {
-          // Get buffer index (either direct or calculated from registerIndex)
-          const pBufferIndex = p.bufferIndex !== undefined ? p.bufferIndex : p.registerIndex * 2;
-          const paramBufferIndex = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
-          
-          return ['BOOLEAN', 'BIT'].includes(p.dataType) &&
-            pBufferIndex === paramBufferIndex &&
-            p.bitPosition === parameter.bitPosition;
-        }
-      );
+      const conflictingBitParam = sameRangeParams.find(p => {
+        // Get buffer index (either direct or calculated from registerIndex)
+        const pBufferIndex = p.bufferIndex !== undefined ? p.bufferIndex : p.registerIndex * 2;
+        const paramBufferIndex =
+          parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+
+        return (
+          ['BOOLEAN', 'BIT'].includes(p.dataType) &&
+          pBufferIndex === paramBufferIndex &&
+          p.bitPosition === parameter.bitPosition
+        );
+      });
 
       if (conflictingBitParam) {
-        const bufferIndex = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+        const bufferIndex =
+          parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
         return `Bit position ${parameter.bitPosition} at buffer index ${bufferIndex} is already used by template parameter "${conflictingBitParam.name}" in the same register range`;
       }
 
@@ -205,7 +211,8 @@ const TemplateDataReaderTab: React.FC = () => {
 
       // Calculate existing parameter's buffer range
       const existingByteSize = getWordCount(existing) * 2; // 2 bytes per register
-      const existingBufferIndex = existing.bufferIndex !== undefined ? existing.bufferIndex : existing.registerIndex * 2;
+      const existingBufferIndex =
+        existing.bufferIndex !== undefined ? existing.bufferIndex : existing.registerIndex * 2;
       const existingBufferEnd = existingBufferIndex + existingByteSize - 1;
 
       // Check for buffer overlap
@@ -394,7 +401,10 @@ const TemplateDataReaderTab: React.FC = () => {
                         {param.registerRange}
                       </Badge>
                       <Badge variant="outline" size="sm">
-                        Buffer Index: {param.bufferIndex !== undefined ? param.bufferIndex : param.registerIndex * 2}
+                        Buffer Index:{' '}
+                        {param.bufferIndex !== undefined
+                          ? param.bufferIndex
+                          : param.registerIndex * 2}
                         {absoluteAddress !== null && ` (Addr: ${absoluteAddress})`}
                       </Badge>
                       {wordCount > 1 && (

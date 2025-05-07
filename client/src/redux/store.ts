@@ -1,7 +1,16 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
 import rootReducer from './rootReducer';
 import { persistConfig } from './persistConfig';
 
@@ -14,7 +23,10 @@ const persistedReducer = {
   devices: persistReducer({ ...persistConfig, key: 'devices' }, rootReducer.devices),
   theme: persistReducer({ ...persistConfig, key: 'theme' }, rootReducer.theme),
   global: persistReducer({ ...persistConfig, key: 'global' }, rootReducer.global),
-  siteConfiguration: persistReducer({ ...persistConfig, key: 'siteConfiguration' }, rootReducer.siteConfiguration),
+  siteConfiguration: persistReducer(
+    { ...persistConfig, key: 'siteConfiguration' },
+    rootReducer.siteConfiguration
+  ),
 };
 
 /**
@@ -22,7 +34,7 @@ const persistedReducer = {
  */
 export const store = configureStore({
   reducer: persistedReducer,
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
         // Special action types that should be ignored

@@ -15,7 +15,7 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
   };
 
   // CRITICAL: Log all validation errors for debugging purposes
-  console.log("All template validation errors:", errors);
+  console.log('All template validation errors:', errors);
 
   // Map error field names to friendly messages
   const friendlyMessages: Record<string, string> = {
@@ -43,11 +43,11 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
       grouped.connection.push(message);
     } else if (error.field.includes('range')) {
       // Highlight register range errors
-      console.log("Template register range error:", error);
+      console.log('Template register range error:', error);
       grouped.registers.push(message);
     } else if (error.field.includes('param')) {
       // Highlight parameter errors
-      console.log("Template parameter error:", error);
+      console.log('Template parameter error:', error);
       grouped.parameters.push(message);
     } else {
       grouped.other.push(message);
@@ -86,7 +86,9 @@ const ValidationMessages: React.FC = () => {
         <AlertCircle className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
         <div>
           <div className="flex items-center justify-between">
-            <h3 className="font-medium text-red-800">Please fix before continuing with template:</h3>
+            <h3 className="font-medium text-red-800">
+              Please fix before continuing with template:
+            </h3>
             <span className="ml-2 rounded-full bg-red-200 px-2 py-0.5 text-xs text-red-800">
               {allErrors.length}
             </span>

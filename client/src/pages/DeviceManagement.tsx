@@ -23,7 +23,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 import type { RootState } from '../redux/store';
-import { selectDeviceRefreshInterval, selectDevicePollingEnabled } from '../redux/features/siteConfiguration';
+import {
+  selectDeviceRefreshInterval,
+  selectDevicePollingEnabled,
+} from '../redux/features/siteConfiguration';
 
 // Define useAppSelector to avoid circular dependencies
 const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
@@ -52,6 +55,12 @@ const DeviceManagement: React.FC = () => {
     deleteDevice,
     testConnection,
   } = useDevices();
+  
+  // Debug logging - check if devices are being loaded
+  console.log('[DeviceManagement] Component loaded');
+  console.log('[DeviceManagement] Devices:', devices);
+  console.log('[DeviceManagement] Loading state:', loading);
+  console.log('[DeviceManagement] Error state:', error);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -68,10 +77,10 @@ const DeviceManagement: React.FC = () => {
   // Get configuration values from siteConfiguration feature
   const deviceRefreshInterval = useAppSelector(selectDeviceRefreshInterval);
   const devicePollingEnabled = useAppSelector(selectDevicePollingEnabled);
-  
+
   // Auto-refresh timer ref
   const refreshTimerRef = useRef<number | null>(null);
-  
+
   // State
   // We've removed isNewDeviceModalOpen state since we're using only isNewDeviceFormOpen
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,7 +145,8 @@ const DeviceManagement: React.FC = () => {
       filtered = filtered.filter(
         device =>
           device.name.toLowerCase().includes(query) ||
-          (device.connectionSetting?.tcp?.ip && device.connectionSetting.tcp.ip.toLowerCase().includes(query)) ||
+          (device.connectionSetting?.tcp?.ip &&
+            device.connectionSetting.tcp.ip.toLowerCase().includes(query)) ||
           (device.make && device.make.toLowerCase().includes(query)) ||
           (device.model && device.model.toLowerCase().includes(query))
       );
@@ -297,7 +307,7 @@ const DeviceManagement: React.FC = () => {
       window.clearInterval(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
-    
+
     // Only set up polling if enabled in configuration
     if (devicePollingEnabled) {
       refreshTimerRef.current = window.setInterval(() => {
@@ -305,7 +315,7 @@ const DeviceManagement: React.FC = () => {
         refreshDevices();
       }, deviceRefreshInterval);
     }
-    
+
     // Clean up on unmount
     return () => {
       if (refreshTimerRef.current) {
@@ -321,17 +331,17 @@ const DeviceManagement: React.FC = () => {
       // Don't close the form until we know the request was successful
       const newDevice = await addDevice(deviceData);
       console.log('[DeviceManagement] Device added successfully:', newDevice);
-      
+
       // Only close the form after successful creation
       setIsNewDeviceFormOpen(false);
       await refreshDevices();
-      
+
       // Show success message
       toast.success('Device created successfully');
       return newDevice;
     } catch (error) {
       console.error('[DeviceManagement] Error adding device:', error);
-      
+
       // Propagate the error to the form component for display
       throw error;
     }
@@ -464,7 +474,9 @@ const DeviceManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Physical Device Management</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage and monitor your actual Modbus devices (not templates)</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage and monitor your actual Modbus devices (not templates)
+          </p>
         </div>
         <div className="flex space-x-2">
           <div className="flex gap-2">
@@ -898,16 +910,18 @@ const DeviceManagement: React.FC = () => {
                     <Table.Cell>
                       <span
                         className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-5 ${
-                          device.enabled && device.lastSeen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          device.enabled && device.lastSeen
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
                         }`}
                       >
                         {device.enabled && device.lastSeen ? 'Online' : 'Offline'}
                       </span>
                     </Table.Cell>
                     <Table.Cell>
-                      {device.connectionSetting?.tcp?.ip 
-                        ? `${device.connectionSetting.tcp.ip}:${device.connectionSetting.tcp.port} (ID: ${device.connectionSetting.tcp.slaveId})` 
-                        : device.connectionSetting?.rtu?.serialPort 
+                      {device.connectionSetting?.tcp?.ip
+                        ? `${device.connectionSetting.tcp.ip}:${device.connectionSetting.tcp.port} (ID: ${device.connectionSetting.tcp.slaveId})`
+                        : device.connectionSetting?.rtu?.serialPort
                           ? `${device.connectionSetting.rtu.serialPort}:${device.connectionSetting.rtu.baudRate} (ID: ${device.connectionSetting.rtu.slaveId})`
                           : 'N/A'}
                     </Table.Cell>
@@ -993,16 +1007,27 @@ const DeviceManagement: React.FC = () => {
                   </div>
                   <div
                     className={`h-3 w-3 rounded-full ${
-                      device.enabled && device.lastSeen ? 'bg-green-500' : 
-                      device.enabled ? 'bg-yellow-500' : 'bg-red-500'
+                      device.enabled && device.lastSeen
+                        ? 'bg-green-500'
+                        : device.enabled
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
                     }`}
-                    title={device.enabled ? (device.lastSeen ? 'Online' : 'Enabled but not connected') : 'Offline'}
+                    title={
+                      device.enabled
+                        ? device.lastSeen
+                          ? 'Online'
+                          : 'Enabled but not connected'
+                        : 'Offline'
+                    }
                   ></div>
                 </div>
 
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">
-                    {device.connectionSetting?.tcp?.ip ? `${device.connectionSetting.tcp?.ip}:${device.connectionSetting?.tcp?.port}` : 'No connection info'}
+                    {device.connectionSetting?.tcp?.ip
+                      ? `${device.connectionSetting.tcp?.ip}:${device.connectionSetting?.tcp?.port}`
+                      : 'No connection info'}
                   </p>
                 </div>
 
@@ -1089,7 +1114,7 @@ const DeviceManagement: React.FC = () => {
       )}
 
       {/* New Device Modal */}
-      <NewDeviceForm 
+      <NewDeviceForm
         isOpen={isNewDeviceFormOpen}
         onClose={onNewDeviceFormClose}
         onSubmit={onNewDeviceFormSubmit}

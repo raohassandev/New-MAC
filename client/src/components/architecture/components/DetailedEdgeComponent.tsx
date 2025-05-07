@@ -81,7 +81,7 @@ const getStrokeDashArray = (type: EdgeType, isAsync?: boolean) => {
   if (isAsync) {
     return '6,3';
   }
-  
+
   switch (type) {
     case 'event':
       return '5,5';

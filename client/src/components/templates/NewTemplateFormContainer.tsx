@@ -1,9 +1,9 @@
 // client/src/components/templates/NewTemplateFormContainer.tsx
 import React, { useState, useEffect } from 'react';
 import { convertFormToTemplateData } from '../../utils/TypeAdapter';
-import ConnectionSettings from './ConnectionSettings';  // Use template-specific ConnectionSettings
-import RegisterConfiguration from './RegisterConfiguration';  // Use template-specific RegisterConfiguration
-import DataReaderTab from './DataReaderTab';  // Use template-specific DataReaderTab
+import ConnectionSettings from './ConnectionSettings'; // Use template-specific ConnectionSettings
+import RegisterConfiguration from './RegisterConfiguration'; // Use template-specific RegisterConfiguration
+import DataReaderTab from './DataReaderTab'; // Use template-specific DataReaderTab
 import FormTabs from './FormTabs';
 import FormFooter from './FormFooter';
 import { TemplateFormProvider, useTemplateForm } from './TemplateFormContext';
@@ -25,7 +25,8 @@ const TemplateFormContent: React.FC<{
   onClose: () => void;
   onSubmit: (data: any) => void;
   isEditing: boolean;
-}> = ({ onClose, onSubmit }) => { // Removed unused isEditing parameter
+}> = ({ onClose, onSubmit }) => {
+  // Removed unused isEditing parameter
   const { state, actions } = useTemplateForm();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('connection');
@@ -47,17 +48,17 @@ const TemplateFormContent: React.FC<{
       if (param.bufferIndex === undefined || param.bufferIndex === null) {
         return {
           ...param,
-          bufferIndex: param.registerIndex * 2
+          bufferIndex: param.registerIndex * 2,
         };
       }
       return param;
     });
-    
+
     const stateWithBufferIndices = {
       ...state,
-      parameters: updatedParameters
+      parameters: updatedParameters,
     };
-    
+
     const validationErrors = validateTemplateForm(stateWithBufferIndices);
     const newValidationState = convertValidationErrorsToState(validationErrors);
 
@@ -101,31 +102,31 @@ const TemplateFormContent: React.FC<{
 
   const handleSubmitForm = () => {
     // Run full validation before submitting and show errors
-    console.log("Form submission - validating form");
-    console.log("Register ranges:", state.registerRanges);
-    
+    console.log('Form submission - validating form');
+    console.log('Register ranges:', state.registerRanges);
+
     // Ensure all parameters have a bufferIndex
     const updatedParameters = state.parameters.map(param => {
       if (param.bufferIndex === undefined || param.bufferIndex === null) {
         // Set default bufferIndex based on registerIndex
         return {
           ...param,
-          bufferIndex: param.registerIndex * 2
+          bufferIndex: param.registerIndex * 2,
         };
       }
       return param;
     });
-    
+
     // Use updated parameters for validation and submission
     const stateWithBufferIndices = {
       ...state,
-      parameters: updatedParameters
+      parameters: updatedParameters,
     };
-    console.log("Parameters with buffer indices:", stateWithBufferIndices.parameters);
-    
+    console.log('Parameters with buffer indices:', stateWithBufferIndices.parameters);
+
     const validationErrors = validateTemplateForm(stateWithBufferIndices);
-    console.log("Validation errors:", JSON.stringify(validationErrors, null, 2));
-    
+    console.log('Validation errors:', JSON.stringify(validationErrors, null, 2));
+
     const isValid = validationErrors.isValid;
     setHasAttemptedNextStep(true);
 
@@ -142,16 +143,16 @@ const TemplateFormContent: React.FC<{
       updatedParameters, // Use the parameters with bufferIndex added
       user
     );
-    
+
     // The template adapter already sets isTemplate=true
     // No need to set it again
-    console.log("Template data ready for submission:", templateData);
-    console.log("Calling onSubmit with data - typeof onSubmit:", typeof onSubmit);
+    console.log('Template data ready for submission:', templateData);
+    console.log('Calling onSubmit with data - typeof onSubmit:', typeof onSubmit);
     try {
       onSubmit(templateData);
-      console.log("onSubmit called successfully");
+      console.log('onSubmit called successfully');
     } catch (error) {
-      console.error("Error calling onSubmit:", error);
+      console.error('Error calling onSubmit:', error);
     }
   };
 
@@ -223,7 +224,12 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
   initialData,
   isEditing = false,
 }) => {
-  console.log('NewTemplateFormContainer rendered with props:', { onClose, onSubmit, initialData, isEditing });
+  console.log('NewTemplateFormContainer rendered with props:', {
+    onClose,
+    onSubmit,
+    initialData,
+    isEditing,
+  });
   // Parse initialData into form state format if provided
   // Parse initialData into form state format
   const formattedInitialData = initialData
@@ -239,20 +245,38 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
         },
         connectionSettings: {
           // Handle both old direct properties and new nested connectionSetting structure
-          type: initialData.connectionSetting?.connectionType || initialData.connectionType || 'tcp',
+          type:
+            initialData.connectionSetting?.connectionType || initialData.connectionType || 'tcp',
           // TCP settings - check both nested and direct properties
           ip: initialData.connectionSetting?.tcp?.ip || initialData.ip || '',
           port: (initialData.connectionSetting?.tcp?.port || initialData.port || 502).toString(),
-          slaveId: (initialData.connectionSetting?.tcp?.slaveId || initialData.slaveId || 1).toString(),
+          slaveId: (
+            initialData.connectionSetting?.tcp?.slaveId ||
+            initialData.slaveId ||
+            1
+          ).toString(),
           // RTU settings - check both nested and direct properties
-          serialPort: initialData.connectionSetting?.rtu?.serialPort || initialData.serialPort || '',
-          baudRate: (initialData.connectionSetting?.rtu?.baudRate || initialData.baudRate || 9600).toString(),
-          dataBits: (initialData.connectionSetting?.rtu?.dataBits || initialData.dataBits || 8).toString(),
-          stopBits: (initialData.connectionSetting?.rtu?.stopBits || initialData.stopBits || 1).toString(),
+          serialPort:
+            initialData.connectionSetting?.rtu?.serialPort || initialData.serialPort || '',
+          baudRate: (
+            initialData.connectionSetting?.rtu?.baudRate ||
+            initialData.baudRate ||
+            9600
+          ).toString(),
+          dataBits: (
+            initialData.connectionSetting?.rtu?.dataBits ||
+            initialData.dataBits ||
+            8
+          ).toString(),
+          stopBits: (
+            initialData.connectionSetting?.rtu?.stopBits ||
+            initialData.stopBits ||
+            1
+          ).toString(),
           parity: initialData.connectionSetting?.rtu?.parity || initialData.parity || 'none',
         },
         // Add register ranges and parameters from dataPoints
-        registerRanges: initialData.dataPoints 
+        registerRanges: initialData.dataPoints
           ? initialData.dataPoints.map((dp: any, index: number) => ({
               rangeName: `Range ${index + 1}`,
               startRegister: dp.range.startAddress,
@@ -260,7 +284,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
               functionCode: dp.range.fc,
             }))
           : [],
-        parameters: initialData.dataPoints 
+        parameters: initialData.dataPoints
           ? initialData.dataPoints.flatMap((dp: any, rangeIndex: number) =>
               dp.parser.parameters.map((param: any) => ({
                 name: param.name,
@@ -270,14 +294,17 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
                 byteOrder: param.byteOrder,
                 registerRange: `Range ${rangeIndex + 1}`,
                 registerIndex: param.registerIndex || 0,
-                bufferIndex: param.bufferIndex !== undefined ? param.bufferIndex : (param.registerIndex || 0) * 2,
+                bufferIndex:
+                  param.bufferIndex !== undefined
+                    ? param.bufferIndex
+                    : (param.registerIndex || 0) * 2,
                 wordCount: param.wordCount || 1,
               }))
             )
           : [],
       }
     : undefined;
-    
+
   console.log('Formatted initial data for form:', formattedInitialData);
 
   return (

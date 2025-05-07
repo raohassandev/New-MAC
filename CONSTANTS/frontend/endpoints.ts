@@ -4,13 +4,13 @@ export const endpoints={
     baseUrl: 'http://localhost:3333',
     frontend: {
         amxPrefix:'/amx/api',
-        clientPrefix:'/',
+        clientPrefix:'/client/api',
         auth:{login:'/auth/login', me:'/auth/me',
             register:'/auth/register'
         }, 
         deviceDriver:{
             baseUrl: `/amx/api/devicedriver`,
-            get:'/devices',
+            get:'/client/api/devices',
         }
     },
     server:{

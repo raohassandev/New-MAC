@@ -9,7 +9,7 @@ import {
   DataType,
   DataPoint,
   ConnectionSetting,
-  Device
+  Device,
 } from '../types/device.types';
 
 /**
@@ -109,11 +109,13 @@ export function convertFormToDeviceData(
   }
 
   // Add user information if provided
-  const createdBy = userInfo ? {
-    userId: userInfo._id,
-    username: userInfo.username || userInfo.name,
-    email: userInfo.email
-  } : undefined;
+  const createdBy = userInfo
+    ? {
+        userId: userInfo._id,
+        username: userInfo.username || userInfo.name,
+        email: userInfo.email,
+      }
+    : undefined;
 
   return {
     ...deviceBasics,

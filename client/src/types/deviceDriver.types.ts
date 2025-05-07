@@ -23,8 +23,8 @@ export interface DeviceType {
  * DeviceDriver interface extends Device with deviceDriver-specific properties
  */
 export interface DeviceDriver extends Device {
-  deviceType: string;    // Required in deviceDrivers, references a DeviceType
-  isDeviceDriver: boolean;   // Always true for deviceDrivers
+  deviceType: string; // Required in deviceDrivers, references a DeviceType
+  isDeviceDriver: boolean; // Always true for deviceDrivers
   // Inherited from Device:
   // - name, make, model, description, etc.
   // - connectionSetting, dataPoints

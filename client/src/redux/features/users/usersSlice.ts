@@ -32,28 +32,28 @@ const usersSlice = createSlice({
     selectUser: (state, action: PayloadAction<string>) => {
       state.selectedUserId = action.payload;
     },
-    clearSelectedUser: (state) => {
+    clearSelectedUser: state => {
       state.selectedUserId = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Fetch users list reducers
-    builder.addCase(fetchUsers.pending, (state) => {
+    builder.addCase(fetchUsers.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchUsers.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       // Normalize users data
       const byId: Record<string, User> = {};
       const allIds: string[] = [];
-      
+
       action.payload.forEach(user => {
         byId[user._id] = user;
         allIds.push(user._id);
       });
-      
+
       state.byId = byId;
       state.allIds = allIds;
       state.lastUpdated = Date.now();
@@ -64,20 +64,20 @@ const usersSlice = createSlice({
     });
 
     // Fetch user by ID reducers
-    builder.addCase(fetchUserById.pending, (state) => {
+    builder.addCase(fetchUserById.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(fetchUserById.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const user = action.payload;
       state.byId[user._id] = user;
-      
+
       if (!state.allIds.includes(user._id)) {
         state.allIds.push(user._id);
       }
-      
+
       state.selectedUserId = user._id;
       state.lastUpdated = Date.now();
     });
@@ -87,13 +87,13 @@ const usersSlice = createSlice({
     });
 
     // Create user reducers
-    builder.addCase(createUser.pending, (state) => {
+    builder.addCase(createUser.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(createUser.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const user = action.payload;
       state.byId[user._id] = user;
       state.allIds.push(user._id);
@@ -105,13 +105,13 @@ const usersSlice = createSlice({
     });
 
     // Update user reducers
-    builder.addCase(updateUser.pending, (state) => {
+    builder.addCase(updateUser.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(updateUser.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const user = action.payload;
       state.byId[user._id] = user;
       state.lastUpdated = Date.now();
@@ -122,21 +122,21 @@ const usersSlice = createSlice({
     });
 
     // Delete user reducers
-    builder.addCase(deleteUser.pending, (state) => {
+    builder.addCase(deleteUser.pending, state => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(deleteUser.fulfilled, (state, action) => {
       state.loading = false;
-      
+
       const userId = action.payload;
       delete state.byId[userId];
       state.allIds = state.allIds.filter(id => id !== userId);
-      
+
       if (state.selectedUserId === userId) {
         state.selectedUserId = null;
       }
-      
+
       state.lastUpdated = Date.now();
     });
     builder.addCase(deleteUser.rejected, (state, action) => {

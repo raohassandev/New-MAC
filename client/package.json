@@ -9,7 +9,6 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix",
-    "test": "vitest run",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\" --config ./.prettierrc",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,md,json}\" --config ./.prettierrc",
     "fix": "npm run format && npm run lint:fix"
@@ -58,9 +57,6 @@
     "yup": "^1.6.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.1.4",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.5.1",
     "@types/dagre": "^0.7.52",
     "@types/node": "^20.9.0",
     "@types/react": "^18.2.15",
@@ -76,14 +72,12 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
-    "jsdom": "^22.1.0",
     "postcss": "^8.4.31",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^3.3.5",
     "typescript": "^5.0.2",
     "vite": "^4.4.5",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^0.34.6"
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { DeviceType, Template, TemplateFormData, NewDeviceType } from '../types/template.types';
 
-// Create api instance 
+// Create api instance
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
 const api = axios.create({
   baseURL: API_URL,
@@ -34,12 +34,14 @@ export const getTemplates = async (): Promise<Template[]> => {
     } catch (libraryError) {
       console.warn('Error fetching from library API, falling back to devices API:', libraryError);
     }
-    
+
     // Fallback: fetch devices marked as templates
     try {
       const devicesResponse = await api.get('/devices');
-      const templateDevices = devicesResponse.data.filter((device: any) => device.isTemplate === true);
-      
+      const templateDevices = devicesResponse.data.filter(
+        (device: any) => device.isTemplate === true
+      );
+
       // If we have template devices, return them
       if (templateDevices && templateDevices.length > 0) {
         return templateDevices;
@@ -47,7 +49,7 @@ export const getTemplates = async (): Promise<Template[]> => {
     } catch (deviceError) {
       console.warn('Error fetching from devices API:', deviceError);
     }
-    
+
     // If no templates are found, provide sample templates
     console.warn('No templates found, providing sample templates');
     return [
@@ -66,8 +68,8 @@ export const getTemplates = async (): Promise<Template[]> => {
           tcp: {
             ip: '192.168.1.100',
             port: 502,
-            slaveId: 1
-          }
+            slaveId: 1,
+          },
         },
         dataPoints: [
           {
@@ -87,19 +89,19 @@ export const getTemplates = async (): Promise<Template[]> => {
                   signed: true,
                   registerRange: 'Electrical',
                   registerIndex: 0,
-                  wordCount: 2
-                }
-              ]
-            }
-          }
+                  wordCount: 2,
+                },
+              ],
+            },
+          },
         ],
         createdBy: {
           userId: 'demo_user_id',
           username: 'Demo User',
-          email: 'demo@example.com'
+          email: 'demo@example.com',
         },
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       {
         _id: 'template_2',
@@ -119,8 +121,8 @@ export const getTemplates = async (): Promise<Template[]> => {
             dataBits: 8,
             stopBits: 1,
             parity: 'none',
-            slaveId: 1
-          }
+            slaveId: 1,
+          },
         },
         dataPoints: [
           {
@@ -140,20 +142,20 @@ export const getTemplates = async (): Promise<Template[]> => {
                   signed: true,
                   registerRange: 'Main',
                   registerIndex: 0,
-                  wordCount: 2
-                }
-              ]
-            }
-          }
+                  wordCount: 2,
+                },
+              ],
+            },
+          },
         ],
         createdBy: {
           userId: 'demo_user_id',
           username: 'Demo User',
-          email: 'demo@example.com'
+          email: 'demo@example.com',
         },
         createdAt: new Date(),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     ];
   } catch (error) {
     console.error('Error fetching templates:', error);
@@ -186,15 +188,18 @@ export const createTemplate = async (template: TemplateFormData): Promise<Templa
     // Ensure template has isTemplate flag
     const templateData = {
       ...template,
-      isTemplate: true
+      isTemplate: true,
     };
-    
+
     try {
       // First try library API
       const response = await api.post(`${LIBRARY_API_PATH}/templates`, templateData);
       return response.data;
     } catch (libraryError) {
-      console.warn('Error creating template in library API, falling back to devices API:', libraryError);
+      console.warn(
+        'Error creating template in library API, falling back to devices API:',
+        libraryError
+      );
       // Fallback to devices API
       const deviceResponse = await api.post('/devices', templateData);
       return deviceResponse.data;
@@ -205,7 +210,10 @@ export const createTemplate = async (template: TemplateFormData): Promise<Templa
   }
 };
 
-export const updateTemplate = async (id: string, template: Partial<Template>): Promise<Template> => {
+export const updateTemplate = async (
+  id: string,
+  template: Partial<Template>
+): Promise<Template> => {
   try {
     const response = await api.put(`${LIBRARY_API_PATH}/templates/${id}`, template);
     return response.data;
@@ -255,7 +263,10 @@ export const createDeviceType = async (deviceType: NewDeviceType): Promise<Devic
   }
 };
 
-export const updateDeviceType = async (id: string, deviceType: Partial<DeviceType>): Promise<DeviceType> => {
+export const updateDeviceType = async (
+  id: string,
+  deviceType: Partial<DeviceType>
+): Promise<DeviceType> => {
   try {
     const response = await api.put(`${LIBRARY_API_PATH}/device-types/${id}`, deviceType);
     return response.data;

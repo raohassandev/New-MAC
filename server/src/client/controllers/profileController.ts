@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { IDevice } from '../models/Device'; // Import the Device interface
 import ModbusRTU from 'modbus-serial';
 import { Profile } from '../models';
+import { createModbusRTUClient, safeCloseModbusClient } from './modbusHelper';
 
 // @desc    Get all profiles
 // @route   GET /api/profiles
@@ -155,7 +156,7 @@ export const applyProfile = async (req: Request, res: Response) => {
         continue;
       }
 
-      const client = new ModbusRTU();
+      let client: ModbusRTU | null = new ModbusRTU();
 
       try {
         // Connect to the device - check if ip and port are defined
@@ -208,7 +209,7 @@ export const applyProfile = async (req: Request, res: Response) => {
         });
       } finally {
         // Close the connection
-        client.close();
+        await safeCloseModbusClient(client);
       }
     }
 

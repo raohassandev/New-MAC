@@ -1,5 +1,5 @@
 import axios from 'axios';
-import {endpoints} from '../../../CONSTANTS'
+import { endpoints } from '../../../CONSTANTS';
 // Use environment variable for the API URL instead of hardcoding
 const API_URL = import.meta.env.VITE_API_URL || endpoints.authUrl;
 
@@ -57,17 +57,17 @@ export const getDevices = async () => {
     // First try with correct API path
     try {
       const response = await api.get('/client/api/devices');
-      
+
       // Check if we have a new paginated response format
       if (response.data && response.data.devices) {
         return response.data.devices;
       }
-      
+
       // Check if we have a direct array response format
       if (response.data && Array.isArray(response.data)) {
         return response.data;
       }
-      
+
       // If we have some other data format, return it directly
       return response.data;
     } catch (error) {
@@ -126,10 +126,10 @@ export const createDevice = async (deviceData: any) => {
         } catch (legacyError) {
           // If both fail, return a mock response for development
           console.warn('Using mock device creation response - API endpoints not found');
-          
+
           // Generate a random ID
           const mockId = Math.random().toString(36).substring(2, 15);
-          
+
           // Return a mock response
           return {
             ...deviceData,
@@ -213,7 +213,7 @@ export const readDeviceRegisters = async (id: string) => {
     // Try with correct API path
     try {
       const response = await api.get(`/client/api/devices/${id}/read`);
-      console.log("Reading Data is =>" , response.data)
+      console.log('Reading Data is =>', response.data);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {

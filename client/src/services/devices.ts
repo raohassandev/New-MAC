@@ -1,4 +1,3 @@
-
 import { deviceApi } from '../api/endpoints';
 import { Device as BaseDevice, ConnectionSetting, DataPoint } from '../types/device.types';
 
@@ -45,19 +44,19 @@ export function isDevice(obj: any): obj is Device {
 export function ensureDeviceProperties(device: BaseDevice): Device {
   // Extract connection settings from the device object
   let connectionSetting = device.connectionSetting;
-  
+
   // If connectionSetting doesn't exist or is missing required properties, create it
   if (!connectionSetting || (!connectionSetting.tcp && !connectionSetting.rtu)) {
     // Handle connectionType - ensure it's a valid literal type
-    const connType = (device.connectionType === 'rtu') ? 'rtu' : 'tcp';
-    
+    const connType = device.connectionType === 'rtu' ? 'rtu' : 'tcp';
+
     // Create a properly typed connection setting object
     connectionSetting = {
       connectionType: connType,
       tcp: {
         ip: device.ip || '',
         port: typeof device.port === 'number' ? device.port : 502,
-        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1
+        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1,
       },
       rtu: {
         serialPort: device.serialPort || '',
@@ -65,8 +64,8 @@ export function ensureDeviceProperties(device: BaseDevice): Device {
         dataBits: typeof device.dataBits === 'number' ? device.dataBits : 8,
         stopBits: typeof device.stopBits === 'number' ? device.stopBits : 1,
         parity: device.parity || 'none',
-        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1
-      }
+        slaveId: typeof device.slaveId === 'number' ? device.slaveId : 1,
+      },
     };
   }
 
@@ -147,7 +146,7 @@ const SAMPLE_DEVICES: Device[] = [
       tcp: {
         ip: '192.168.1.191',
         port: 502,
-        slaveId: 1
+        slaveId: 1,
       },
       rtu: {
         serialPort: '',
@@ -155,8 +154,8 @@ const SAMPLE_DEVICES: Device[] = [
         dataBits: 8,
         stopBits: 1,
         parity: 'none',
-        slaveId: 1
-      }
+        slaveId: 1,
+      },
     },
     dataPoints: [
       {
@@ -176,11 +175,11 @@ const SAMPLE_DEVICES: Device[] = [
               signed: true,
               registerRange: 'Main',
               registerIndex: 0,
-              wordCount: 2
-            }
-          ]
-        }
-      }
+              wordCount: 2,
+            },
+          ],
+        },
+      },
     ],
     // New required fields
     deviceDriverId: 'sample_driver_1',
@@ -191,7 +190,7 @@ const SAMPLE_DEVICES: Device[] = [
     createdBy: {
       userId: 'demo_user_id',
       username: 'Demo User',
-      email: 'demo@example.com'
+      email: 'demo@example.com',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -211,7 +210,7 @@ const SAMPLE_DEVICES: Device[] = [
       tcp: {
         ip: '',
         port: 502,
-        slaveId: 1
+        slaveId: 1,
       },
       rtu: {
         serialPort: 'COM2',
@@ -219,8 +218,8 @@ const SAMPLE_DEVICES: Device[] = [
         dataBits: 8,
         stopBits: 1,
         parity: 'none',
-        slaveId: 1
-      }
+        slaveId: 1,
+      },
     },
     dataPoints: [
       {
@@ -240,11 +239,11 @@ const SAMPLE_DEVICES: Device[] = [
               signed: true,
               registerRange: 'Main',
               registerIndex: 0,
-              wordCount: 2
-            }
-          ]
-        }
-      }
+              wordCount: 2,
+            },
+          ],
+        },
+      },
     ],
     // New required fields
     deviceDriverId: 'sample_driver_2',
@@ -255,7 +254,7 @@ const SAMPLE_DEVICES: Device[] = [
     createdBy: {
       userId: 'demo_user_id',
       username: 'Demo User',
-      email: 'demo@example.com'
+      email: 'demo@example.com',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -267,34 +266,53 @@ const SAMPLE_DEVICES: Device[] = [
 // Export functions that integrate with the backend API using the unified endpoint helpers
 export async function getDevices(): Promise<any> {
   try {
+    console.log('[devices.ts] Fetching devices from API endpoint...');
+    
     // Use the deviceApi from endpoints.ts
     const response = await deviceApi.getDevices();
     
+    console.log('[devices.ts] Device API response:', response);
+
     // If it's a direct response with data property containing the paginated structure
     if (response && response.data && response.data.devices) {
+      console.log('[devices.ts] Found devices in paginated response:', response.data.devices.length);
       return response.data; // Return the whole pagination object with devices, not just devices array
     }
-    
+
     // If response.data is an array
     if (response && response.data && Array.isArray(response.data)) {
+      console.log('[devices.ts] Found device array in response.data:', response.data.length);
       return response.data;
     }
-    
+
     // If response itself is the array
     if (Array.isArray(response)) {
+      console.log('[devices.ts] Response itself is an array of devices:', response.length);
       return response;
     }
-    
+
     // Special case for MongoDB cursor in raw response
     if (response && typeof response === 'object') {
+      console.log('[devices.ts] Found object response, could be MongoDB cursor:', response);
       return response; // Return the whole object so caller can handle MongoDB cursor
     }
-    
+
     // If no devices are returned, return empty array instead of sample devices
-    console.warn('No devices returned from API or unexpected format, returning empty array');
+    console.warn('[devices.ts] No devices returned from API or unexpected format, returning empty array');
+    console.warn('[devices.ts] Response format received:', response);
     return { devices: [], pagination: { total: 0, page: 1, limit: 50, pages: 1 } };
   } catch (error) {
-    console.error('Error fetching devices from API:', error);
+    console.error('[devices.ts] Error fetching devices from API:', error);
+    if (error.response) {
+      console.error('[devices.ts] Error status:', error.response.status);
+      console.error('[devices.ts] Error data:', error.response.data);
+      console.error('[devices.ts] Request URL:', error.config?.url);
+    } else if (error.request) {
+      console.error('[devices.ts] No response received. Request:', error.request);
+    } else {
+      console.error('[devices.ts] Error message:', error.message);
+    }
+    
     // Return empty array instead of sample devices
     return { devices: [], pagination: { total: 0, page: 1, limit: 50, pages: 1 } };
   }
@@ -314,18 +332,18 @@ export async function getDevice(id: string): Promise<Device> {
 export async function addDevice(device: BaseDevice): Promise<Device> {
   try {
     console.log('[devices.ts] addDevice called with:', device);
-    
+
     // Ensure all required properties are present
     const preparedDevice = ensureDeviceProperties(device);
-    
+
     console.log('[devices.ts] Prepared device data:', preparedDevice);
 
     // Use the deviceApi from endpoints.ts
     console.log('[devices.ts] Calling deviceApi.createDevice');
     const response = await deviceApi.createDevice(preparedDevice);
-    
+
     console.log('[devices.ts] Device created successfully:', response);
-    
+
     // Return response data or response itself
     return response.data || response;
   } catch (error: any) {
@@ -362,13 +380,13 @@ export async function deleteDevice(id: string): Promise<boolean> {
   }
 }
 
-export async function testConnection(id: string): Promise<{ 
-  success: boolean; 
-  message: string; 
-  error?: string; 
+export async function testConnection(id: string): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
   errorType?: string;
   troubleshooting?: string;
-  deviceInfo?: any 
+  deviceInfo?: any;
 }> {
   try {
     // Use the deviceApi from endpoints.ts
@@ -376,14 +394,14 @@ export async function testConnection(id: string): Promise<{
     return response.data || response;
   } catch (error: any) {
     console.error('Error testing device connection via API:', error);
-    
+
     // Extract detailed error message from response if available
     let errorMessage = 'Connection test failed';
     let errorDetails = null;
     let deviceInfo = null;
     let errorType = null;
     let troubleshooting = null;
-    
+
     if (error.response && error.response.data) {
       // API returned an error response with data
       if (error.response.data.message) {
@@ -405,14 +423,14 @@ export async function testConnection(id: string): Promise<{
       // Network or client-side error
       errorMessage = `Connection test failed: ${error.message}`;
     }
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       message: errorMessage,
       error: errorDetails,
       errorType: errorType,
       troubleshooting: troubleshooting,
-      deviceInfo: deviceInfo
+      deviceInfo: deviceInfo,
     };
   }
 }

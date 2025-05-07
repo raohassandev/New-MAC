@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /**
  * A script to directly test the testDeviceConnection controller function
- * 
+ *
  * To run: node scripts/test-controller.js <deviceId>
  */
 
@@ -28,24 +29,23 @@ async function testController() {
     // Create mock request and response objects
     const req = {
       params: { id: deviceId },
-      app: { locals: {} }
+      app: { locals: {} },
     };
 
     const res = {
-      status: (code) => {
+      status: code => {
         console.log(`Response status: ${code}`);
         return res;
       },
-      json: (data) => {
+      json: data => {
         console.log('Response data:');
         console.log(JSON.stringify(data, null, 2));
-      }
+      },
     };
 
     // Call the controller function directly
     console.log(`Testing connection for device: ${deviceId}`);
     await testDeviceConnection(req, res);
-
   } catch (error) {
     console.error('Error:', error);
   } finally {

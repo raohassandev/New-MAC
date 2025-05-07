@@ -23,7 +23,7 @@ export const validateDeviceBasics = (
   } else if (deviceBasics.name.length < 3) {
     errors.name = 'Template name must be at least 3 characters';
   }
-  
+
   // Device Type is required
   if (!deviceBasics.deviceType?.trim()) {
     errors.deviceType = 'Device type is required';
@@ -165,19 +165,19 @@ export const validateRegisterRanges = (
       errors[`range_${i}_length`] = 'Length must be greater than 0';
     }
 
-    /* 
-   * CRITICAL FIX: Disable register range overlap checking
-   * 
-   * The issue was that "Current" and "Voltage" ranges with the same function code (3)
-   * but representing different physical properties were being flagged as overlapping.
-   * 
-   * For industrial devices, it's completely valid to have multiple register ranges
-   * with the same function code and overlapping address spaces if they are logically
-   * different measurements or device features.
-   */
-   
-   // Original overlap check code (commented out)
-   /*
+    /*
+     * CRITICAL FIX: Disable register range overlap checking
+     *
+     * The issue was that "Current" and "Voltage" ranges with the same function code (3)
+     * but representing different physical properties were being flagged as overlapping.
+     *
+     * For industrial devices, it's completely valid to have multiple register ranges
+     * with the same function code and overlapping address spaces if they are logically
+     * different measurements or device features.
+     */
+
+    // Original overlap check code (commented out)
+    /*
     for (let j = 0; j < ranges.length; j++) {
       if (i !== j) {
         // Don't compare with self
@@ -373,7 +373,7 @@ const checkParameterOverlaps = (
   // ===================================================================
   // Names must be unique across ALL register ranges
   // ===================================================================
-  
+
   // Check for duplicate parameter names
   const nameMap = new Map<string, number>();
   parameters.forEach((param, index) => {
@@ -392,7 +392,7 @@ const checkParameterOverlaps = (
   // ===================================================================
   // Register indices only need to be unique within the SAME register range
   // ===================================================================
-  
+
   // Group parameters by register range
   const paramsByRange: Record<
     string,
@@ -434,9 +434,15 @@ const checkParameterOverlaps = (
           if (['BOOLEAN', 'BIT'].includes(paramB.param.dataType)) {
             // For bit parameters, check if they use same buffer index and same bit position
             // Get buffer indices (either direct or calculated from registerIndex)
-            const bufferIndexA = paramA.param.bufferIndex !== undefined ? paramA.param.bufferIndex : paramA.param.registerIndex * 2;
-            const bufferIndexB = paramB.param.bufferIndex !== undefined ? paramB.param.bufferIndex : paramB.param.registerIndex * 2;
-            
+            const bufferIndexA =
+              paramA.param.bufferIndex !== undefined
+                ? paramA.param.bufferIndex
+                : paramA.param.registerIndex * 2;
+            const bufferIndexB =
+              paramB.param.bufferIndex !== undefined
+                ? paramB.param.bufferIndex
+                : paramB.param.registerIndex * 2;
+
             if (
               bufferIndexA === bufferIndexB &&
               paramA.param.bitPosition === paramB.param.bitPosition
@@ -469,22 +475,25 @@ const checkParameterOverlaps = (
             }
             return 2; // Default to 16-bit (2 bytes)
           };
-          
-          const bufferIndexA = paramA.param.bufferIndex !== undefined ? paramA.param.bufferIndex : paramA.param.registerIndex * 2;
+
+          const bufferIndexA =
+            paramA.param.bufferIndex !== undefined
+              ? paramA.param.bufferIndex
+              : paramA.param.registerIndex * 2;
           const byteSizeA = getByteSize(paramA.param.dataType);
           const bufferEndA = bufferIndexA + byteSizeA - 1;
-          
-          const bufferIndexB = paramB.param.bufferIndex !== undefined ? paramB.param.bufferIndex : paramB.param.registerIndex * 2;
+
+          const bufferIndexB =
+            paramB.param.bufferIndex !== undefined
+              ? paramB.param.bufferIndex
+              : paramB.param.registerIndex * 2;
           const byteSizeB = getByteSize(paramB.param.dataType);
           const bufferEndB = bufferIndexB + byteSizeB - 1;
-          
+
           // For non-bit parameters vs bit parameters
           if (['BOOLEAN', 'BIT'].includes(paramB.param.dataType)) {
             // Non-bit parameter overlaps with byte used by bit parameter
-            if (
-              bufferIndexA <= bufferIndexB &&
-              bufferEndA >= bufferIndexB
-            ) {
+            if (bufferIndexA <= bufferIndexB && bufferEndA >= bufferIndexB) {
               // This is fine - bit parameters can share bytes with other data types
               // as they only read a single bit
               continue;
@@ -529,8 +538,11 @@ export const validateParameters = (
   // Parameters are optional, but if present, they must be valid
   if (parameters.length > 0) {
     // DEBUGGING: List all register range names for easier troubleshooting
-    console.log("Available template register ranges:", registerRanges.map(r => r.rangeName));
-    
+    console.log(
+      'Available template register ranges:',
+      registerRanges.map(r => r.rangeName)
+    );
+
     parameters.forEach((param, index) => {
       if (!param.name?.trim()) {
         errors[`param_${index}_name`] = 'Template parameter name is required';
@@ -549,7 +561,7 @@ export const validateParameters = (
       } else if (param.registerIndex < 0) {
         errors[`param_${index}_registerIndex`] = 'Register index must be a positive number';
       }
-      
+
       // Validate bufferIndex
       if (param.bufferIndex === undefined || param.bufferIndex === null) {
         // If bufferIndex is not defined, flag it as an error
@@ -561,16 +573,17 @@ export const validateParameters = (
       // Check register range validity
       if (param.registerRange) {
         // DEBUGGING: Log the parameter's register range for troubleshooting
-        console.log(`Template parameter "${param.name}" uses register range "${param.registerRange}"`);
-        
+        console.log(
+          `Template parameter "${param.name}" uses register range "${param.registerRange}"`
+        );
+
         const selectedRange = registerRanges.find(range => range.rangeName === param.registerRange);
 
         if (!selectedRange) {
           // CRITICAL FIX: If the register range doesn't exist, report a clear error
-          errors[`param_${index}_registerRange`] = 
+          errors[`param_${index}_registerRange`] =
             `Register range "${param.registerRange}" does not exist. Available ranges: ${registerRanges.map(r => r.rangeName).join(', ')}`;
-        }
-        else {
+        } else {
           // Calculate required word count based on data type
           const requiredWordCount = param.wordCount || getRequiredWordCount(param.dataType);
 

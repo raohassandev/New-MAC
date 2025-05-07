@@ -163,14 +163,13 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
             <span>
-              Give meaningful names to each register range in the template (e.g., "Energy Measurements")
+              Give meaningful names to each register range in the template (e.g., "Energy
+              Measurements")
             </span>
           </li>
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
-            <span>
-              Refer to the device documentation for the correct register mappings
-            </span>
+            <span>Refer to the device documentation for the correct register mappings</span>
           </li>
         </ul>
       </>
@@ -195,15 +194,11 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           </li>
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
-            <span>
-              Include all common parameters: voltage, current, power, etc.
-            </span>
+            <span>Include all common parameters: voltage, current, power, etc.</span>
           </li>
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
-            <span>
-              Set appropriate scaling factors and units based on device documentation
-            </span>
+            <span>Set appropriate scaling factors and units based on device documentation</span>
           </li>
         </ul>
       </>

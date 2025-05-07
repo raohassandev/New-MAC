@@ -22,7 +22,7 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({
   troubleshooting,
   errorType,
   deviceInfo,
-  onDismiss
+  onDismiss,
 }) => {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
@@ -44,13 +44,18 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({
             <div>
               <h3 className="font-medium text-red-800">{title}</h3>
               <p className="mt-1 text-sm text-red-700">{message}</p>
-              
+
               {/* Device Info */}
               {deviceInfo && (
                 <div className="mt-2 rounded bg-red-100 p-2 text-xs text-red-800">
-                  <p><span className="font-semibold">Device:</span> {deviceInfo.name}</p>
+                  <p>
+                    <span className="font-semibold">Device:</span> {deviceInfo.name}
+                  </p>
                   {deviceInfo.connectionType && (
-                    <p><span className="font-semibold">Connection:</span> {deviceInfo.connectionType.toUpperCase()} {deviceInfo.address}</p>
+                    <p>
+                      <span className="font-semibold">Connection:</span>{' '}
+                      {deviceInfo.connectionType.toUpperCase()} {deviceInfo.address}
+                    </p>
                   )}
                 </div>
               )}
@@ -58,18 +63,14 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({
               {/* Technical Details Collapsible Section */}
               {error && (
                 <div className="mt-2">
-                  <button 
+                  <button
                     onClick={toggleTechnicalDetails}
                     className="flex w-full items-center justify-between rounded bg-red-100 p-2 text-xs font-medium text-red-800 hover:bg-red-200"
                   >
                     <span>Technical Details {errorType && `(${errorType})`}</span>
-                    {showTechnicalDetails ? (
-                      <ChevronUp size={16} />
-                    ) : (
-                      <ChevronDown size={16} />
-                    )}
+                    {showTechnicalDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
-                  
+
                   {showTechnicalDetails && (
                     <div className="mt-1 whitespace-pre-wrap rounded bg-red-100 p-2 text-xs text-red-800">
                       {error}
@@ -81,18 +82,14 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({
               {/* Troubleshooting Guide Collapsible Section */}
               {troubleshooting && (
                 <div className="mt-2">
-                  <button 
+                  <button
                     onClick={toggleTroubleshooting}
                     className="flex w-full items-center justify-between rounded bg-yellow-100 p-2 text-xs font-medium text-yellow-800 hover:bg-yellow-200"
                   >
                     <span>Troubleshooting Guide</span>
-                    {showTroubleshooting ? (
-                      <ChevronUp size={16} />
-                    ) : (
-                      <ChevronDown size={16} />
-                    )}
+                    {showTroubleshooting ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
-                  
+
                   {showTroubleshooting && (
                     <div className="mt-1 whitespace-pre-wrap rounded bg-yellow-100 p-2 text-xs text-yellow-800">
                       {troubleshooting}
@@ -103,11 +100,11 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({
             </div>
           </div>
         </div>
-        
+
         {/* Dismiss Button */}
         {onDismiss && (
-          <button 
-            onClick={onDismiss} 
+          <button
+            onClick={onDismiss}
             className="ml-4 inline-flex flex-shrink-0 rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100"
             aria-label="Dismiss error"
           >

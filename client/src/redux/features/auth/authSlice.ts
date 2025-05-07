@@ -38,7 +38,7 @@ const authSlice = createSlice({
       state.permissions = action.payload.permissions || [];
       state.lastUpdated = Date.now();
     },
-    clearUser: (state) => {
+    clearUser: state => {
       state.data = null;
       state.isAuthenticated = false;
       state.token = null;
@@ -49,9 +49,9 @@ const authSlice = createSlice({
       state.token = action.payload;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Login reducers
-    builder.addCase(login.pending, (state) => {
+    builder.addCase(login.pending, state => {
       state.loading = true;
       state.error = null;
     });
@@ -70,7 +70,7 @@ const authSlice = createSlice({
     });
 
     // Register reducers
-    builder.addCase(register.pending, (state) => {
+    builder.addCase(register.pending, state => {
       state.loading = true;
       state.error = null;
     });
@@ -89,7 +89,7 @@ const authSlice = createSlice({
     });
 
     // Get current user reducers
-    builder.addCase(getCurrentUser.pending, (state) => {
+    builder.addCase(getCurrentUser.pending, state => {
       state.loading = true;
       state.error = null;
     });
@@ -108,7 +108,7 @@ const authSlice = createSlice({
     });
 
     // Logout reducers
-    builder.addCase(logout.fulfilled, (state) => {
+    builder.addCase(logout.fulfilled, state => {
       state.data = null;
       state.isAuthenticated = false;
       state.token = null;

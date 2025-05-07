@@ -13,17 +13,17 @@ const STORAGE_KEY = 'macsys_site_configuration';
 const loadConfiguration = async (): Promise<SiteConfigurationSettings> => {
   try {
     const storedConfig = localStorage.getItem(STORAGE_KEY);
-    
+
     if (storedConfig) {
       const parsedConfig = JSON.parse(storedConfig);
-      
+
       // Merge with default config to ensure all properties exist
       return {
         ...defaultConfiguration,
         ...parsedConfig,
       };
     }
-    
+
     // If no stored config, use default
     return defaultConfiguration;
   } catch (error) {
@@ -37,7 +37,9 @@ const loadConfiguration = async (): Promise<SiteConfigurationSettings> => {
  * For development, we'll use localStorage to persist settings
  * In production, this would connect to a backend API endpoint
  */
-const persistConfiguration = async (config: SiteConfigurationSettings): Promise<SiteConfigurationSettings> => {
+const persistConfiguration = async (
+  config: SiteConfigurationSettings
+): Promise<SiteConfigurationSettings> => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     return config;
@@ -50,20 +52,19 @@ const persistConfiguration = async (config: SiteConfigurationSettings): Promise<
 /**
  * Async thunk for fetching configuration
  */
-export const fetchConfiguration = createAsyncThunk<
-  SiteConfigurationSettings,
-  void,
-  ThunkApiConfig
->('siteConfiguration/fetchConfiguration', async (_, { rejectWithValue }) => {
-  try {
-    return await loadConfiguration();
-  } catch (error: any) {
-    return rejectWithValue({
-      message: error.message || 'Failed to load configuration',
-      name: error.name || 'Error',
-    });
+export const fetchConfiguration = createAsyncThunk<SiteConfigurationSettings, void, ThunkApiConfig>(
+  'siteConfiguration/fetchConfiguration',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await loadConfiguration();
+    } catch (error: any) {
+      return rejectWithValue({
+        message: error.message || 'Failed to load configuration',
+        name: error.name || 'Error',
+      });
+    }
   }
-});
+);
 
 /**
  * Async thunk for saving configuration

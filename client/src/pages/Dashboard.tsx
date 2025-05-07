@@ -1,4 +1,12 @@
-import { Activity, AlertCircle, AlertTriangle, ArrowDown, ArrowUp, Clock, Settings, Sliders } from 'lucide-react';
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Clock,
+  Sliders,
+} from 'lucide-react';
 import {
   CartesianGrid,
   Line,
@@ -12,7 +20,10 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 import type { RootState } from '../redux/store';
-import { selectSystemMonitorRefreshInterval, selectRealTimeUpdatesEnabled } from '../redux/features/siteConfiguration';
+import {
+  selectSystemMonitorRefreshInterval,
+  selectRealTimeUpdatesEnabled,
+} from '../redux/features/siteConfiguration';
 
 // Define useAppSelector to avoid circular dependencies
 const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
@@ -49,11 +60,11 @@ const Dashboard = () => {
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
-  
+
   // Get configuration values from siteConfiguration
   const systemRefreshInterval = useAppSelector(selectSystemMonitorRefreshInterval);
   const realTimeUpdatesEnabled = useAppSelector(selectRealTimeUpdatesEnabled);
-  
+
   // Timer reference for auto-refresh
   const refreshTimerRef = useRef<number | null>(null);
 
@@ -80,11 +91,11 @@ const Dashboard = () => {
       setIsLoading(false);
     }
   }, [timeframe]);
-  
+
   useEffect(() => {
     fetchDashboardData();
   }, [timeframe]);
-  
+
   // Set up auto-refresh based on configuration
   useEffect(() => {
     // Clear any existing timer
@@ -92,7 +103,7 @@ const Dashboard = () => {
       window.clearInterval(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
-    
+
     // Only set up auto-refresh if real-time updates are enabled
     if (realTimeUpdatesEnabled) {
       refreshTimerRef.current = window.setInterval(() => {
@@ -100,7 +111,7 @@ const Dashboard = () => {
         fetchDashboardData();
       }, systemRefreshInterval);
     }
-    
+
     // Clean up on unmount
     return () => {
       if (refreshTimerRef.current) {
@@ -231,8 +242,8 @@ const Dashboard = () => {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <button 
-            onClick={() => window.location.href = '/system-configuration'}
+          <button
+            onClick={() => (window.location.href = '/system-configuration')}
             className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
           >
             <Sliders size={16} />

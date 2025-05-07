@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { selectActiveTheme, selectThemeMode, setSystemPreference } from '../../redux/features/theme';
+import {
+  selectActiveTheme,
+  selectThemeMode,
+  setSystemPreference,
+} from '../../redux/features/theme';
 import { useAppSelector } from '../../redux/store';
 
 interface ThemeProviderProps {
@@ -15,13 +19,13 @@ const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Add theme class to document element
   useEffect(() => {
     const documentEl = document.documentElement;
-    
+
     // Remove both classes
     documentEl.classList.remove('light-theme', 'dark-theme');
-    
+
     // Add active theme class
     documentEl.classList.add(`${activeTheme}-theme`);
-    
+
     // Also set data-theme attribute for CSS variables
     documentEl.setAttribute('data-theme', activeTheme);
   }, [activeTheme]);
@@ -29,15 +33,15 @@ const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Add listener for system preference changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     // Update system preference when it changes
     const handleChange = (e: MediaQueryListEvent) => {
       dispatch(setSystemPreference(e.matches ? 'dark' : 'light'));
     };
-    
+
     // Set initial value
     dispatch(setSystemPreference(mediaQuery.matches ? 'dark' : 'light'));
-    
+
     // Add listener
     if (mediaQuery.addEventListener) {
       mediaQuery.addEventListener('change', handleChange);

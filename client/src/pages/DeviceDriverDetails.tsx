@@ -14,7 +14,7 @@ const DeviceDriverDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const { getDeviceDriver, updateDeviceDriver, deleteDeviceDriver } = useDeviceDrivers();
 
   useEffect(() => {
@@ -34,7 +34,10 @@ const DeviceDriverDetails: React.FC = () => {
         setError(null);
       } catch (err) {
         console.error('Error fetching device driver:', err);
-        setError('Failed to load device driver. Error: ' + (err instanceof Error ? err.message : String(err)));
+        setError(
+          'Failed to load device driver. Error: ' +
+            (err instanceof Error ? err.message : String(err))
+        );
       } finally {
         setLoading(false);
       }
@@ -74,7 +77,7 @@ const DeviceDriverDetails: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this device driver?')) {
       return;
     }
-    
+
     try {
       setLoading(true);
       await deleteDeviceDriver(driverId!);
@@ -107,11 +110,7 @@ const DeviceDriverDetails: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-800">Error Loading Device Driver</h2>
           <p className="mt-2 text-gray-600">{error}</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          className="flex items-center space-x-2"
-        >
+        <Button variant="outline" onClick={handleBack} className="flex items-center space-x-2">
           <ArrowLeft size={16} />
           <span>Back to Device Drivers</span>
         </Button>
@@ -129,11 +128,7 @@ const DeviceDriverDetails: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-800">Device Driver Not Found</h2>
           <p className="mt-2 text-gray-600">The requested device driver could not be found.</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          className="flex items-center space-x-2"
-        >
+        <Button variant="outline" onClick={handleBack} className="flex items-center space-x-2">
           <ArrowLeft size={16} />
           <span>Back to Device Drivers</span>
         </Button>
@@ -145,21 +140,17 @@ const DeviceDriverDetails: React.FC = () => {
     return (
       <div className="container mx-auto p-4">
         <div className="mb-6 flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            className="flex items-center space-x-2"
-          >
+          <Button variant="outline" onClick={handleCancel} className="flex items-center space-x-2">
             <ArrowLeft size={16} />
             <span>Cancel</span>
           </Button>
           <h1 className="text-2xl font-bold text-gray-800">Edit Device Driver</h1>
           <div></div> {/* Empty div for flex spacing */}
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
-          <NewDeviceDriverForm 
-            initialData={deviceDriver} 
+          <NewDeviceDriverForm
+            initialData={deviceDriver}
             onSubmit={handleSave}
             onClose={handleCancel}
             isEditing={true}
@@ -172,20 +163,12 @@ const DeviceDriverDetails: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       <div className="mb-6 flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          className="flex items-center space-x-2"
-        >
+        <Button variant="outline" onClick={handleBack} className="flex items-center space-x-2">
           <ArrowLeft size={16} />
           <span>Back</span>
         </Button>
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleEdit}
-            className="flex items-center space-x-2"
-          >
+          <Button variant="outline" onClick={handleEdit} className="flex items-center space-x-2">
             <Edit size={16} />
             <span>Edit</span>
           </Button>
@@ -208,12 +191,14 @@ const DeviceDriverDetails: React.FC = () => {
               <CreditCard className="mr-4 h-8 w-8 text-blue-500" />
               <h1 className="text-2xl font-bold text-gray-800">{deviceDriver.name}</h1>
             </div>
-            
+
             <div className="mb-6">
               <h2 className="mb-2 text-lg font-semibold text-gray-700">Description</h2>
-              <p className="text-gray-600">{deviceDriver.description || 'No description provided.'}</p>
+              <p className="text-gray-600">
+                {deviceDriver.description || 'No description provided.'}
+              </p>
             </div>
-            
+
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <h2 className="mb-2 text-lg font-semibold text-gray-700">Device Type</h2>
@@ -223,14 +208,16 @@ const DeviceDriverDetails: React.FC = () => {
               </div>
               <div>
                 <h2 className="mb-2 text-lg font-semibold text-gray-700">Status</h2>
-                <p className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                  deviceDriver.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
+                <p
+                  className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                    deviceDriver.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}
+                >
                   {deviceDriver.enabled ? 'Enabled' : 'Disabled'}
                 </p>
               </div>
             </div>
-            
+
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <h2 className="mb-2 text-lg font-semibold text-gray-700">Make</h2>
@@ -245,13 +232,16 @@ const DeviceDriverDetails: React.FC = () => {
                 <p className="text-gray-600">{deviceDriver.dataPoints?.length || 0} registers</p>
               </div>
             </div>
-            
+
             {deviceDriver.tags && deviceDriver.tags.length > 0 && (
               <div className="mb-6">
                 <h2 className="mb-2 text-lg font-semibold text-gray-700">Tags</h2>
                 <div className="flex flex-wrap gap-2">
                   {deviceDriver.tags.map((tag, index) => (
-                    <span key={index} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
+                    <span
+                      key={index}
+                      className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -259,7 +249,7 @@ const DeviceDriverDetails: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           {/* Data Points */}
           <div className="mt-6 rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-xl font-semibold text-gray-800">Data Points</h2>
@@ -268,10 +258,18 @@ const DeviceDriverDetails: React.FC = () => {
                 <table className="min-w-full border-collapse divide-y divide-gray-200">
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Address</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Count</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Function Code</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Parameters</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Address
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Count
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Function Code
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Parameters
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -292,8 +290,15 @@ const DeviceDriverDetails: React.FC = () => {
                               {dataPoint.parser.parameters.map((param, paramIndex) => (
                                 <div key={paramIndex} className="flex flex-wrap gap-x-4 gap-y-1">
                                   <span className="font-medium">{param.name}:</span>
-                                  <span>{param.dataType}{param.unit ? ` (${param.unit})` : ''}</span>
-                                  {param.description && <span className="w-full text-xs text-gray-500">{param.description}</span>}
+                                  <span>
+                                    {param.dataType}
+                                    {param.unit ? ` (${param.unit})` : ''}
+                                  </span>
+                                  {param.description && (
+                                    <span className="w-full text-xs text-gray-500">
+                                      {param.description}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -311,7 +316,7 @@ const DeviceDriverDetails: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         {/* Sidebar */}
         <div className="col-span-1">
           {/* Connection Settings */}
@@ -321,60 +326,76 @@ const DeviceDriverDetails: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h3 className="mb-1 text-sm font-medium text-gray-600">Connection Type</h3>
-                  <p className="text-gray-800">{deviceDriver.connectionSetting.connectionType.toUpperCase()}</p>
+                  <p className="text-gray-800">
+                    {deviceDriver.connectionSetting.connectionType.toUpperCase()}
+                  </p>
                 </div>
-                
-                {deviceDriver.connectionSetting.connectionType === 'tcp' && deviceDriver.connectionSetting.tcp && (
-                  <>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">IP Address</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.tcp.ip}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Port</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.tcp.port}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Slave ID</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.tcp.slaveId}</p>
-                    </div>
-                  </>
-                )}
-                
-                {deviceDriver.connectionSetting.connectionType === 'rtu' && deviceDriver.connectionSetting.rtu && (
-                  <>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Serial Port</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.serialPort}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Baud Rate</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.baudRate}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Data Bits</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.dataBits}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Stop Bits</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.stopBits}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Parity</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.parity}</p>
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-medium text-gray-600">Slave ID</h3>
-                      <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.slaveId}</p>
-                    </div>
-                  </>
-                )}
+
+                {deviceDriver.connectionSetting.connectionType === 'tcp' &&
+                  deviceDriver.connectionSetting.tcp && (
+                    <>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">IP Address</h3>
+                        <p className="text-gray-800">{deviceDriver.connectionSetting.tcp.ip}</p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Port</h3>
+                        <p className="text-gray-800">{deviceDriver.connectionSetting.tcp.port}</p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Slave ID</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.tcp.slaveId}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                {deviceDriver.connectionSetting.connectionType === 'rtu' &&
+                  deviceDriver.connectionSetting.rtu && (
+                    <>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Serial Port</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.rtu.serialPort}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Baud Rate</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.rtu.baudRate}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Data Bits</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.rtu.dataBits}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Stop Bits</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.rtu.stopBits}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Parity</h3>
+                        <p className="text-gray-800">{deviceDriver.connectionSetting.rtu.parity}</p>
+                      </div>
+                      <div>
+                        <h3 className="mb-1 text-sm font-medium text-gray-600">Slave ID</h3>
+                        <p className="text-gray-800">
+                          {deviceDriver.connectionSetting.rtu.slaveId}
+                        </p>
+                      </div>
+                    </>
+                  )}
               </div>
             ) : (
               <p className="text-gray-500">No connection settings defined.</p>
             )}
           </div>
-          
+
           {/* Metadata */}
           <div className="mt-6 rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-xl font-semibold text-gray-800">Metadata</h2>
@@ -388,21 +409,21 @@ const DeviceDriverDetails: React.FC = () => {
                   )}
                 </div>
               )}
-              
+
               {deviceDriver.createdAt && (
                 <div>
                   <h3 className="mb-1 text-sm font-medium text-gray-600">Created Date</h3>
                   <p className="text-gray-800">{formatDate(deviceDriver.createdAt.toString())}</p>
                 </div>
               )}
-              
+
               {deviceDriver.updatedAt && (
                 <div>
                   <h3 className="mb-1 text-sm font-medium text-gray-600">Last Updated</h3>
                   <p className="text-gray-800">{formatDate(deviceDriver.updatedAt.toString())}</p>
                 </div>
               )}
-              
+
               <div>
                 <h3 className="mb-1 text-sm font-medium text-gray-600">ID</h3>
                 <p className="break-all text-xs text-gray-500">{deviceDriver._id}</p>

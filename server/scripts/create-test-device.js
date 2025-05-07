@@ -1,14 +1,14 @@
-const mongoose = require('mongoose');
+import { connect, Schema, model as _model, connection } from 'mongoose';
 
 // Connect to the database
 async function main() {
   try {
     console.log('Connecting to client database...');
-    await mongoose.connect('mongodb://localhost:27017/client');
+    await connect('mongodb://localhost:27017/client');
     console.log('Connected to client database');
 
     // Create a Device schema
-    const deviceSchema = new mongoose.Schema({
+    const deviceSchema = new Schema({
       name: { type: String, required: true, unique: true },
       description: { type: String, default: '' },
       enabled: { type: Boolean, default: true },
@@ -19,7 +19,7 @@ async function main() {
         tcp: {
           ip: { type: String, default: '' },
           port: { type: Number, default: 502 },
-          slaveId: { type: Number, default: 1 }
+          slaveId: { type: Number, default: 1 },
         },
         rtu: {
           serialPort: { type: String, default: '' },
@@ -27,32 +27,36 @@ async function main() {
           dataBits: { type: Number, default: 8 },
           stopBits: { type: Number, default: 1 },
           parity: { type: String, default: 'none' },
-          slaveId: { type: Number, default: 1 }
-        }
-      },
-      dataPoints: [{ 
-        range: {
-          startAddress: { type: Number, required: true },
-          count: { type: Number, required: true, default: 1 },
-          fc: { type: Number, required: true, default: 3 }
+          slaveId: { type: Number, default: 1 },
         },
-        parser: {
-          parameters: [{
-            name: { type: String, required: true },
-            dataType: { type: String, default: 'INT16' },
-            registerIndex: { type: Number, required: true },
-            scalingFactor: { type: Number, default: 1 },
-            unit: { type: String }
-          }]
-        }
-      }],
+      },
+      dataPoints: [
+        {
+          range: {
+            startAddress: { type: Number, required: true },
+            count: { type: Number, required: true, default: 1 },
+            fc: { type: Number, required: true, default: 3 },
+          },
+          parser: {
+            parameters: [
+              {
+                name: { type: String, required: true },
+                dataType: { type: String, default: 'INT16' },
+                registerIndex: { type: Number, required: true },
+                scalingFactor: { type: Number, default: 1 },
+                unit: { type: String },
+              },
+            ],
+          },
+        },
+      ],
       lastSeen: { type: Date },
       createdAt: { type: Date, default: Date.now },
-      updatedAt: { type: Date, default: Date.now }
+      updatedAt: { type: Date, default: Date.now },
     });
 
     // Create the Device model
-    const Device = mongoose.model('Device', deviceSchema, 'devices');
+    const Device = _model('Device', deviceSchema, 'devices');
 
     // Create a test device - Siemens PLC
     const testDevice = {
@@ -66,15 +70,15 @@ async function main() {
         tcp: {
           ip: '192.168.1.100',
           port: 502,
-          slaveId: 1
-        }
+          slaveId: 1,
+        },
       },
       dataPoints: [
         {
           range: {
             startAddress: 0,
             count: 10,
-            fc: 3
+            fc: 3,
           },
           parser: {
             parameters: [
@@ -83,20 +87,20 @@ async function main() {
                 dataType: 'FLOAT',
                 registerIndex: 0,
                 scalingFactor: 0.1,
-                unit: '°C'
+                unit: '°C',
               },
               {
                 name: 'Pressure',
                 dataType: 'FLOAT',
                 registerIndex: 2,
                 scalingFactor: 0.01,
-                unit: 'Bar'
-              }
-            ]
-          }
-        }
+                unit: 'Bar',
+              },
+            ],
+          },
+        },
       ],
-      lastSeen: new Date()
+      lastSeen: new Date(),
     };
 
     // Save the device to the database
@@ -121,7 +125,7 @@ async function main() {
     });
 
     // Close the connection
-    await mongoose.connection.close();
+    await connection.close();
     console.log('Database connection closed');
   } catch (error) {
     console.error('Error:', error);

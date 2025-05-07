@@ -1,10 +1,10 @@
 /**
  * A simple script to test the device connection endpoint
- * 
+ *
  * To run: node scripts/test-connection.js <deviceId>
  */
 
-const http = require('http');
+import { request } from 'http';
 
 // Get the device ID from command line arguments
 const deviceId = process.argv[2];
@@ -25,20 +25,20 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
 };
 
 // Make a raw HTTP request without any dependencies
-const req = http.request(options, (res) => {
+const req = request(options, res => {
   console.log(`STATUS: ${res.statusCode}`);
   console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
-  
+
   let data = '';
-  
-  res.on('data', (chunk) => {
+
+  res.on('data', chunk => {
     data += chunk;
   });
-  
+
   res.on('end', () => {
     console.log('RESPONSE BODY:');
     try {
@@ -52,7 +52,7 @@ const req = http.request(options, (res) => {
   });
 });
 
-req.on('error', (e) => {
+req.on('error', e => {
   console.error(`ERROR: ${e.message}`);
 });
 

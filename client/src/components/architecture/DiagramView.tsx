@@ -32,56 +32,62 @@ const edgeTypes: EdgeTypes = {
 };
 
 const DiagramView: React.FC = () => {
-  const { 
-    filteredData,
-    config,
-  } = useDiagram();
-  
+  const { filteredData, config } = useDiagram();
+
   const [nodes, setNodes, onNodesChange] = useNodesState(filteredData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(filteredData.edges);
-  
+
   // Update local nodes/edges when filtered data changes
   React.useEffect(() => {
     setNodes(filteredData.nodes);
     setEdges(filteredData.edges);
   }, [filteredData, setNodes, setEdges]);
-  
+
   // Handle connection between nodes
-  const onConnect: OnConnect = useCallback((connection) => {
-    setEdges((eds) => [...eds, { ...connection, type: 'default' }]);
-  }, [setEdges]);
-  
+  const onConnect: OnConnect = useCallback(
+    connection => {
+      setEdges(eds => [...eds, { ...connection, type: 'default' }]);
+    },
+    [setEdges]
+  );
+
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      height: 'calc(100vh - 64px)',
-      padding: '20px',
-      backgroundColor: config.theme === 'dark' ? '#2a2a2a' : '#f8f9fa'
-    }}>
-      <h1 style={{ 
-        fontSize: '24px',
-        marginBottom: '20px',
-        color: config.theme === 'dark' ? '#fff' : '#333'
-      }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 64px)',
+        padding: '20px',
+        backgroundColor: config.theme === 'dark' ? '#2a2a2a' : '#f8f9fa',
+      }}
+    >
+      <h1
+        style={{
+          fontSize: '24px',
+          marginBottom: '20px',
+          color: config.theme === 'dark' ? '#fff' : '#333',
+        }}
+      >
         System Architecture Diagram
       </h1>
-      
+
       <div style={{ display: 'flex', gap: '20px', flexGrow: 1 }}>
         {/* Left panel - Controls */}
         <div style={{ width: '300px' }}>
           <ControlPanel />
           <DetailPanel />
         </div>
-        
+
         {/* Main diagram area */}
-        <div style={{ 
-          flexGrow: 1, 
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          backgroundColor: config.theme === 'dark' ? '#1e1e1e' : '#fff'
-        }}>
+        <div
+          style={{
+            flexGrow: 1,
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            backgroundColor: config.theme === 'dark' ? '#1e1e1e' : '#fff',
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -102,12 +108,12 @@ const DiagramView: React.FC = () => {
             maxZoom={1.5}
           >
             <Controls />
-            <MiniMap 
+            <MiniMap
               nodeStrokeWidth={3}
-              zoomable 
+              zoomable
               pannable
               style={{
-                backgroundColor: config.theme === 'dark' ? '#333' : '#f0f0f0'
+                backgroundColor: config.theme === 'dark' ? '#333' : '#f0f0f0',
               }}
             />
             <Background

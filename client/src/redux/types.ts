@@ -59,7 +59,7 @@ export enum RequestStatus {
   IDLE = 'idle',
   LOADING = 'loading',
   SUCCEEDED = 'succeeded',
-  FAILED = 'failed'
+  FAILED = 'failed',
 }
 
 // Notification type for global messages
@@ -82,4 +82,4 @@ export interface HttpError extends Error {
 // Utility type for thunk API responses
 export type ThunkApiConfig = {
   rejectValue: HttpError;
-}
+};

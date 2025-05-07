@@ -84,14 +84,14 @@ export const DeviceProvider: React.FC<DeviceProviderProps> = ({ children }) => {
       const response = await API.get('/client/api/devices');
 
       // Process the response data to ensure all required fields
-      const formattedDevices = Array.isArray(response.data) 
+      const formattedDevices = Array.isArray(response.data)
         ? response.data.map((device: Device) => ({
             ...device,
             tags: device.tags || [],
             registers: device.registers || [],
             lastSeen: device.enabled ? device.lastSeen || new Date() : undefined,
           }))
-        : response.data.devices 
+        : response.data.devices
           ? response.data.devices.map((device: Device) => ({
               ...device,
               tags: device.tags || [],

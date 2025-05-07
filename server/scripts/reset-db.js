@@ -1,12 +1,12 @@
 /**
  * Script to reset the MongoDB database with initial data
  */
-const { MongoClient } = require('mongodb');
-const dotenv = require('dotenv');
-const path = require('path');
+import { MongoClient } from 'mongodb';
+import { config } from 'dotenv';
+import { join } from 'path';
 
 // Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env') });
+config({ path: join(__dirname, '../.env') });
 
 // MongoDB connection strings
 const LIBRARY_DB_URI = process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx';
@@ -60,7 +60,6 @@ async function resetLibraryDB() {
     console.log('Connected to MongoDB library database');
 
     const db = client.db();
-    
     // Drop all collections if they exist
     const collections = await db.listCollections().toArray();
     for (const collection of collections) {
