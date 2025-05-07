@@ -624,13 +624,30 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
 
   if (!isOpen) return null;
 
+  const handleCloseModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    // If called from an event handler, prevent default
+    if (e) e.preventDefault();
+    
+    // Make sure we call the onClose callback to update the parent component's state
+    onClose();
+    console.log("Modal close handler called");
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <Dialog.Content className="w-full max-w-4xl">
-        <Dialog.Header>
-          <Dialog.Title>{title}</Dialog.Title>
-          <Dialog.Close />
-        </Dialog.Header>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50 p-4">
+      <div className="w-[95vw] md:w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b p-4 md:p-6">
+          <h2 className="text-base sm:text-lg md:text-xl font-semibold">{title}</h2>
+          <button 
+            type="button"
+            onClick={handleCloseModal} 
+            className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 md:p-6">
 
         <Form onSubmit={handleSubmit}>
           {/* No Device Drivers Error */}
@@ -652,6 +669,8 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
           )}
 
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} variant="boxed">
+            {/* Tabs content with scroll */}
+            <div className="overflow-y-auto max-h-[50vh] sm:max-h-[55vh] md:max-h-[60vh] pr-2">
             {/* Basic Details Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-4 pt-4">
@@ -699,12 +718,12 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                   label="Device Enabled"
                   description="Device will be available for communication when enabled"
                   checked={deviceData.enabled}
-                  onChange={e =>
+                  onCheckedChange={(checked) => {
                     setDeviceData({
                       ...deviceData,
-                      enabled: (e.target as HTMLInputElement).checked,
-                    })
-                  }
+                      enabled: checked,
+                    });
+                  }}
                 />
               </div>
             )}
@@ -829,7 +848,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                 </Form.Group>
 
                 {deviceData.connectionSetting.connectionType === 'tcp' ? (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="tcp.ip" required>
                         IP Address
@@ -869,7 +888,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     </Form.Group>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="rtu.serialPort" required>
                         Serial Port
@@ -1068,7 +1087,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <Clock size={18} className="mr-2" />
                     Polling & Timeout
                   </h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.defaultPollInterval">
                         Poll Interval (ms)
@@ -1109,7 +1128,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <RefreshCw size={18} className="mr-2" />
                     Connection Options
                   </h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.connectionOptions.timeout">
                         Connection Timeout (ms)
@@ -1153,8 +1172,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                       <Switch
                         label="Auto Reconnect"
                         checked={deviceData.advancedSettings.connectionOptions.autoReconnect}
-                        onChange={e => {
-                          const checked = (e.target as HTMLInputElement).checked;
+                        onCheckedChange={checked => {
                           setDeviceData({
                             ...deviceData,
                             advancedSettings: {
@@ -1195,8 +1213,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <Switch
                       label="Enable Caching"
                       checked={deviceData.advancedSettings.cacheOptions.enabled}
-                      onChange={e => {
-                        const checked = (e.target as HTMLInputElement).checked;
+                      onCheckedChange={checked => {
                         setDeviceData({
                           ...deviceData,
                           advancedSettings: {
@@ -1211,7 +1228,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     />
                   </Form.Group>
 
-                  <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.cacheOptions.defaultTtl">
                         Default TTL (ms)
@@ -1265,7 +1282,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <TerminalSquare size={18} className="mr-2" />
                     Logging Options
                   </h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="advancedSettings.logOptions.level">Log Level</Form.Label>
                       <Form.Select
@@ -1287,8 +1304,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                       <Switch
                         label="Console Logging"
                         checked={deviceData.advancedSettings.logOptions.console}
-                        onChange={e => {
-                          const checked = (e.target as HTMLInputElement).checked;
+                        onCheckedChange={checked => {
                           setDeviceData({
                             ...deviceData,
                             advancedSettings: {
@@ -1309,8 +1325,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     <Switch
                       label="Enable File Logging"
                       checked={deviceData.advancedSettings.logOptions.file?.enabled}
-                      onChange={e => {
-                        const checked = (e.target as HTMLInputElement).checked;
+                      onCheckedChange={checked => {
                         setDeviceData({
                           ...deviceData,
                           advancedSettings: {
@@ -1328,7 +1343,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                     />
 
                     {deviceData.advancedSettings.logOptions.file?.enabled && (
-                      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Form.Group>
                           <Form.Label htmlFor="advancedSettings.logOptions.file.path">
                             Log File Path
@@ -1399,6 +1414,7 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </Tabs>
 
           {submissionError && (
@@ -1417,8 +1433,17 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             </div>
           )}
 
-          <div className="mt-6 flex justify-end space-x-2 border-t pt-4">
-            <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>
+          <div className="mt-4 md:mt-6 flex justify-end gap-2 sm:space-x-2 border-t pt-3 sm:pt-4">
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCloseModal();
+              }} 
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button
@@ -1442,8 +1467,9 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
             </Button>
           </div>
         </Form>
-      </Dialog.Content>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   );
 };
 

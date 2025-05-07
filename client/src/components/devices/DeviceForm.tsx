@@ -151,15 +151,24 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <Dialog.Content className="w-full max-w-3xl">
-        <Dialog.Header>
-          <Dialog.Title>{title}</Dialog.Title>
-          <Dialog.Close />
-        </Dialog.Header>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50 p-4">
+      <div className="w-[95vw] md:w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b p-4 md:p-6">
+          <h2 className="text-base sm:text-lg md:text-xl font-semibold">{title}</h2>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 md:p-6">
 
         <Form onSubmit={handleSubmit}>
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} variant="boxed">
+            <div className="overflow-y-auto max-h-[50vh] sm:max-h-[55vh] md:max-h-[60vh] pr-2">
             {activeTab === 'basic' && (
               <div className="space-y-4 pt-4">
                 <Form.Group>
@@ -176,7 +185,7 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                   />
                 </Form.Group>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Form.Group>
                     <Form.Label htmlFor="make">Manufacturer/Make</Form.Label>
                     <Input
@@ -254,12 +263,12 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                   label="Device Enabled"
                   description="Device will be available for communication when enabled"
                   checked={deviceData.enabled}
-                  onChange={e =>
+                  onCheckedChange={(checked) => {
                     setDeviceData({
                       ...deviceData,
-                      enabled: (e.target as HTMLInputElement).checked,
-                    })
-                  }
+                      enabled: checked,
+                    });
+                  }}
                 />
               </div>
             )}
@@ -281,7 +290,7 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                 </Form.Group>
 
                 {deviceData.connectionType === 'tcp' ? (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="ip" required>
                         IP Address
@@ -309,7 +318,7 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                     </Form.Group>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Form.Group>
                       <Form.Label htmlFor="serialPort" required>
                         Serial Port
@@ -366,10 +375,19 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </Tabs>
 
-          <div className="mt-6 flex justify-end space-x-2 border-t pt-4">
-            <Button variant="outline" type="button" onClick={onClose}>
+          <div className="mt-4 md:mt-6 flex justify-end gap-2 sm:space-x-2 border-t pt-3 sm:pt-4">
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button type="submit">
@@ -378,8 +396,9 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
             </Button>
           </div>
         </Form>
-      </Dialog.Content>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   );
 };
 

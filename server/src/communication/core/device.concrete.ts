@@ -201,35 +201,89 @@ export class ModbusDevice implements Device {
     const sortedParams = [...params].sort((a, b) => a.address - b.address);
     
     try {
-      // Handle each parameter individually for simplicity
+      // Group consecutive addresses to read them in batches
+      const batches: { startAddr: number; count: number; params: DeviceParameterOptions[] }[] = [];
+      let currentBatch: { startAddr: number; count: number; params: DeviceParameterOptions[] } | null = null;
+      
+      // Identify batches of consecutive registers
       for (const param of sortedParams) {
+        if (!currentBatch) {
+          // Start a new batch
+          currentBatch = {
+            startAddr: param.address,
+            count: 1,
+            params: [param]
+          };
+        } else {
+          // Check if this parameter is consecutive with the current batch
+          if (param.address === currentBatch.startAddr + currentBatch.count) {
+            // Add to current batch
+            currentBatch.count++;
+            currentBatch.params.push(param);
+          } else {
+            // This address is not consecutive, finish current batch and start a new one
+            batches.push(currentBatch);
+            currentBatch = {
+              startAddr: param.address,
+              count: 1,
+              params: [param]
+            };
+          }
+        }
+      }
+      
+      // Add the last batch if it exists
+      if (currentBatch) {
+        batches.push(currentBatch);
+      }
+      
+      logService.info(`Optimized ${params.length} parameters into ${batches.length} batch reads`);
+      
+      // Process each batch
+      for (const batch of batches) {
         try {
-          // Read value based on register type
-          let rawValue: any;
+          // Read registers in a single call based on register type
+          let rawValues: any[];
+          
           switch (registerType) {
             case RegisterType.COIL:
-              rawValue = await this.client.readCoil(param.address);
+              rawValues = await this.client.readCoils(batch.startAddr, batch.count);
               break;
             case RegisterType.DISCRETE_INPUT:
-              rawValue = await this.client.readDiscreteInput(param.address);
+              rawValues = await this.client.readDiscreteInputs(batch.startAddr, batch.count);
               break;
             case RegisterType.HOLDING_REGISTER:
-              rawValue = await this.client.readHoldingRegister(param.address);
+              rawValues = await this.client.readHoldingRegisters(batch.startAddr, batch.count);
               break;
             case RegisterType.INPUT_REGISTER:
-              rawValue = await this.client.readInputRegister(param.address);
+              rawValues = await this.client.readInputRegisters(batch.startAddr, batch.count);
               break;
+            default:
+              throw new Error(`Unsupported register type: ${registerType}`);
           }
           
-          // Apply scaling if needed
-          if (param.scalingFactor && param.scalingFactor !== 1) {
-            result[param.id] = rawValue * param.scalingFactor;
-          } else {
-            result[param.id] = rawValue;
+          // Process each parameter in the batch
+          for (let i = 0; i < batch.params.length; i++) {
+            const param = batch.params[i];
+            const rawValue = rawValues[i];
+            
+            // Apply scaling if needed
+            if (param.scalingFactor && param.scalingFactor !== 1) {
+              result[param.id] = rawValue * param.scalingFactor;
+            } else {
+              result[param.id] = rawValue;
+            }
+            
+            logService.debug(`Read parameter ${param.id}: ${rawValue} (${param.name})`);
           }
         } catch (error) {
-          logService.error(`Error reading parameter ${param.id}: ${error}`);
-          result[param.id] = null;
+          logService.error(`Error reading batch at address ${batch.startAddr}, count ${batch.count}: ${error}`);
+          
+          // Set all parameters in this batch to null
+          for (const param of batch.params) {
+            result[param.id] = null;
+            logService.warn(`Setting parameter ${param.id} to null due to batch read error`);
+          }
         }
       }
     } catch (error) {

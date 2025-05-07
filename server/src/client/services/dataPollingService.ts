@@ -206,14 +206,24 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
                 ),
               );
               try {
-                console.log(chalk.bgGreen('-----reading Holding registers---------' , `client is ${client} startig address is ${range.startAddress} count is ${range.count}`));
+                console.log(chalk.bgBlue.white(`📖 Reading ${range.count} holding registers in a single operation from address ${range.startAddress}`));
                 const holdingResult = await readHoldingRegistersWithTimeout( 
                   client,
                   range.startAddress,
                   range.count,
                   5000, // 5 second timeout
                 );
-                console.log('-------Result ', holdingResult);
+                
+                // Enhanced logging of the result
+                if (holdingResult && Array.isArray(holdingResult.data)) {
+                  console.log(chalk.bgGreen.black(`✅ Successfully read ${holdingResult.data.length} holding registers: [${holdingResult.data.join(', ')}]`));
+                  
+                  // If we have a buffer, log it as well
+                  if (holdingResult.buffer) {
+                    console.log(chalk.cyan(`📊 Raw buffer: ${holdingResult.buffer.toString('hex')}`));
+                  }
+                }
+                
                 result = holdingResult;
               } catch (readError: any) {
                 console.error(chalk.red(`Error reading holding registers: ${readError.message}`));
@@ -221,22 +231,34 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
               }
               break;
             case 4:
-              // Read input registers with simplified approach
+              // Read input registers with improved approach for consecutive registers
               console.log(
                 chalk.blue(
-                  `Reading input registers from address ${range.startAddress}, count: ${range.count}`,
+                  `Reading ${range.count} consecutive input registers from address ${range.startAddress}`,
                 ),
               );
               try {
+                console.log(chalk.bgBlue.white(`📖 Reading ${range.count} input registers in a single operation from address ${range.startAddress}`));
                 const inputResult = await readInputRegistersWithTimeout(
                   client,
                   range.startAddress,
                   range.count,
                   5000, // 5 second timeout
                 );
+                
+                // Enhanced logging of the result
+                if (inputResult && Array.isArray(inputResult.data)) {
+                  console.log(chalk.bgGreen.black(`✅ Successfully read ${inputResult.data.length} input registers: [${inputResult.data.join(', ')}]`));
+                  
+                  // If we have a buffer, log it as well
+                  if (inputResult.buffer) {
+                    console.log(chalk.cyan(`📊 Raw buffer: ${inputResult.buffer.toString('hex')}`));
+                  }
+                }
+                
                 result = inputResult;
               } catch (readError: any) {
-                console.error(chalk.red(`Error reading input registers: ${readError.message}`));
+                console.error(chalk.red(`❌ Error reading input registers: ${readError.message}`));
                 throw readError;
               }
               break;
@@ -306,38 +328,44 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
                 switch (param.dataType) {
                   case 'FLOAT32':
-                    if (param.wordCount === 2 && relativeIndex + 1 < range.count) {
+                    // Ensure we always read 2 consecutive registers for FLOAT32
+                    if (relativeIndex + 1 < range.count) {
                       // Create a buffer for the float
                       const buffer = Buffer.alloc(4);
+                      
+                      // Get the two registers needed for FLOAT32
+                      const reg1 = Number(result.data[relativeIndex]);
+                      const reg2 = Number(result.data[relativeIndex + 1]);
+                      
+                      console.log(chalk.cyan(`Processing FLOAT32 value from registers: [${reg1}, ${reg2}] with byte order ${param.byteOrder || 'ABCD'}`));
 
                       // Handle different byte orders
-                      if (param.byteOrder === 'ABCD') {
-                        buffer.writeUInt16BE(Number(result.data[relativeIndex]), 0);
-                        buffer.writeUInt16BE(Number(result.data[relativeIndex + 1]), 2);
-                      } else if (param.byteOrder === 'CDAB') {
-                        buffer.writeUInt16BE(Number(result.data[relativeIndex + 1]), 0);
-                        buffer.writeUInt16BE(Number(result.data[relativeIndex]), 2);
-                      } else if (param.byteOrder === 'BADC') {
-                        buffer.writeUInt16BE(
-                          Number(swapBytes(Number(result.data[relativeIndex]))),
-                          0,
-                        );
-                        buffer.writeUInt16BE(
-                          Number(swapBytes(Number(result.data[relativeIndex + 1]))),
-                          2,
-                        );
-                      } else if (param.byteOrder === 'DCBA') {
-                        buffer.writeUInt16BE(
-                          Number(swapBytes(Number(result.data[relativeIndex + 1]))),
-                          0,
-                        );
-                        buffer.writeUInt16BE(
-                          Number(swapBytes(Number(result.data[relativeIndex]))),
-                          2,
-                        );
+                      const byteOrder = param.byteOrder || 'ABCD';
+                      if (byteOrder === 'ABCD') {
+                        buffer.writeUInt16BE(reg1, 0);
+                        buffer.writeUInt16BE(reg2, 2);
+                      } else if (byteOrder === 'CDAB') {
+                        buffer.writeUInt16BE(reg2, 0);
+                        buffer.writeUInt16BE(reg1, 2);
+                      } else if (byteOrder === 'BADC') {
+                        buffer.writeUInt16BE(Number(swapBytes(reg1)), 0);
+                        buffer.writeUInt16BE(Number(swapBytes(reg2)), 2);
+                      } else if (byteOrder === 'DCBA') {
+                        buffer.writeUInt16BE(Number(swapBytes(reg2)), 0);
+                        buffer.writeUInt16BE(Number(swapBytes(reg1)), 2);
                       }
 
                       value = buffer.readFloatBE(0);
+                      console.log(chalk.green(`Converted FLOAT32 value: ${value}`));
+                      
+                      // Check for invalid values
+                      if (!isFinite(value)) {
+                        console.log(chalk.yellow(`Warning: FLOAT32 conversion resulted in ${value}, setting to null`));
+                        value = null;
+                      }
+                    } else {
+                      console.log(chalk.red(`Error: Cannot read FLOAT32 value - not enough registers available. Need 2 registers but only have ${range.count - relativeIndex}`));
+                      value = null;
                     }
                     break;
                   case 'INT16':

@@ -66,20 +66,31 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
     }
   };
 
+  // Create a handler to ensure the modal closes
+  const handleCloseModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    // If called from an event handler, prevent default
+    if (e) e.preventDefault();
+    
+    console.log("DeviceType Modal close handler called");
+    onClose();
+  };
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="text-xl font-semibold">Add New Device Type</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50 p-4">
+      <div className="max-h-[90vh] w-[95vw] sm:w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-200 p-4 md:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold">Add New Device Type</h2>
           <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+            onClick={handleCloseModal}
+            className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            aria-label="Close"
+            type="button"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 md:p-6">
           <Form onSubmit={handleSubmit}>
             <Form.Group>
               <Form.Label htmlFor="name" required>
@@ -131,8 +142,16 @@ const NewDeviceTypeModal: React.FC<NewDeviceTypeModalProps> = ({ onClose, onSubm
               />
             </Form.Group>
 
-            <div className="mt-6 flex justify-end space-x-2">
-              <Button variant="outline" onClick={onClose} type="button">
+            <div className="mt-4 md:mt-6 flex justify-end gap-2 sm:space-x-2">
+              <Button 
+                variant="outline" 
+                type="button" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCloseModal();
+                }}
+              >
                 Cancel
               </Button>
               <Button variant="default" type="submit">

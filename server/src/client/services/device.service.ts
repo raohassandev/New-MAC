@@ -3,8 +3,8 @@ import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
 import { IDevice } from '../models/Device';
 import { safeCloseModbusClient } from '../controllers/modbusHelper';
-import { Device } from '../models';
-import { ensureClientDeviceModel } from '../utils/dbHelper';
+import { createDeviceModel } from '../utils/dbHelper';
+import { getClientConnection } from '../../config/database';
 
 // Type for connection settings
 interface ConnectionSettings {
@@ -35,23 +35,53 @@ interface RegisterResult {
  * Get a Device model that connects to the client database
  */
 export const getDeviceModel = async (reqContext: any): Promise<mongoose.Model<IDevice>> => {
+  let DeviceModel: mongoose.Model<IDevice> | null = null;
+
   // Try to get from app.locals
   if (reqContext?.app?.locals?.clientModels?.Device) {
-    const DeviceModel = reqContext.app.locals.clientModels.Device;
+    DeviceModel = reqContext.app.locals.clientModels.Device;
     console.log('[deviceService] Using client-specific Device model from app.locals');
     return DeviceModel;
   }
 
-  // Use the helper function to ensure we have a valid client model
-  const DeviceModel = await ensureClientDeviceModel(reqContext);
-  
-  // If we still don't have a valid model, use the default Device model as fallback
-  if (!DeviceModel) {
-    console.log('[deviceService] Using default Device model as fallback');
-    return Device;
+  // Try to get from connection
+  const mainDBConnection = reqContext?.app?.locals?.mainDB || getClientDbConnection();
+  if (mainDBConnection && mainDBConnection.readyState === 1) {
+    try {
+      DeviceModel = createDeviceModel(mainDBConnection);
+      console.log('[deviceService] Created Device model with client connection');
+      return DeviceModel;
+    } catch (err) {
+      console.error('[deviceService] Error creating Device model with client connection:', err);
+    }
   }
-  
-  return DeviceModel;
+
+  // Try one more time with reconnection if needed
+  if (!DeviceModel || DeviceModel.db?.name !== 'client') {
+    console.error(
+      `[deviceService] ERROR: Model connected to wrong database: ${DeviceModel?.db?.name || 'unknown'}`
+    );
+    console.log('[deviceService] Forcing reconnection to client database');
+
+    const mainDBConnection = reqContext?.app?.locals?.mainDB || getClientDbConnection();
+    if (
+      mainDBConnection &&
+      mainDBConnection.readyState === 1 &&
+      mainDBConnection.name === 'client'
+    ) {
+      try {
+        DeviceModel = createDeviceModel(mainDBConnection);
+        console.log(
+          `[deviceService] Successfully reconnected to client database: ${DeviceModel.db?.name}`
+        );
+        return DeviceModel;
+      } catch (reconnectError) {
+        console.error('[deviceService] Could not reconnect to client database:', reconnectError);
+      }
+    }
+  }
+
+  throw new Error('Could not initialize database model');
 };
 
 /**
@@ -143,11 +173,22 @@ export const getAdjustedAddressAndCount = (
     );
   }
 
-  // Always use full register count for all devices
-  console.log(`[deviceService] Using full register count ${adjustedCount} for all devices`);
-  
-  // We previously limited non-Energy Analyzer devices to 2 registers,
-  // but that prevented proper reading of multiple consecutive registers
+  // For Chinese Energy Analyzers, we might need to read more registers
+  if (
+    device.make?.toLowerCase().includes('china') ||
+    device.make?.toLowerCase().includes('energy analyzer')
+  ) {
+    // Some Energy Analyzers require reading the full range to work properly
+    console.log(`[deviceService] Using full register count ${adjustedCount} for Chinese Energy Analyzer`);
+  } else {
+    // For other devices, limit to 2 registers for better compatibility
+    adjustedCount = range.count > 2 ? 2 : range.count;
+    if (range.count > 2) {
+      console.log(
+        `[deviceService] Reducing read count from ${range.count} to ${adjustedCount} for better compatibility`
+      );
+    }
+  }
 
   return { startAddress, count: adjustedCount };
 };
@@ -161,7 +202,7 @@ export const readModbusRegisters = async (
   startAddress: number,
   count: number
 ): Promise<any> => {
-  console.log(chalk.yellow(`[deviceService] Reading ${count} registers using FC${fc} from address ${startAddress}`));
+  console.log(`[deviceService] Reading registers using FC${fc} from address ${startAddress}, count ${count}`);
   
   let result;
   switch (fc) {
@@ -172,27 +213,20 @@ export const readModbusRegisters = async (
       result = await client.readDiscreteInputs(startAddress, count);
       break;
     case 3:
-      console.log(chalk.blue('=== Reading Holding Registers ==='));
+      console.log('============holding Register');
       result = await client.readHoldingRegisters(startAddress, count);
+      console.log(chalk.bgWhite(JSON.stringify(result)));
       break;
     case 4:
       result = await client.readInputRegisters(startAddress, count);
       break;
     default:
       result = await client.readHoldingRegisters(startAddress, count);
+      console.log('readHoldingRegisters ', chalk.bgWhite(result));
   }
 
-  // Enhanced logging for modbus results
-  if (result && Array.isArray(result.data)) {
-    console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
-    console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
-    
-    if (result.buffer) {
-      console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
-    }
-  } else {
-    console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
-  }
+  console.log(`[deviceService] Successfully read ${count} registers from address ${startAddress} using FC${fc}`);
+  console.log(`[deviceService] Read Result:`, result);
   
   return result;
 };
@@ -565,7 +599,7 @@ export const processParameter = async (
 /**
  * Read registers from a Modbus device based on its configuration
  */
-export const readDeviceRegistersData = async (device: IDevice): Promise<RegisterResult[]> => {
+export const   = async (device: IDevice): Promise<RegisterResult[]> => {
   const readings: RegisterResult[] = [];
   let client: ModbusRTU | null = null;
   
@@ -732,8 +766,8 @@ export const readDeviceRegisters = async (
     
     // Read device registers
     const readings = await readDeviceRegistersData(device);
-    
-    console.log(chalk.bgGreen.black(JSON.stringify(readings)));
+
+    console.log(chalk.bgGreen(JSON.stringify(readings)));
     
     // Update device lastSeen timestamp
     device.lastSeen = new Date();
