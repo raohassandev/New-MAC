@@ -246,8 +246,8 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
                   `Unknown function code ${range.fc}, defaulting to read holding registers`,
                 ),
               );
-              // result = await client.readHoldingRegisters(range.startAddress, range.count);
-              await client.connectRTUBuffered(range.startAddress, range.count);
+              // Default to reading holding registers if function code is unknown
+              result = await readHoldingRegistersWithTimeout(client, range.startAddress, range.count, 5000);
           }
 
           // Make sure result is defined before continuing
@@ -439,7 +439,12 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
           }
 
           // Process the result based on register configuration
-          let value = (result.data as number[])[0];
+          let value: number;
+          if (Array.isArray(result.data) && result.data.length > 0 && typeof result.data[0] === 'number') {
+            value = result.data[0];
+          } else {
+            throw new Error(`Invalid data format returned for register ${register.address}`);
+          }
 
           // Apply scale factor if defined
           if (register.scaleFactor && register.scaleFactor !== 1) {
@@ -511,7 +516,9 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
       // Create error reading for the device
       const errorReading: DeviceReading = {
-        deviceId: new mongoose.Types.ObjectId(deviceId),
+        deviceId: mongoose.Types.ObjectId.isValid(deviceId) 
+          ? new mongoose.Types.ObjectId(deviceId)
+          : new mongoose.Types.ObjectId(), // fallback to a new ID if invalid
         deviceName: deviceName,
         timestamp: new Date(),
         readings: [
@@ -620,6 +627,9 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
   }
 }
 
+// Store polling intervals by device ID
+const pollingIntervals = new Map<string, NodeJS.Timeout>();
+
 /**
  * Start polling for a device at a specific interval
  * @param deviceId The ID of the device to poll
@@ -627,45 +637,79 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
  * @returns The interval ID
  */
 export function startPollingDevice(deviceId: string, intervalMs = 10000): NodeJS.Timeout {
+  // Ensure we don't have duplicate polling intervals
+  stopPollingDevice(deviceId);
+  
   console.log(
     chalk.magenta(
       `🔄 Starting polling service for device ${deviceId} at ${intervalMs}ms intervals`,
     ),
   );
 
-  // The polling function
+  // The polling function with improved error handling
   const doPoll = async () => {
     console.log(chalk.blue(`📊 Running polling cycle for device ${deviceId}`));
     try {
       await pollDevice(deviceId);
-    } catch (err: any) {
-      console.error(chalk.red(`❌ Error polling device ${deviceId}: ${err.message || err}`));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(chalk.red(`❌ Error polling device ${deviceId}: ${errorMessage}`));
+      
+      // Check if device exists and is enabled
+      try {
+        const clientModels = getClientModels();
+        if (clientModels?.Device) {
+          const device = await clientModels.Device.findById(deviceId).select('enabled').lean().exec();
+          
+          // If device is disabled or deleted, stop polling
+          if (!device || device.enabled === false) {
+            console.log(chalk.yellow(`⚠ Device ${deviceId} is disabled or deleted, stopping polling`));
+            stopPollingDevice(deviceId);
+          }
+        }
+      } catch (checkError) {
+        // If we can't check the device, continue polling
+        console.warn(chalk.yellow(`⚠ Could not check device status: ${checkError}`));
+      }
     }
   };
 
   // Poll once immediately
-  doPoll();
+  doPoll().catch(err => {
+    console.error(chalk.red(`❌ Error in initial poll for device ${deviceId}:`, err));
+  });
 
-  // Set up regular polling
+  // Set up regular polling with the interval stored in the map
   const intervalId = setInterval(doPoll, intervalMs);
+  pollingIntervals.set(deviceId, intervalId);
+  
   return intervalId;
 }
-
-// Store polling intervals by device ID
-const pollingIntervals = new Map<string, NodeJS.Timeout>();
 
 /**
  * Stop polling for a device
  * @param deviceId The ID of the device to stop polling
+ * @returns boolean indicating if polling was stopped
  */
-export function stopPollingDevice(deviceId: string): void {
+export function stopPollingDevice(deviceId: string): boolean {
   const interval = pollingIntervals.get(deviceId);
   if (interval) {
-    clearInterval(interval);
-    pollingIntervals.delete(deviceId);
-    console.log(chalk.yellow(`⏹ Stopped polling service for device ${deviceId}`));
+    try {
+      clearInterval(interval);
+      pollingIntervals.delete(deviceId);
+      console.log(chalk.yellow(`⏹ Stopped polling service for device ${deviceId}`));
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(chalk.red(`❌ Error stopping polling for device ${deviceId}: ${errorMessage}`));
+      // Still remove from map to prevent memory leaks
+      pollingIntervals.delete(deviceId);
+      return false;
+    }
   } else {
+    // No polling was running
     console.log(chalk.yellow(`⚠ No active polling service found for device ${deviceId}`));
+    return false;
   }
 }
 
@@ -673,18 +717,36 @@ export function stopPollingDevice(deviceId: string): void {
  * Start or restart polling for a device
  * @param deviceId The ID of the device
  * @param intervalMs The polling interval in milliseconds
+ * @returns boolean indicating if polling was successfully configured
  */
-export function setDevicePolling(deviceId: string, intervalMs = 10000): void {
+export function setDevicePolling(deviceId: string, intervalMs = 10000): boolean {
+  if (!deviceId) {
+    console.error(chalk.red('❌ Cannot start polling: Invalid device ID'));
+    return false;
+  }
+  
+  if (intervalMs < 1000) {
+    console.warn(chalk.yellow(`⚠ Polling interval ${intervalMs}ms is too low, using 1000ms instead`));
+    intervalMs = 1000;
+  }
+  
   console.log(
     chalk.blue(`Configuring polling for device ${deviceId} with interval ${intervalMs}ms`),
   );
 
-  // Stop existing polling if any
-  stopPollingDevice(deviceId);
+  try {
+    // Stop existing polling if any
+    stopPollingDevice(deviceId);
 
-  // Start new polling
-  const intervalId = startPollingDevice(deviceId, intervalMs);
-  pollingIntervals.set(deviceId, intervalId);
+    // Start new polling
+    const intervalId = startPollingDevice(deviceId, intervalMs);
+    pollingIntervals.set(deviceId, intervalId);
 
-  console.log(chalk.green(`✓ Device ${deviceId} polling service configured successfully`));
+    console.log(chalk.green(`✓ Device ${deviceId} polling service configured successfully`));
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(`❌ Failed to configure polling for device ${deviceId}: ${errorMessage}`));
+    return false;
+  }
 }

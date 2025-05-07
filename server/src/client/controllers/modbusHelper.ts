@@ -3,7 +3,7 @@
  */
 
 import ModbusRTU from 'modbus-serial';
-const chalk = require('chalk');
+import chalk from 'chalk';
 
 // Import the specific types from modbus-serial
 import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU';
@@ -22,8 +22,9 @@ export const createModbusClient = (): ModbusRTU => {
   const client = new ModbusRTU();
 
   // Add error handler to catch unhandled errors
-  client.on('error', (err: Error | any) => {
-    console.error(chalk.red(`💥 Unhandled client error: ${err?.message || String(err)}`));
+  client.on('error', (err: Error | unknown) => {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(chalk.red(`💥 Unhandled client error: ${errorMessage}`));
   });
 
   return client;
@@ -58,9 +59,9 @@ export const connectRTUBuffered = async (
 
     try {
       // Try to forcefully close any leftover connections
-      const serialPort = require('serialport');
-      const ports = await serialPort.SerialPort.list();
-      const portInfo = ports.find((p: any) => p.path === port);
+      const serialPortModule = await import('serialport');
+      const ports = await serialPortModule.SerialPort.list();
+      const portInfo = ports.find((p: { path: string }) => p.path === port);
 
       if (portInfo) {
         console.log(chalk.cyan(`Found port ${port} in system device list`));
@@ -128,7 +129,7 @@ export const connectRTUBuffered = async (
 
     // Ensure the port is actually open
     try {
-      const modbusClient = client as any;
+      const modbusClient = client as unknown as ModbusRTUInternal;
       if (modbusClient._port && !modbusClient._port.isOpen) {
         throw new Error('Port reports it is not open after successful connection');
       }
@@ -146,13 +147,15 @@ export const connectRTUBuffered = async (
 
         // Try force close if normal close fails
         try {
-          const modbusClient = this as any;
-          if (modbusClient._port && modbusClient._port.isOpen) {
+          const modbusClient = this as unknown as ModbusRTUInternal;
+          if (modbusClient._port?.isOpen) {
             modbusClient._port.close();
             console.warn(chalk.yellow(`⚠️ Force closed port ${port}`));
           }
         } catch (forceCloseError) {
-          console.error(chalk.red(`💥 Failed to force close port: ${forceCloseError}`));
+          const errorMessage =
+            forceCloseError instanceof Error ? forceCloseError.message : String(forceCloseError);
+          console.error(chalk.red(`💥 Failed to force close port: ${errorMessage}`));
         }
       } finally {
         // Always release the port
@@ -179,8 +182,8 @@ export const connectRTUBuffered = async (
 
       // Try to provide more details from the system
       try {
-        const { execSync } = require('child_process');
-        const output = execSync(`lsof | grep ${port}`).toString();
+        const childProcess = await import('child_process');
+        const output = childProcess.execSync(`lsof | grep ${port}`).toString();
         console.warn(chalk.yellow(`Port usage: ${output}`));
       } catch (execError) {
         // lsof might not be available or there were no results
@@ -246,11 +249,32 @@ export const findRespondingDevice = async (
 };
 
 /**
+ * Interface for internal ModbusRTU client properties
+ */
+interface ModbusRTUInternal {
+  _port?: {
+    isOpen: boolean;
+    close: () => void;
+    path?: string;
+  };
+}
+
+/**
  * Safely close a Modbus client connection
  * @param client The Modbus client to close
  */
 export const safeCloseModbusClient = async (client: ModbusRTU | null): Promise<void> => {
   if (!client) return;
+
+  // Get port path for tracking if available
+  let portPath: string | undefined;
+  try {
+    // Type-safe access to internal properties
+    const modbusClient = client as unknown as ModbusRTUInternal;
+    portPath = modbusClient._port?.path;
+  } catch (e) {
+    // Ignore errors here
+  }
 
   try {
     // Check if client has isOpen property and it's true
@@ -259,9 +283,9 @@ export const safeCloseModbusClient = async (client: ModbusRTU | null): Promise<v
     // For RTU connections, also check the internal port object
     let isPortOpen = false;
     try {
-      // Access internal properties using type casting
-      const modbusClient = client as any;
-      if (modbusClient && modbusClient._port) {
+      // Type-safe access to internal properties
+      const modbusClient = client as unknown as ModbusRTUInternal;
+      if (modbusClient._port) {
         isPortOpen = modbusClient._port.isOpen;
       }
     } catch (portError) {
@@ -272,19 +296,40 @@ export const safeCloseModbusClient = async (client: ModbusRTU | null): Promise<v
     if (isOpenProperty || isPortOpen) {
       await client.close();
       console.log(chalk.cyan('✅ Successfully closed Modbus connection'));
+
+      // Release port from tracking if we have a path
+      if (portPath) {
+        activeConnections.set(portPath, false);
+        console.log(chalk.cyan(`🔓 Released port ${portPath} after successful close`));
+      }
     }
   } catch (error) {
-    console.warn(chalk.yellow('⚠️ Error closing Modbus connection:', error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(chalk.yellow(`⚠️ Error closing Modbus connection: ${errorMessage}`));
 
     // Try to forcefully close the port if normal close fails
     try {
-      const modbusClient = client as any;
-      if (modbusClient && modbusClient._port && modbusClient._port.isOpen) {
+      const modbusClient = client as unknown as ModbusRTUInternal;
+      if (modbusClient._port?.isOpen) {
         modbusClient._port.close();
         console.warn(chalk.yellow('⚠️ Forcefully closed port after close failure'));
+
+        // Release port from tracking if we have a path
+        if (portPath) {
+          activeConnections.set(portPath, false);
+          console.log(chalk.cyan(`🔓 Released port ${portPath} after forced close`));
+        }
       }
     } catch (forceError) {
-      console.error(chalk.red('💥 Failed to force close port:', forceError));
+      const forceErrorMessage =
+        forceError instanceof Error ? forceError.message : String(forceError);
+      console.error(chalk.red(`💥 Failed to force close port: ${forceErrorMessage}`));
+
+      // Always try to release the port if we have a path
+      if (portPath) {
+        activeConnections.set(portPath, false);
+        console.log(chalk.cyan(`🔓 Released port ${portPath} after close failure`));
+      }
     }
   }
 };
@@ -327,15 +372,43 @@ export const readHoldingRegistersWithTimeout = async (
   length: number,
   timeout = 5000,
 ): Promise<ModbusResponse> => {
+  // Create timeout token to cancel timeout
+  let timeoutId: NodeJS.Timeout | undefined = undefined;
+
   const readPromise = client.readHoldingRegisters(address, length);
+
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
-      () => reject(new Error(`Holding register read timed out after ${timeout}ms`)),
-      timeout,
-    );
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Holding register read timed out after ${timeout}ms`);
+      error.name = 'ReadTimeoutError';
+      reject(error);
+    }, timeout);
   });
 
-  return Promise.race([readPromise, timeoutPromise]) as Promise<ModbusResponse>;
+  try {
+    // Race the promises
+    const result = (await Promise.race([readPromise, timeoutPromise])) as ModbusResponse;
+
+    // Validate the result
+    if (!result || !result.data) {
+      throw new Error(`Invalid response when reading holding registers at address ${address}`);
+    }
+
+    return result;
+  } catch (error) {
+    // Convert to standard Error if needed
+    if (!(error instanceof Error)) {
+      const newError = new Error(String(error));
+      newError.name = 'ModbusReadError';
+      throw newError;
+    }
+    throw error;
+  } finally {
+    // Always clear the timeout to prevent memory leaks
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 };
 
 /**
@@ -352,13 +425,41 @@ export const readInputRegistersWithTimeout = async (
   length: number,
   timeout = 5000,
 ): Promise<ModbusResponse> => {
+  // Create timeout token to cancel timeout
+  let timeoutId: NodeJS.Timeout | undefined = undefined;
+
   const readPromise = client.readInputRegisters(address, length);
+
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
-      () => reject(new Error(`Input register read timed out after ${timeout}ms`)),
-      timeout,
-    );
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Input register read timed out after ${timeout}ms`);
+      error.name = 'ReadTimeoutError';
+      reject(error);
+    }, timeout);
   });
 
-  return Promise.race([readPromise, timeoutPromise]) as Promise<ModbusResponse>;
+  try {
+    // Race the promises
+    const result = (await Promise.race([readPromise, timeoutPromise])) as ModbusResponse;
+
+    // Validate the result
+    if (!result || !result.data) {
+      throw new Error(`Invalid response when reading input registers at address ${address}`);
+    }
+
+    return result;
+  } catch (error) {
+    // Convert to standard Error if needed
+    if (!(error instanceof Error)) {
+      const newError = new Error(String(error));
+      newError.name = 'ModbusReadError';
+      throw newError;
+    }
+    throw error;
+  } finally {
+    // Always clear the timeout to prevent memory leaks
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 };
