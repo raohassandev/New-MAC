@@ -51,8 +51,13 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "prettier --write",
-      "eslint --fix",
-      "git add"
+      "eslint --fix"
     ]
+  },
+  "dependencies": {
+    "@serialport/bindings-cpp": "^13.0.1",
+    "@serialport/stream": "^13.0.0",
+    "modbus-serial": "^8.0.21-no-serial-port",
+    "serialport": "^13.0.0"
   }
 }

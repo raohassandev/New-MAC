@@ -1217,7 +1217,7 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
 
       // Set connection timeout to handle non-responsive devices
       const connectionTimeout = 10000; // 10 seconds
-      
+
       // Create a standard client to use existing code
       client = new ModbusRTU();
 
@@ -1249,11 +1249,11 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
           await safeCloseModbusClient(client); // Close the standard client first
           client = await createModbusRTUClient(serialPort, {
             baudRate: baudRate || 9600,
-            dataBits: dataBits as 5 | 6 | 7 | 8 || 8,
-            stopBits: stopBits as 1 | 2 || 1,
-            parity: parity as 'none' | 'even' | 'odd' || 'none',
+            dataBits: (dataBits as 5 | 6 | 7 | 8) || 8,
+            stopBits: (stopBits as 1 | 2) || 1,
+            parity: (parity as 'none' | 'even' | 'odd') || 'none',
             timeout: connectionTimeout,
-            unitId: slaveId
+            unitId: slaveId,
           });
 
           console.log(
@@ -1663,7 +1663,8 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
         if (stopBits) rtuOptions.stopBits = stopBits;
         if (parity) rtuOptions.parity = parity;
 
-        await client.connectRTUBuffered(serialPort, rtuOptions);
+        // await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
+        await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
       } else {
         throw new Error('Invalid connection configuration');
       }
@@ -2287,7 +2288,7 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
       // Log the final readings array
       console.log(
         `[deviceController] Final readings results (${readings.length} values):`,
-        JSON.stringify(readings, null, 2),
+        JSON.stringify(readings, null, 1),
       );
 
       res.json({
@@ -2297,7 +2298,7 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
         readings,
       });
     } catch (modbusError: any) {
-      console.error('Modbus reading error:', modbusError);
+      console.error('Modbus reading error => :', modbusError);
       res.status(400).json({
         message: `Failed to read from device: ${modbusError.message}`,
       });

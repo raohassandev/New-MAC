@@ -1,0 +1,22 @@
+# Files that can be safely removed
+# Note: These files are either unused or their functionality is covered by other files
+
+# Unused utility files
+/Users/israrulhaq/Desktop/MAC/server/src/communication/utils/index.ts
+
+# Redundant protocol interfaces
+/Users/israrulhaq/Desktop/MAC/server/src/communication/core/protocol.interface.ts
+
+# Connection implementation files (already used via client implementations)
+/Users/israrulhaq/Desktop/MAC/server/src/communication/protocols/modbus/rtu/connection.ts
+/Users/israrulhaq/Desktop/MAC/server/src/communication/protocols/modbus/tcp/connection.ts
+
+# Files to preserve (critical files):
+# - /server/src/communication/index.ts - Main entry point
+# - /server/src/communication/services/* - Used by adapters
+# - /server/src/communication/core/device.concrete.ts - Used in modbusAdapter.ts
+# - /server/src/communication/core/device.interface.ts - Required by device.concrete.ts
+# - /server/src/communication/core/types.ts - Used in multiple files
+# - /server/src/communication/protocols/modbus/tcp/client.ts - Used in modbusAdapter.ts 
+# - /server/src/communication/protocols/modbus/rtu/client.ts - Used in modbusAdapter.ts
+# - /server/src/communication/config/configManager.ts - Used by examples

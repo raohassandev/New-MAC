@@ -4,7 +4,7 @@ import { createDeviceModel } from '../client/models/Device';
 import { createDeviceDriverModel } from '../amx/models/deviceDriverModel';
 import { createDeviceTypeModel } from '../amx/models/deviceTypeModel';
 import HistoricalData from '../client/models/HistoricalData';
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
