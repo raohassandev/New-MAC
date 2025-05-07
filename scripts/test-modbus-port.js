@@ -14,7 +14,7 @@ async function checkPortExists() {
   console.log(`Checking if port ${SERIAL_PORT} exists...`);
   
   try {
-    const ports = await SerialPort.list();
+    const ports = await SerialPort.list(); 
     console.log('Available ports:');
     ports.forEach((port, i) => {
       console.log(`${i+1}. ${port.path} - ${port.manufacturer || 'Unknown'}`);

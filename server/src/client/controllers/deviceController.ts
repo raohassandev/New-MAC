@@ -271,6 +271,23 @@ import { createModbusRTUClient, safeCloseModbusClient } from './modbusHelper';
 //   }
 // };
 
+function compareStrings(a: string, b: string) {
+  if (a === b) {
+    console.log('✅ Strings are identical.');
+    return;
+  }
+
+  console.log('❌ Strings differ. Detailed diff:');
+  const maxLength = Math.max(a.length, b.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const charA = a[i] ?? '␀';
+    const charB = b[i] ?? '␀';
+    const marker = charA === charB ? ' ' : '^';
+    console.log(`Pos ${i}: '${charA}' vs '${charB}' ${marker}`);
+  }
+}
+
 // @desc    Get a single device
 // @route   GET /api/devices/:id
 // @access  Private
@@ -1663,8 +1680,13 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
         if (stopBits) rtuOptions.stopBits = stopBits;
         if (parity) rtuOptions.parity = parity;
 
+        //FIXME:
         // await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
         await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
+        // const inputPort = serialPort;
+        // const hardcodedPort = '/dev/tty.usbserial-A50285BI';
+
+        // compareStrings(inputPort, hardcodedPort);
       } else {
         throw new Error('Invalid connection configuration');
       }
