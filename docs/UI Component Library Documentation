@@ -1,0 +1,1156 @@
+# UI Component Library Documentation
+
+## Overview
+
+This comprehensive UI component library provides a consistent design system built with React, TypeScript, and Tailwind CSS. The components are designed to be accessible, flexible, and easy to use.
+
+## Installation
+
+The components are already included in your project structure. To use them, simply import what you need from the UI components directory:
+
+```tsx
+import { Button, Alert, Card } from '../components/ui';
+```
+
+## Component List
+
+The library includes the following components:
+
+| Component     | Description                                      | Status       |
+|---------------|--------------------------------------------------|--------------|
+| Alert         | Displays important messages                      | ✅ Available |
+| Avatar        | Shows user images or initials                    | ✅ Available |
+| Badge         | Displays status indicators and labels            | ✅ Available |
+| Breadcrumb    | Shows navigation hierarchy                       | ✅ Available |
+| Button        | Clickable buttons for actions                    | ✅ Available |
+| Card          | Container for content                            | ✅ Available |
+| Checkbox      | Selection controls                               | ✅ Available |
+| Dropdown      | Expandable menus                                 | ✅ Available |
+| Empty         | Empty state placeholders                         | ✅ Available |
+| Form          | Form inputs and controls                         | ✅ Available |
+| Input         | Text input fields                                | ✅ Available |
+| Loading       | Loading indicators                               | ✅ Available |
+| Modal         | Dialog windows                                   | ✅ Available |
+| Pagination    | Page navigation controls                         | ✅ Available |
+| ProgressBar   | Progress indicators                              | ✅ Available |
+| Select        | Dropdown selection controls                      | ✅ Available |
+| Skeleton      | Loading state placeholders                       | ✅ Available |
+| Stepper       | Multi-step process visualization                 | ✅ Available |
+| Switch        | Toggle controls                                  | ✅ Available |
+| Table         | Tabular data display                             | ✅ Available |
+| Tabs          | Content organization in tabs                     | ✅ Available |
+| Toast         | Notification messages                            | ✅ Available |
+| Tooltip       | Contextual information on hover                  | ✅ Available |
+
+## Component Usage
+
+### Alert Component
+
+The Alert component is used to display important messages to users.
+
+```tsx
+import { Alert } from '../components/ui';
+
+// Basic usage
+<Alert variant="info">This is an informational alert.</Alert>
+
+// With title and dismissible option
+<Alert 
+  variant="success" 
+  title="Operation Successful" 
+  dismissible 
+  onDismiss={() => console.log('Alert dismissed')}
+>
+  Your changes have been saved successfully.
+</Alert>
+
+// With custom icon and bordered variant
+<Alert 
+  variant="warning" 
+  icon={<CustomIcon />} 
+  bordered
+>
+  Please review your information before proceeding.
+</Alert>
+```
+
+**Props:**
+- `variant`: 'default' | 'info' | 'success' | 'warning' | 'error'
+- `title`: Optional title text
+- `icon`: Optional custom icon
+- `dismissible`: Whether alert can be dismissed
+- `onDismiss`: Function called when alert is dismissed
+- `bordered`: Adds a left border accent
+- `actions`: Optional action buttons
+
+### Avatar Component
+
+The Avatar component displays user profile images with fallback to initials.
+
+```tsx
+import { Avatar, AvatarGroup } from '../components/ui';
+
+// Basic usage with image
+<Avatar src="/path/to/image.jpg" alt="User Name" />
+
+// With fallback initials when no image is available
+<Avatar initials="JD" />
+
+// With online status indicator
+<Avatar src="/path/to/image.jpg" status="online" />
+
+// Different sizes
+<Avatar src="/path/to/image.jpg" size="sm" />
+<Avatar src="/path/to/image.jpg" size="md" />
+<Avatar src="/path/to/image.jpg" size="lg" />
+
+// Avatar group
+<AvatarGroup max={3}>
+  <Avatar src="/path/to/image1.jpg" />
+  <Avatar src="/path/to/image2.jpg" />
+  <Avatar src="/path/to/image3.jpg" />
+  <Avatar src="/path/to/image4.jpg" /> {/* Will be shown as +1 overflow */}
+</AvatarGroup>
+```
+
+**Props:**
+- `src`: Image source URL
+- `alt`: Alternative text for image
+- `initials`: Initials to display when no image is available
+- `size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+- `status`: 'online' | 'offline' | 'away' | 'busy'
+- `shape`: 'circle' | 'square'
+
+### Badge Component
+
+The Badge component is used for status indicators and labels.
+
+```tsx
+import { Badge } from '../components/ui';
+
+// Basic usage
+<Badge>New</Badge>
+
+// Different variants
+<Badge variant="primary">Primary</Badge>
+<Badge variant="success">Success</Badge>
+<Badge variant="danger">Error</Badge>
+<Badge variant="warning">Warning</Badge>
+<Badge variant="info">Info</Badge>
+<Badge variant="outline">Outline</Badge>
+
+// With dot indicator
+<Badge variant="warning" dot>Warning</Badge>
+
+// With icon
+<Badge variant="info" icon={<InfoIcon />}>Information</Badge>
+
+// Removable badge
+<Badge 
+  variant="primary" 
+  removable 
+  onRemove={() => console.log('Badge removed')}
+>
+  Removable
+</Badge>
+
+// Different sizes
+<Badge size="sm">Small</Badge>
+<Badge size="md">Medium</Badge>
+<Badge size="lg">Large</Badge>
+```
+
+**Props:**
+- `variant`: 'default' | 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'outline'
+- `size`: 'sm' | 'md' | 'lg'
+- `icon`: Optional icon
+- `removable`: Whether badge can be removed
+- `onRemove`: Function called when badge is removed
+- `dot`: Show dot indicator
+
+### Breadcrumb Component
+
+The Breadcrumb component displays the current location in a hierarchical structure.
+
+```tsx
+import { Breadcrumb, BreadcrumbItem, BreadcrumbHome } from '../components/ui';
+
+<Breadcrumb>
+  <BreadcrumbHome href="/" />
+  <BreadcrumbItem href="/products">Products</BreadcrumbItem>
+  <BreadcrumbItem href="/products/categories">Categories</BreadcrumbItem>
+  <BreadcrumbItem isActive>Electronics</BreadcrumbItem>
+</Breadcrumb>
+
+// With custom separator
+<Breadcrumb separator={<CustomSeparator />}>
+  <BreadcrumbItem href="/">Home</BreadcrumbItem>
+  <BreadcrumbItem href="/products">Products</BreadcrumbItem>
+  <BreadcrumbItem isActive>View</BreadcrumbItem>
+</Breadcrumb>
+```
+
+**Props:**
+- `separator`: Custom separator between items
+- `BreadcrumbItem.href`: Link destination
+- `BreadcrumbItem.isActive`: Whether this is the current active item
+- `BreadcrumbItem.icon`: Optional icon
+
+### Button Component
+
+The Button component is used to trigger actions.
+
+```tsx
+import { Button } from '../components/ui';
+import { Plus, Save } from 'lucide-react';
+
+// Basic usage
+<Button>Click Me</Button>
+
+// Variants
+<Button variant="default">Default</Button>
+<Button variant="destructive">Destructive</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="subtle">Subtle</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="link">Link</Button>
+<Button variant="success">Success</Button>
+<Button variant="warning">Warning</Button>
+
+// Sizes
+<Button size="sm">Small</Button>
+<Button size="md">Medium</Button>
+<Button size="lg">Large</Button>
+<Button size="icon">Icon</Button>
+
+// With icon
+<Button icon={<Plus />}>Add Item</Button>
+
+// Icon only button
+<Button size="icon" aria-label="Add item">
+  <Plus />
+</Button>
+
+// Loading state
+<Button isLoading>Saving...</Button>
+
+// Disabled state
+<Button disabled>Unavailable</Button>
+```
+
+**Props:**
+- `variant`: 'default' | 'destructive' | 'outline' | 'subtle' | 'ghost' | 'link' | 'success' | 'warning'
+- `size`: 'sm' | 'md' | 'lg' | 'icon'
+- `isLoading`: Shows loading spinner
+- `icon`: Optional icon
+- `disabled`: Disables the button
+
+### Card Component
+
+The Card component is a container for related content.
+
+```tsx
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui';
+
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+    <CardDescription>Optional description</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <p>This is the main content of the card.</p>
+  </CardContent>
+  <CardFooter>
+    <Button>Save</Button>
+  </CardFooter>
+</Card>
+```
+
+**Props:**
+- All components accept standard HTML attributes and `className` for custom styling
+
+### Dropdown Component
+
+The Dropdown component provides contextual menus.
+
+```tsx
+import { 
+  Dropdown, 
+  DropdownButton, 
+  DropdownItem, 
+  DropdownSeparator, 
+  DropdownLabel 
+} from '../components/ui';
+import { Edit, Copy, Trash } from 'lucide-react';
+
+<Dropdown
+  trigger={<DropdownButton>Options</DropdownButton>}
+  align="left"
+  width="md"
+>
+  <DropdownLabel>Actions</DropdownLabel>
+  <DropdownItem icon={<Edit />} onClick={() => console.log('Edit')}>
+    Edit
+  </DropdownItem>
+  <DropdownItem icon={<Copy />} onClick={() => console.log('Duplicate')}>
+    Duplicate
+  </DropdownItem>
+  <DropdownSeparator />
+  <DropdownItem 
+    icon={<Trash />} 
+    danger 
+    onClick={() => console.log('Delete')}
+  >
+    Delete
+  </DropdownItem>
+</Dropdown>
+```
+
+**Props:**
+- `trigger`: Element that triggers the dropdown
+- `align`: 'left' | 'right'
+- `width`: 'auto' | 'sm' | 'md' | 'lg'
+- `disabled`: Disables the dropdown
+- `DropdownItem.icon`: Optional icon
+- `DropdownItem.disabled`: Disables a specific item
+- `DropdownItem.selected`: Shows item as selected
+- `DropdownItem.danger`: Styles item as dangerous action
+
+### Empty Component
+
+The Empty component provides a placeholder for empty states.
+
+```tsx
+import { Empty } from '../components/ui';
+import { Button } from '../components/ui';
+import { FileText } from 'lucide-react';
+
+// Basic usage
+<Empty
+  title="No Projects Found"
+  description="You haven't created any projects yet."
+  action={
+    <Button>Create Project</Button>
+  }
+/>
+
+// Different types
+<Empty type="search" title="No Results" description="No matches found." />
+<Empty type="data" title="No Data" description="No data available." />
+<Empty type="file" title="No Files" description="No files uploaded." />
+<Empty type="error" title="Error" description="Failed to load data." />
+
+// With custom icon
+<Empty
+  title="No Documents"
+  description="You don't have any documents yet."
+  icon={<FileText size={40} />}
+/>
+
+// Compact version
+<Empty
+  type="search"
+  compact
+  title="No Results"
+  description="Try a different search term."
+/>
+```
+
+**Props:**
+- `title`: Main heading text
+- `description`: Supporting text
+- `icon`: Custom icon
+- `action`: Action button or link
+- `type`: 'default' | 'search' | 'data' | 'file' | 'error'
+- `compact`: Smaller, more compact version
+- `image`: Optional image URL
+
+### Form Components
+
+The Form components provide a comprehensive form building system.
+
+```tsx
+import {
+  Form,
+  FormGroup,
+  FormRow,
+  FormLabel,
+  FormInput,
+  FormTextarea,
+  FormSelect,
+  FormCheckbox,
+  FormRadioGroup,
+  FormActions
+} from '../components/ui';
+
+<Form onSubmit={handleSubmit}>
+  <FormGroup>
+    <FormLabel htmlFor="name" required>Name</FormLabel>
+    <FormInput
+      id="name"
+      name="name"
+      value={formData.name}
+      onChange={handleChange}
+      placeholder="Enter your name"
+      error={errors.name}
+    />
+  </FormGroup>
+  
+  <FormRow>
+    <FormGroup>
+      <FormLabel htmlFor="email">Email</FormLabel>
+      <FormInput
+        id="email"
+        name="email"
+        type="email"
+        value={formData.email}
+        onChange={handleChange}
+        startIcon={<MailIcon />}
+        error={errors.email}
+      />
+    </FormGroup>
+    
+    <FormGroup>
+      <FormLabel htmlFor="phone">Phone</FormLabel>
+      <FormInput
+        id="phone"
+        name="phone"
+        value={formData.phone}
+        onChange={handleChange}
+        placeholder="(123) 456-7890"
+      />
+    </FormGroup>
+  </FormRow>
+  
+  <FormGroup>
+    <FormLabel htmlFor="message">Message</FormLabel>
+    <FormTextarea
+      id="message"
+      name="message"
+      value={formData.message}
+      onChange={handleChange}
+      placeholder="Type your message here..."
+      rows={4}
+    />
+  </FormGroup>
+  
+  <FormGroup>
+    <FormLabel htmlFor="role">Role</FormLabel>
+    <FormSelect
+      id="role"
+      name="role"
+      value={formData.role}
+      onChange={handleChange}
+      options={[
+        { value: 'user', label: 'User' },
+        { value: 'admin', label: 'Administrator' },
+        { value: 'editor', label: 'Editor' }
+      ]}
+    />
+  </FormGroup>
+  
+  <FormGroup>
+    <FormCheckbox
+      id="terms"
+      name="terms"
+      checked={formData.terms}
+      onChange={handleChange}
+      label="I agree to the terms and conditions"
+      error={errors.terms}
+    />
+  </FormGroup>
+  
+  <FormGroup>
+    <FormLabel>Notification Preferences</FormLabel>
+    <FormRadioGroup
+      name="notifications"
+      value={formData.notifications}
+      onChange={handleChange}
+      options={[
+        { value: 'all', label: 'All notifications' },
+        { value: 'important', label: 'Important only' },
+        { value: 'none', label: 'None', description: 'You will not receive any notifications' }
+      ]}
+    />
+  </FormGroup>
+  
+  <FormActions>
+    <Button type="button" variant="outline" onClick={handleCancel}>
+      Cancel
+    </Button>
+    <Button type="submit">
+      Submit
+    </Button>
+  </FormActions>
+</Form>
+```
+
+### Modal Component
+
+The Modal component displays content in a dialog on top of the page.
+
+```tsx
+import { useState } from 'react';
+import { Modal, ConfirmModal } from '../components/ui';
+import { Button } from '../components/ui';
+
+function ModalExample() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  
+  return (
+    <>
+      <Button onClick={() => setIsOpen(true)}>Open Modal</Button>
+      <Button onClick={() => setIsConfirmOpen(true)}>Open Confirm Modal</Button>
+      
+      <Modal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Example Modal"
+        description="This is an example modal dialog."
+      >
+        <p>Modal content goes here.</p>
+        
+        <div className="mt-4 flex justify-end space-x-2">
+          <Button variant="outline" onClick={() => setIsOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            console.log('Confirmed');
+            setIsOpen(false);
+          }}>
+            Confirm
+          </Button>
+        </div>
+      </Modal>
+      
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={() => {
+          console.log('Confirmed');
+          setIsConfirmOpen(false);
+        }}
+        title="Confirm Action"
+        message="Are you sure you want to proceed with this action? This cannot be undone."
+        confirmText="Yes, proceed"
+        cancelText="No, cancel"
+        confirmVariant="danger"
+      />
+    </>
+  );
+}
+```
+
+**Props:**
+- `isOpen`: Controls visibility
+- `onClose`: Function called when modal is closed
+- `title`: Modal title
+- `description`: Optional description
+- `children`: Modal content
+- `footer`: Optional footer content
+- `showCloseButton`: Whether to show close button
+- `preventBackdropClose`: Prevents closing when clicking outside
+
+### Pagination Component
+
+The Pagination component allows navigation between pages of content.
+
+```tsx
+import { useState } from 'react';
+import { Pagination, PaginationInfo } from '../components/ui';
+
+function PaginationExample() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = 10;
+  const pageSize = 10;
+  const totalItems = 97;
+  
+  return (
+    <div className="space-y-4">
+      <PaginationInfo
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        itemName="record"
+      />
+      
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        siblingCount={1}
+        showFirstLast={true}
+      />
+      
+      {/* Simple variant */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        variant="simple"
+      />
+    </div>
+  );
+}
+```
+
+**Props:**
+- `currentPage`: Current active page
+- `totalPages`: Total number of pages
+- `onPageChange`: Function called when page changes
+- `siblingCount`: Number of siblings on each side of current page
+- `showFirstLast`: Whether to show first and last page buttons
+- `size`: 'sm' | 'md' | 'lg'
+- `variant`: 'buttons' | 'simple'
+- `disabled`: Disables pagination
+
+### ProgressBar Component
+
+The ProgressBar component visualizes progress.
+
+```tsx
+import { ProgressBar, ProgressCircle } from '../components/ui';
+
+// Basic usage
+<ProgressBar value={60} />
+
+// With label and value display
+<ProgressBar
+  value={75}
+  label="Upload Progress"
+  showValue
+/>
+
+// Different variants
+<ProgressBar value={30} variant="success" />
+<ProgressBar value={50} variant="warning" />
+<ProgressBar value={80} variant="error" />
+<ProgressBar value={60} variant="info" />
+
+// Different sizes
+<ProgressBar value={25} size="xs" />
+<ProgressBar value={50} size="sm" />
+<ProgressBar value={75} size="md" />
+<ProgressBar value={90} size="lg" />
+
+// Circular progress
+<ProgressCircle value={60} />
+
+// Circular progress with customizations
+<ProgressCircle
+  value={75}
+  size="lg"
+  thickness="thick"
+  showValue
+  variant="success"
+/>
+```
+
+**Props:**
+- `value`: Current progress value
+- `max`: Maximum value (default: 100)
+- `min`: Minimum value (default: 0)
+- `size`: 'xs' | 'sm' | 'md' | 'lg'
+- `variant`: 'default' | 'success' | 'warning' | 'error' | 'info'
+- `showValue`: Whether to display the value
+- `valueFormat`: Function to format the displayed value
+- `animated`: Adds animation
+- `striped`: Adds striped pattern
+- `label`: Optional label text
+
+### Skeleton Component
+
+The Skeleton component provides loading placeholders.
+
+```tsx
+import { Skeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from '../components/ui';
+
+// Basic skeleton
+<Skeleton width={200} height={20} />
+
+// Text skeleton with multiple lines
+<SkeletonText lines={3} lastLineWidth="80%" />
+
+// Avatar skeleton
+<SkeletonAvatar size="md" />
+
+// Card skeleton (combines multiple skeletons)
+<SkeletonCard />
+
+// Custom skeleton row for tables
+<div className="flex space-x-4">
+  <SkeletonAvatar size="sm" />
+  <div className="space-y-2 flex-1">
+    <Skeleton height={16} width="60%" />
+    <Skeleton height={12} width="40%" />
+  </div>
+  <Skeleton height={24} width={80} />
+</div>
+```
+
+**Props:**
+- `variant`: 'text' | 'circular' | 'rectangular'
+- `animation`: 'pulse' | 'wave' | 'none'
+- `width`: Width of the skeleton
+- `height`: Height of the skeleton
+- `SkeletonText.lines`: Number of text lines
+- `SkeletonText.lastLineWidth`: Width of the last line
+- `SkeletonAvatar.size`: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+
+### Stepper Component
+
+The Stepper component visualizes multi-step processes.
+
+```tsx
+import { Stepper } from '../components/ui';
+
+// Basic usage
+<Stepper
+  steps={[
+    { label: 'Step 1', description: 'First step' },
+    { label: 'Step 2', description: 'Second step' },
+    { label: 'Step 3', description: 'Third step' }
+  ]}
+  activeStep={1}
+  onChange={(step) => console.log(`Step ${step} clicked`)}
+/>
+
+// Vertical orientation
+<Stepper
+  steps={[
+    { label: 'Order placed', description: 'Your order has been placed' },
+    { label: 'Processing', description: 'Your order is being processed' },
+    { label: 'Shipped', description: 'Your order has been shipped' },
+    { label: 'Delivered', description: 'Your order has been delivered' }
+  ]}
+  activeStep={2}
+  orientation="vertical"
+/>
+
+// Different variants
+<Stepper
+  steps={[
+    { label: 'Step 1' },
+    { label: 'Step 2' },
+    { label: 'Step 3' }
+  ]}
+  activeStep={1}
+  variant="circles"
+/>
+
+<Stepper
+  steps={[
+    { label: 'Step 1' },
+    { label: 'Step 2' },
+    { label: 'Step 3' }
+  ]}
+  activeStep={1}
+  variant="numbers"
+/>
+
+// With custom step status
+<Stepper
+  steps={[
+    { label: 'Step 1', status: 'complete' },
+    { label: 'Step 2', status: 'current' },
+    { label: 'Step 3', status: 'upcoming' },
+    { label: 'Step 4', status: 'error' }
+  ]}
+  activeStep={1}
+/>
+```
+
+**Props:**
+- `steps`: Array of step objects
+- `activeStep`: Index of the current active step
+- `orientation`: 'horizontal' | 'vertical'
+- `variant`: 'default' | 'circles' | 'numbers'
+- `size`: 'sm' | 'md' | 'lg'
+
+### Switch Component
+
+The Switch component provides a toggle control.
+
+```tsx
+import { useState } from 'react';
+import { Switch } from '../components/ui';
+
+function SwitchExample() {
+  const [enabled, setEnabled] = useState(false);
+  
+  return (
+    <div className="space-y-4">
+      <Switch
+        checked={enabled}
+        onChange={(e) => setEnabled(e.target.checked)}
+        label="Notifications"
+      />
+      
+      <Switch
+        checked={enabled}
+        onChange={(e) => setEnabled(e.target.checked)}
+        label="Dark Mode"
+        description="Enable dark mode for the application"
+        size="lg"
+      />
+      
+      <Switch
+        checked={enabled}
+        onChange={(e) => setEnabled(e.target.checked)}
+        labelPlacement="start"
+        label="Auto-save"
+        description="Automatically save your work"
+      />
+      
+      <Switch
+        checked={enabled}
+        onChange={(e) => setEnabled(e.target.checked)}
+        disabled
+        label="Disabled option"
+      />
+    </div>
+  );
+}
+```
+
+**Props:**
+- `checked`: Whether the switch is checked
+- `onChange`: Function called when state changes
+- `label`: Text label
+- `description`: Additional description text
+- `size`: 'sm' | 'md' | 'lg'
+- `error`: Error message
+- `labelPlacement`: 'start' | 'end'
+- `disabled`: Whether the switch is disabled
+
+### Table Component
+
+The Table component displays data in a tabular format.
+
+```tsx
+import { Table } from '../components/ui';
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Name</Table.Head>
+      <Table.Head>Email</Table.Head>
+      <Table.Head>Role</Table.Head>
+      <Table.Head>Status</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell>John Doe</Table.Cell>
+      <Table.Cell>john@example.com</Table.Cell>
+      <Table.Cell>Admin</Table.Cell>
+      <Table.Cell>Active</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Jane Smith</Table.Cell>
+      <Table.Cell>jane@example.com</Table.Cell>
+      <Table.Cell>User</Table.Cell>
+      <Table.Cell>Inactive</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+```
+
+The Table component can also be used with a more data-driven approach:
+
+```tsx
+import { Table } from '../components/ui';
+
+function DataTable({ data, columns, onRowClick }) {
+  return (
+    <Table>
+      <Table.Header>
+        <Table.Row>
+          {columns.map((column) => (
+            <Table.Head key={column.key}>{column.label}</Table.Head>
+          ))}
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {data.map((row) => (
+          <Table.Row key={row.id} onClick={() => onRowClick(row)}>
+            {columns.map((column) => (
+              <Table.Cell key={`${row.id}-${column.key}`}>
+                {row[column.key]}
+              </Table.Cell>
+            ))}
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
+  );
+}
+```
+
+### Tabs Component
+
+The Tabs component organizes content in tabs.
+
+```tsx
+import { useState } from 'react';
+import { Tabs } from '../components/ui';
+import { Home, Settings, User } from 'lucide-react';
+
+function TabsExample() {
+  const [activeTab, setActiveTab] = useState('home');
+  
+  const tabs = [
+    {
+      id: 'home',
+      label: 'Home',
+      icon: <Home size={16} />,
+      content: <div>Home content</div>
+    },
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: <User size={16} />,
+      content: <div>Profile content</div>
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <Settings size={16} />,
+      content: <div>Settings content</div>
+    }
+  ];
+  
+  return (
+    <Tabs
+      tabs={tabs}
+      activeTab={activeTab}
+      onChange={setActiveTab}
+      variant="boxed"
+    />
+  );
+}
+```
+
+**Props:**
+- `tabs`: Array of tab objects
+- `activeTab`: ID of the active tab
+- `onChange`: Function called when tab changes
+- `variant`: 'default' | 'boxed' | 'pills'
+- `fullWidth`: Whether tabs should take full width
+- `tabClassName`: Additional class for tab buttons
+- `activeTabClassName`: Additional class for active tab
+- `disabledTabClassName`: Additional class for disabled tabs
+- `contentClassName`: Additional class for content
+
+### Toast Component
+
+The Toast component displays temporary notifications.
+
+```tsx
+import { useToast } from '../components/ui';
+import { Button } from '../components/ui';
+
+function ToastExample() {
+  const { showToast, hideAllToasts } = useToast();
+  
+  return (
+    <div className="space-y-2">
+      <Button 
+        onClick={() => showToast({ 
+          message: 'This is an informational message', 
+          type: 'info' 
+        })}
+      >
+        Show Info Toast
+      </Button>
+      
+      <Button 
+        onClick={() => showToast({ 
+          message: 'Operation completed successfully', 
+          type: 'success',
+          title: 'Success!'
+        })}
+      >
+        Show Success Toast
+      </Button>
+      
+      <Button 
+        onClick={() => showToast({ 
+          message: 'Please check your input and try again', 
+          type: 'warning',
+          duration: 5000
+        })}
+      >
+        Show Warning Toast
+      </Button>
+      
+      <Button 
+        onClick={() => showToast({ 
+          message: 'An error occurred while processing your request', 
+          type: 'error',
+          title: 'Error',
+          duration: Infinity,  // Won't auto-dismiss
+        })}
+      >
+        Show Error Toast
+      </Button>
+      
+      <Button variant="outline" onClick={hideAllToasts}>
+        Clear All Toasts
+      </Button>
+    </div>
+  );
+}
+```
+
+To use the Toast functionality throughout your application, wrap your app with the ToastProvider:
+
+```tsx
+import { ToastProvider } from '../components/ui';
+
+function App() {
+  return (
+    <ToastProvider>
+      {/* Your app content */}
+    </ToastProvider>
+  );
+}
+```
+
+**Props:**
+- `message`: Toast message content
+- `type`: 'info' | 'success' | 'warning' | 'error'
+- `title`: Optional title
+- `duration`: Time in milliseconds before auto-dismissal
+- `position`: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center'
+- `onClose`: Function called when toast is closed
+- `showIcon`: Whether to show the icon
+- `showCloseButton`: Whether to show close button
+- `icon`: Custom icon
+
+### Tooltip Component
+
+The Tooltip component displays additional information on hover.
+
+```tsx
+import { Tooltip } from '../components/ui';
+import { Button } from '../components/ui';
+import { InfoIcon } from 'lucide-react';
+
+// Basic usage
+<Tooltip content="Additional information">
+  <Button>Hover me</Button>
+</Tooltip>
+
+// Different placements
+<Tooltip content="Appears on top" placement="top">
+  <Button>Top</Button>
+</Tooltip>
+
+<Tooltip content="Appears on the right" placement="right">
+  <Button>Right</Button>
+</Tooltip>
+
+<Tooltip content="Appears on the bottom" placement="bottom">
+  <Button>Bottom</Button>
+</Tooltip>
+
+<Tooltip content="Appears on the left" placement="left">
+  <Button>Left</Button>
+</Tooltip>
+
+// With delay and custom max width
+<Tooltip
+  content="This tooltip has a delay and custom width"
+  delay={500}
+  maxWidth={300}
+>
+  <Button>Custom Tooltip</Button>
+</Tooltip>
+
+// With rich content
+<Tooltip
+  content={
+    <div>
+      <strong>Rich content</strong>
+      <p>Tooltips can contain rich content</p>
+    </div>
+  }
+>
+  <InfoIcon />
+</Tooltip>
+```
+
+**Props:**
+- `content`: Tooltip content
+- `placement`: 'top' | 'right' | 'bottom' | 'left'
+- `delay`: Delay before showing tooltip (in ms)
+- `maxWidth`: Maximum width of tooltip
+- `children`: Element that triggers the tooltip
+
+## Accessibility
+
+All components follow WCAG accessibility guidelines:
+
+- Interactive elements have proper keyboard navigation
+- ARIA attributes are used where appropriate
+- Focus states are clearly visible
+- Color contrast meets accessibility standards
+- Screen reader support
+
+## Customizing Components
+
+All components accept a `className` prop for custom styling. You can use this to override or extend the default styles:
+
+```tsx
+<Button className="my-custom-class">Custom Button</Button>
+```
+
+For more complex customization, you can use the `cn` utility function (based on clsx and tailwind-merge) which intelligently merges class names:
+
+```tsx
+import { Button } from '../components/ui';
+import { cn } from '../utils/cn';
+
+<Button
+  className={cn(
+    'custom-class',
+    isActive && 'active-class',
+    variant === 'special' && 'special-class'
+  )}
+>
+  Customized Button
+</Button>
+```
+
+## Best Practices
+
+1. **Consistency**: Use the same component for the same purpose throughout your application.
+2. **Composition**: Combine components to create more complex interfaces.
+3. **Accessibility**: Ensure your implementation maintains accessibility.
+4. **Performance**: Use components efficiently to avoid unnecessary renders.
+5. **Responsive Design**: All components are designed to work on various screen sizes, but consider the layout when combining components.
+
+## Troubleshooting
+
+If you encounter issues with the components:
+
+1. Check if all required props are provided
+2. Verify the TypeScript types are being satisfied
+3. Ensure you're not encountering import conflicts between UI and core components
+4. Check for CSS conflicts that might be affecting the component styling
+
+## Component Extending
+
+If you need to create a variant of an existing component, you can extend it:
+
+```tsx
+import { Button } from '../components/ui';
+
+const PrimaryButton = (props) => {
+  return <Button variant="primary" {...props} />;
+};
+
+export default PrimaryButton;
+```

@@ -1,0 +1,119 @@
+# Component Library File Structure
+
+```
+client/
+├── src/
+│   ├── components/
+│   │   ├── admin/             # Admin-specific components
+│   │   ├── auth/              # Authentication components
+│   │   ├── common/            # Legacy common components (being migrated)
+│   │   ├── core/              # Core base components (being migrated to ui/)
+│   │   │   ├── Alert.tsx
+│   │   │   ├── Badge.tsx
+│   │   │   ├── Button.tsx
+│   │   │   ├── Card.tsx
+│   │   │   ├── Checkbox.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Loading.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── Select.tsx
+│   │   │   ├── Table.tsx
+│   │   │   ├── Tabs.tsx
+│   │   │   └── index.ts       # Exports with explicit naming to avoid conflicts
+│   │   ├── dashboard/         # Dashboard-specific components
+│   │   ├── deployment/        # Deployment-specific components
+│   │   ├── devices/           # Device-specific components 
+│   │   ├── profiles/          # Profile-specific components
+│   │   ├── schedules/         # Schedule-specific components
+│   │   ├── ui/                # New unified UI component library
+│   │   │   ├── Alert.tsx
+│   │   │   ├── Avatar.tsx
+│   │   │   ├── Badge.tsx
+│   │   │   ├── Breadcrumb.tsx
+│   │   │   ├── Button.tsx
+│   │   │   ├── Card.tsx
+│   │   │   ├── Checkbox.tsx
+│   │   │   ├── Dropdown.tsx
+│   │   │   ├── Empty.tsx
+│   │   │   ├── Form.tsx       # Contains all form-related components
+│   │   │   ├── Input.tsx
+│   │   │   ├── Loading.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── Pagination.tsx
+│   │   │   ├── ProgressBar.tsx
+│   │   │   ├── Select.tsx
+│   │   │   ├── Skeleton.tsx
+│   │   │   ├── Stepper.tsx
+│   │   │   ├── Switch.tsx
+│   │   │   ├── Table.tsx
+│   │   │   ├── Tabs.tsx
+│   │   │   ├── Toast.tsx
+│   │   │   ├── Tooltip.tsx
+│   │   │   └── index.ts       # Exports all UI components with explicit re-exports
+│   ├── context/              # React context providers
+│   │   ├── AuthContext.tsx
+│   │   └── ...
+│   ├── hooks/                # Custom React hooks
+│   │   ├── useDevices.ts
+│   │   └── ...
+│   ├── types/                # TypeScript type definitions
+│   │   ├── device.types.ts
+│   │   ├── profile.types.ts
+│   │   └── ...
+│   ├── utils/                # Utility functions
+│   │   ├── cn.ts             # Utility for merging Tailwind classes
+│   │   ├── dateUtils.ts
+│   │   ├── formatters.ts
+│   │   ├── permissions.ts
+│   │   └── ...
+│   ├── pages/                # Page components
+│   │   ├── Dashboard.tsx
+│   │   ├── DeviceDetails.tsx
+│   │   └── ...
+│   ├── App.tsx               # Main App component
+│   └── index.tsx             # App entry point
+├── public/                   # Static files
+├── package.json
+└── tsconfig.json
+```
+
+## Migration Strategy
+
+As part of our component organization, we're gradually transitioning from the older `core/` and `common/` directories to the new unified `ui/` component library. This approach allows for a smooth migration without disrupting existing functionality.
+
+### Guidelines for New Components
+
+1. All new components should be placed in the `ui/` directory
+2. Each component should be in its own file
+3. Export all components through the `ui/index.ts` file
+4. Use explicit imports/exports to avoid naming conflicts
+
+### Component Organization
+
+Components in the `ui/` directory follow these organization principles:
+
+1. **Atomic Design**: Components range from simple (atoms) to complex (organisms)
+2. **Single Responsibility**: Each component should do one thing well
+3. **Composition**: Complex components should be built from simpler components
+4. **Consistency**: Components should have consistent props and styling patterns
+
+### Naming Conventions
+
+- **Component files**: PascalCase (e.g., `Button.tsx`)
+- **Component names**: PascalCase (e.g., `Button`)
+- **Props interfaces**: ComponentNameProps (e.g., `ButtonProps`)
+- **Prop names**: camelCase (e.g., `onClick`, `isDisabled`)
+- **Internal functions**: camelCase (e.g., `handleClick`)
+
+## Feature-Specific Components
+
+Domain-specific components are organized into feature-specific directories:
+
+- `admin/`: Components for administrative interfaces
+- `auth/`: Authentication-related components
+- `dashboard/`: Dashboard widgets and visualizations
+- `devices/`: Device management interfaces
+- `profiles/`: Profile management components
+- `schedules/`: Scheduling and calendar components
+
+These components can use the base UI components from `ui/` for consistency.
