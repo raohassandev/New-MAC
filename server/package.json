@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
+    "dev:monitoring": "node scripts/start-with-monitoring.js",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "jest --config jest.config.js",
@@ -19,7 +20,8 @@
     "fix-db": "node scripts/fix-database.js",
     "verify-db": "node verifyDBConfig.js",
     "check-collections": "node scripts/check-collections.js",
-    "create-collections": "mongosh mongo-init.js"
+    "create-collections": "mongosh mongo-init.js",
+    "check-deps": "node scripts/check-dependencies.js"
   },
   "keywords": [
     "modbus",
@@ -36,11 +38,12 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "express-async-handler": "^1.2.0",
+    "express-rate-limit": "^7.5.0",
     "jsonwebtoken": "^9.0.0",
     "modbus-serial": "^8.0.11",
     "mongoose": "^7.0.3",
     "morgan": "^1.10.0",
-    "winston": "^3.8.2"
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",

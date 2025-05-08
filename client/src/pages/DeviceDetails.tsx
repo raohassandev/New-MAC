@@ -73,9 +73,12 @@ const DeviceDetails: React.FC = () => {
   const communicationLogRef = useRef<HTMLDivElement>(null);
 
   // Auto-polling settings
-  const [autoPolling] = useState<boolean>(false);
-  const [pollingInterval] = useState<number>(1000); // 1 second default
+  const [autoPolling, setAutoPolling] = useState<boolean>(true);
+  const [pollingInterval, setPollingInterval] = useState<number>(5000); // 5 seconds default
   const pollingTimerRef = useRef<number | null>(null);
+  
+  // Display settings
+  const [showScientificNotation, setShowScientificNotation] = useState<boolean>(false);
 
   // Specific status for current operations
   const [communicationStatus, setCommunicationStatus] = useState<{
@@ -433,8 +436,17 @@ const DeviceDetails: React.FC = () => {
 
         // Call the actual API endpoint via the readRegisters function
         try {
+          
           const result = await readRegisters(deviceId);
+          console.log(`[DeviceDetails] Read registers result:`, result);
+          
+          // Check for result.error property that we added to our error handler
+          if (result && result.error) {
+            throw new Error(result.message || 'Failed to read data from device');
+          }
+          
           if (result && result.readings) {
+            console.log(`[DeviceDetails] Setting readings:`, result.readings);
             setReadings(result.readings);
 
             // Log Modbus response to console
@@ -1285,7 +1297,24 @@ const DeviceDetails: React.FC = () => {
           {activeTab === 'readings' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-700">Data Readings</h3>
+                <div className="flex items-center space-x-4">
+                  <h3 className="text-lg font-medium text-gray-700">Data Readings</h3>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-gray-600">Scientific Notation</label>
+                    <button
+                      onClick={() => setShowScientificNotation(!showScientificNotation)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showScientificNotation ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showScientificNotation ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
                 {canTestDevices && (
                   <button
                     onClick={handleReadRegisters}
@@ -1361,7 +1390,9 @@ const DeviceDetails: React.FC = () => {
                             {reading.address || reading.registerIndex}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {formatByDataType(reading.value, reading.dataType)}
+                            {showScientificNotation && typeof reading.value === 'number' && Math.abs(reading.value) < 1e-10 
+                              ? reading.value.toExponential(4) // Display in scientific notation with 4 decimal places
+                              : formatByDataType(reading.value, reading.dataType)}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {reading.unit || '-'}
@@ -2536,8 +2567,8 @@ const PollingControlsWrapper = () => {
   // This is a high-order component that wraps DeviceDetails with polling functionality
   return function WithPollingControls(Component: React.ComponentType<any>) {
     const WrappedComponent = (props: any) => {
-      const [autoPolling, setAutoPolling] = useState(true); // Default to enabled
-      const [pollingInterval, setPollingInterval] = useState(1000); // Default to 1 second
+      const [autoPolling, setAutoPolling] = useState(false); // Default to disabled
+      const [pollingInterval, setPollingInterval] = useState(5000); // Default to 5 seconds to avoid overwhelming the Modbus connection
       const pollingTimerRef = useRef<number | null>(null);
       const { deviceId } = useParams<{ deviceId: string }>();
       const { readRegisters } = useDevices();
@@ -2558,16 +2589,32 @@ const PollingControlsWrapper = () => {
           pollingTimerRef.current = window.setInterval(async () => {
             try {
               // Read registers and log the result to console
-              console.log(`Auto-polling: Fetching data for device ${deviceId}...`);
+              console.log(`[PollingControl] Auto-polling: Fetching data for device ${deviceId}...`);
               const result = await readRegisters(deviceId);
+              
+              // Check if the result indicates an error
+              if (result && result.error) {
+                console.error(`[PollingControl] Error in polling:`, result.message);
+                return; // Skip the rest of the processing for this cycle
+              }
 
-              console.log('Modbus Register Data:', {
-                timestamp: new Date().toISOString(),
-                deviceId,
-                readings: result?.readings || [],
-              });
+              // Verify we have readings before proceeding
+              if (result && result.readings && result.readings.length > 0) {
+                console.log('[PollingControl] Successfully received data from device');
+                console.log('[PollingControl] Modbus Register Data:', {
+                  timestamp: new Date().toISOString(),
+                  deviceId,
+                  readingsCount: result.readings.length,
+                  sampleReading: result.readings[0]
+                });
+                
+                // Optional: You could dispatch an event or use a callback to update UI with the new readings
+                // This would require passing a callback function to this component
+              } else {
+                console.warn('[PollingControl] No readings received in polling response');
+              }
             } catch (error) {
-              console.error('Error in auto-polling:', error);
+              console.error('[PollingControl] Error in auto-polling:', error);
             }
           }, pollingInterval);
         }
@@ -2594,6 +2641,26 @@ const PollingControlsWrapper = () => {
                 />
                 <span className="text-sm font-medium text-gray-700">Auto-poll</span>
               </label>
+              
+              <button
+                onClick={() => {
+                  // Attempt a single manual read
+                  console.log(`[PollingControl] Manual read requested for device ${deviceId}`);
+                  readRegisters(deviceId)
+                    .then(result => {
+                      console.log('[PollingControl] Manual read result:', result);
+                      if (result && result.readings) {
+                        console.log(`[PollingControl] Got ${result.readings.length} readings`);
+                      }
+                    })
+                    .catch(err => {
+                      console.error('[PollingControl] Manual read error:', err);
+                    });
+                }}
+                className="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                Read Now
+              </button>
 
               <select
                 value={pollingInterval}

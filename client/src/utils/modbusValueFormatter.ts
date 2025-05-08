@@ -32,9 +32,14 @@ export function formatModbusValue(
     return 'Error';
   }
   
-  // Handle very small values specially
-  if (preserveSmallValues && Math.abs(numValue) < Math.pow(10, -(decimalPlaces + 1))) {
-    // For extremely small values, use scientific notation
+  // Handle extremely small values (values near zero that are likely noise or floating point errors)
+  if (Math.abs(numValue) < 1e-30) {
+    return '0';
+  }
+  
+  // Handle very small values specially (but not too small)
+  if (preserveSmallValues && Math.abs(numValue) < Math.pow(10, -(decimalPlaces + 1)) && Math.abs(numValue) >= 1e-10) {
+    // For small but meaningful values, use scientific notation
     return numValue.toExponential(decimalPlaces);
   }
   
@@ -60,6 +65,15 @@ export function formatByDataType(
   switch (dataType) {
     case 'FLOAT32':
     case 'FLOAT':
+      // For floating point values, properly handle scientific notation
+      const floatVal = typeof value === 'string' ? parseFloat(value) : value as number;
+      
+      // Handle non-zero extremely small values with scientific notation
+      if (Math.abs(floatVal) < 1e-20 && floatVal !== 0) {
+        return floatVal.toExponential(2); // Use scientific notation with 2 decimal places
+      }
+      
+      // Handle normal float values
       return formatModbusValue(value, 2, true);
     case 'INT16':
     case 'INT-16':

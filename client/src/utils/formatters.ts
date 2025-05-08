@@ -31,16 +31,31 @@ export const formatNumber = (
   value: number | string | undefined | null,
   decimalPlaces = 2
 ): string => {
-  if (value === undefined || value === null) return 'N/A';
+  if (value === undefined || value === null) return '0';
 
   const num = typeof value === 'string' ? parseFloat(value) : value;
 
-  if (isNaN(num)) return 'N/A';
-
-  return num.toLocaleString('en-US', {
-    minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces,
-  });
+  // Handle NaN
+  if (isNaN(num)) return '0';
+  
+  // Handle Infinity
+  if (!isFinite(num)) return '0';
+  
+  // Handle very small values that are practically zero
+  if (Math.abs(num) < 1e-10) return '0';
+  
+  // Handle scientific notation like 9.183563628783764e-40
+  if (Math.abs(num) < 1e-30) return '0';
+  
+  try {
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: decimalPlaces,
+    });
+  } catch (error) {
+    console.error('[formatters] Error formatting number:', error, 'Original value:', value);
+    return '0';
+  }
 };
 
 /**

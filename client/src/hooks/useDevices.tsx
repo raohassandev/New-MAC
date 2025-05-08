@@ -327,6 +327,8 @@ export const useDevices = (): UseDevicesReturn => {
     try {
       const result = await readDeviceRegisters(id);
 
+      console.log(`The result form Hooks ReadRegister  :  ${result}`  );
+
       // Update the device's lastSeen timestamp in local state
       setDevices(prev =>
         prev.map(d => {

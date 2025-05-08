@@ -1,12 +1,17 @@
 // server/src/server.ts
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+import fs from 'fs';
 import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes';
 import { amxRouter } from './amx/routes';
+import monitoringRouter from './client/routes/monitoringRoutes';
 import { initializeDevicePolling } from './client/services/deviceInitializer';
+import { apiLogger } from './utils/logger';
 // Import the device controller for explicit route registration
 import * as deviceController from './client/controllers/deviceController';
 
@@ -18,10 +23,88 @@ console.log('Environment loaded, PORT:', process.env.PORT || '3333 (default)');
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || '3333', 10);
 
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Configure Morgan logger
+// Create a write stream for access logs
+const accessLogStream = fs.createWriteStream(
+  path.join(logsDir, 'access.log'),
+  { flags: 'a' }
+);
+
+// Configure API rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 300, // limit each IP to 300 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  handler: (req: Request, res: Response, next: NextFunction) => {
+    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      message: 'Too many requests, please try again later',
+      rateLimit: true,
+      retryAfter: Math.floor(15 * 60)
+    });
+  }
+});
+
+// Configure stricter rate limiting for device read operations
+const deviceReadLimiter = rateLimit({
+  windowMs: 10 * 1000, // 10 seconds
+  limit: 5, // limit each IP to 5 device read requests per 10 seconds
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many device read requests, please slow down your polling rate',
+  handler: (req: Request, res: Response, next: NextFunction) => {
+    console.warn(`Device read rate limit exceeded for IP: ${req.ip}, path: ${req.path}`);
+    res.status(429).json({
+      message: 'Too many device read requests, please slow down your polling rate',
+      rateLimit: true,
+      retryAfter: 10
+    });
+  }
+});
+
+// Error handler for tracking API errors
+const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(`API Error: ${err.message}`);
+  console.error(`Route: ${req.method} ${req.path}`);
+  console.error(`IP: ${req.ip}`);
+  console.error(`Body: ${JSON.stringify(req.body)}`);
+  console.error(`Stack: ${err.stack}`);
+  
+  res.status(500).json({
+    message: 'An error occurred while processing your request',
+    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
+  });
+};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-console.log('Middleware configured');
+
+// Add Morgan logger
+app.use(morgan('combined', { stream: accessLogStream })); // Log to file
+app.use(morgan('dev')); // Also log to console with concise format
+
+// Apply rate limiting to all requests
+app.use(apiLimiter);
+
+// Apply stricter rate limiting to device read operations
+app.use('/client/api/devices/:id/read', (req, res, next) => {
+  // Check if the path matches the device read pattern
+  if (req.path.match(/\/client\/api\/devices\/[^\/]+\/read/)) {
+    return deviceReadLimiter(req, res, next);
+  }
+  next();
+});
+
+
 
 // Database Connection and Server Start
 const startServer = async () => {
@@ -46,9 +129,6 @@ const startServer = async () => {
       next();
     });
 
-    // API routes with explicit route mapping for better debugging
-    console.log('Setting up API routes...');
-
     // Mounting client API routes
     app.use('/client/api', clientRouter);
     console.log(`✓ Mounted client API routes at /client/api`);
@@ -56,6 +136,10 @@ const startServer = async () => {
     // Mounting AMX API routes
     app.use('/amx/api', amxRouter);
     console.log(`✓ Mounted AMX API routes at /amx/api`);
+    
+    // Mounting Monitoring routes (admin only)
+    app.use('/monitoring', monitoringRouter);
+    console.log(`✓ Mounted monitoring routes at /monitoring`);
 
     // Add explicit route for device test endpoint to ensure it works
     // This is a temporary fix until we resolve the route registration issue
@@ -96,6 +180,10 @@ const startServer = async () => {
       });
       console.log('Static assets configured for production');
     }
+    
+    // Add error tracking middleware last
+    app.use(errorHandler);
+  
 
     // Start server
     const server = app.listen(PORT, async () => {

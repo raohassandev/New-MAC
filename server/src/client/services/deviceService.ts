@@ -38,7 +38,7 @@ export const getDeviceModel = async (reqContext: any): Promise<mongoose.Model<ID
   // Try to get from app.locals
   if (reqContext?.app?.locals?.clientModels?.Device) {
     const DeviceModel = reqContext.app.locals.clientModels.Device;
-    console.log('[deviceService] Using client-specific Device model from app.locals');
+    //console.log('[deviceService] Using client-specific Device model from app.locals');
     return DeviceModel;
   }
 
@@ -47,7 +47,7 @@ export const getDeviceModel = async (reqContext: any): Promise<mongoose.Model<ID
   
   // If we still don't have a valid model, use the default Device model as fallback
   if (!DeviceModel) {
-    console.log('[deviceService] Using default Device model as fallback');
+    //console.log('[deviceService] Using default Device model as fallback');
     return Device;
   }
   
@@ -134,17 +134,17 @@ export const getAdjustedAddressAndCount = (
   ) {
     // Some Chinese Energy Analyzers use 1-based addressing while Modbus is 0-based
     // No adjustment needed - already uses absolute addressing
-    console.log('[deviceService] Using standard register addressing for Chinese Energy Analyzer');
+    //console.log('[deviceService] Using standard register addressing for Chinese Energy Analyzer');
   } else if (device.advancedSettings?.connectionOptions?.retries === 0) {
     // This is a trick - we're using the retries=0 as a flag for devices that need -1 adjustment
     startAddress = startAddress - 1;
-    console.log(
-      `[deviceService] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`
-    );
+    //console.log(
+    //  `[deviceService] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`
+    //);
   }
 
   // Always use full register count for all devices
-  console.log(`[deviceService] Using full register count ${adjustedCount} for all devices`);
+  //console.log(`[deviceService] Using full register count ${adjustedCount} for all devices`);
   
   // We previously limited non-Energy Analyzer devices to 2 registers,
   // but that prevented proper reading of multiple consecutive registers
@@ -161,7 +161,7 @@ export const readModbusRegisters = async (
   startAddress: number,
   count: number
 ): Promise<any> => {
-  console.log(chalk.yellow(`[deviceService] Reading ${count} registers using FC${fc} from address ${startAddress}`));
+  //console.log(chalk.yellow(`[deviceService] Reading ${count} registers using FC${fc} from address ${startAddress}`));
   
   let result;
   switch (fc) {
@@ -172,7 +172,7 @@ export const readModbusRegisters = async (
       result = await client.readDiscreteInputs(startAddress, count);
       break;
     case 3:
-      console.log(chalk.blue('=== Reading Holding Registers ==='));
+      //console.log(chalk.blue('=== Reading Holding Registers ==='));
       result = await client.readHoldingRegisters(startAddress, count);
       break;
     case 4:
@@ -184,14 +184,14 @@ export const readModbusRegisters = async (
 
   // Enhanced logging for modbus results
   if (result && Array.isArray(result.data)) {
-    console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
-    console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
+    //console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
+    //console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
     
     if (result.buffer) {
-      console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
+      //console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
     }
   } else {
-    console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
+    //console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
   }
   
   return result;
@@ -212,17 +212,17 @@ export const calculateRelativeIndex = (
   // If registerIndex is within the range's bounds, it's likely an absolute address
   if (isWithinRange) {
     const relativeIndex = param.registerIndex - range.startAddress;
-    console.log(
-      `[deviceService] Using absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${relativeIndex}`
-    );
+    //console.log(
+    //  `[deviceService] Using absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${relativeIndex}`
+    //);
     return relativeIndex;
   }
   
   // If registerIndex is very small, it's likely a direct offset (relative)
   if (param.registerIndex < range.count) {
-    console.log(
-      `[deviceService] Using relative addressing mode with direct offset: ${param.registerIndex}`
-    );
+    //console.log(
+    //  `[deviceService] Using relative addressing mode with direct offset: ${param.registerIndex}`
+    //);
     return param.registerIndex;
   }
   
@@ -232,15 +232,15 @@ export const calculateRelativeIndex = (
 
   // Choose the one that makes more sense (is in range)
   if (asAbsolute >= 0 && asAbsolute < range.count) {
-    console.log(
-      `[deviceService] Inferred absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${asAbsolute}`
-    );
+    //console.log(
+    //  `[deviceService] Inferred absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${asAbsolute}`
+    //);
     return asAbsolute;
   } else {
     // Fallback to treating it as a direct offset but warn about potential issues
-    console.log(
-      `[deviceService] WARNING: Register index ${param.registerIndex} doesn't align with range ${range.startAddress}-${range.startAddress + range.count - 1}. Using as direct offset.`
-    );
+    //console.log(
+    //  `[deviceService] WARNING: Register index ${param.registerIndex} doesn't align with range ${range.startAddress}-${range.startAddress + range.count - 1}. Using as direct offset.`
+    //);
     return asRelative;
   }
 };
@@ -260,19 +260,19 @@ export const getByteOrder = (param: any, device: IDevice): string => {
     device.make?.toLowerCase().includes('energy analyzer')
   ) {
     // China Energy Analyzer typically uses CDAB format
-    console.log('[deviceService] Applying China Energy Analyzer default byte order: CDAB');
+    //console.log('[deviceService] Applying China Energy Analyzer default byte order: CDAB');
     return 'CDAB';
   } else if (device.make?.toLowerCase().includes('schneider')) {
     // Schneider Electric typically uses ABCD format
-    console.log('[deviceService] Applying Schneider Electric default byte order: ABCD');
+    //console.log('[deviceService] Applying Schneider Electric default byte order: ABCD');
     return 'ABCD';
   } else if (device.make?.toLowerCase().includes('siemens')) {
     // Siemens typically uses BADC format
-    console.log('[deviceService] Applying Siemens default byte order: BADC');
+    //console.log('[deviceService] Applying Siemens default byte order: BADC');
     return 'BADC';
   } else {
     // Default to ABCD if no specific match
-    console.log('[deviceService] No device-specific byte order found, using default: ABCD');
+    //console.log('[deviceService] No device-specific byte order found, using default: ABCD');
     return 'ABCD';
   }
 };
@@ -283,15 +283,15 @@ export const getByteOrder = (param: any, device: IDevice): string => {
 export const processFloat32 = (reg1: number, reg2: number, byteOrder: string): number | null => {
   // Validate registers are numbers
   if (typeof reg1 !== 'number' || typeof reg2 !== 'number') {
-    console.log(
-      `[deviceService] Invalid register values: reg1=${reg1}, reg2=${reg2}. Both must be numbers.`
-    );
+    //console.log(
+    //  `[deviceService] Invalid register values: reg1=${reg1}, reg2=${reg2}. Both must be numbers.`
+    //);
     
     // Make sure reg1 and reg2 are valid numbers before processing
     const validReg1 = typeof reg1 === 'number' ? reg1 : 0;
     const validReg2 = typeof reg2 === 'number' ? reg2 : 0;
     
-    console.log(`[deviceService] Using fallback values: reg1=${validReg1}, reg2=${validReg2}`);
+    //console.log(`[deviceService] Using fallback values: reg1=${validReg1}, reg2=${validReg2}`);
     
     try {
       const value = processValidRegistersAsFloat(validReg1, validReg2, byteOrder);
@@ -340,7 +340,7 @@ export const processValidRegistersAsFloat = (
         mappedByteOrder = 'DCBA';
         break;
       default:
-        console.log(`[deviceService] Unknown byte order: ${byteOrder}, defaulting to ABCD`);
+        //console.log(`[deviceService] Unknown byte order: ${byteOrder}, defaulting to ABCD`);
         mappedByteOrder = 'ABCD';
     }
     
@@ -364,15 +364,25 @@ export const processValidRegistersAsFloat = (
     // Convert buffer to float
     const value = buffer.readFloatBE(0);
     
-    console.log(`[deviceService] Converted FLOAT32 value: ${value}`);
+    //console.log(`[deviceService] Converted FLOAT32 value: ${value}`);
     
-    // Check for NaN or Infinity
+    // Check for NaN, Infinity, or extremely small values close to zero
     if (!isFinite(value)) {
-      console.log(`[deviceService] Warning: FLOAT32 conversion resulted in ${value}, using null instead.`);
-      return null;
+      //console.log(`[deviceService] Warning: FLOAT32 conversion resulted in ${value}, using 0 instead.`);
+      return 0; // Return 0 instead of null for invalid values
     }
     
-    return value;
+    // Handle extremely small values that are likely precision errors
+    if (Math.abs(value) < 1e-30) {
+      //console.log(`[deviceService] Warning: Value ${value} is extremely small, treating as 0`);
+      return 0;
+    }
+    
+    // Round to 6 decimal places to avoid potential JSON serialization issues
+    // For most industrial sensors, 6 decimal places is more than enough precision
+    const roundedValue = Number(value.toFixed(6));
+    //console.log(`[deviceService] Rounded float value from ${value} to ${roundedValue}`);
+    return roundedValue;
   } catch (error) {
     console.error('[deviceService] Buffer operation error:', error);
     return null;
@@ -387,21 +397,21 @@ export const processAndFormatValue = (
   param: any
 ): any => {
   if (value === null || value === undefined) {
-    console.log(`[deviceService] Skipping scaling/formatting because value is ${value}`);
+    //console.log(`[deviceService] Skipping scaling/formatting because value is ${value}`);
     return value;
   }
   
   // Make sure value is a number before applying scaling
   if (typeof value !== 'number') {
-    console.log(
-      `[deviceService] Warning: Value is not a number (${typeof value}: ${value}), attempting to convert`
-    );
+    //console.log(
+    //  `[deviceService] Warning: Value is not a number (${typeof value}: ${value}), attempting to convert`
+    //);
     const numericValue = Number(value);
     if (!isNaN(numericValue)) {
       value = numericValue;
-      console.log(`[deviceService] Successfully converted value to number: ${value}`);
+      //console.log(`[deviceService] Successfully converted value to number: ${value}`);
     } else {
-      console.log(`[deviceService] Could not convert value to number, setting to null`);
+      //console.log(`[deviceService] Could not convert value to number, setting to null`);
       return null;
     }
   }
@@ -411,13 +421,13 @@ export const processAndFormatValue = (
     try {
       const originalValue = value;
       value = value * param.scalingFactor;
-      console.log(
-        `[deviceService] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`
-      );
+      //console.log(
+      //  `[deviceService] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`
+      //);
       
       // Check for invalid results
       if (!isFinite(value)) {
-        console.log(`[deviceService] Warning: Scaling resulted in ${value}, reverting to original value`);
+        //console.log(`[deviceService] Warning: Scaling resulted in ${value}, reverting to original value`);
         value = originalValue;
       }
     } catch (error) {
@@ -434,13 +444,13 @@ export const processAndFormatValue = (
       
       // Use Function constructor to safely evaluate the equation
       value = new Function('x', `return ${param.scalingEquation}`)(x);
-      console.log(
-        `[deviceService] Applied scaling equation: ${param.scalingEquation} with x=${originalValue}, result=${value}`
-      );
+      //console.log(
+      //  `[deviceService] Applied scaling equation: ${param.scalingEquation} with x=${originalValue}, result=${value}`
+      //);
       
       // Check for invalid results
       if (!isFinite(value)) {
-        console.log(`[deviceService] Warning: Equation resulted in ${value}, reverting to original value`);
+        //console.log(`[deviceService] Warning: Equation resulted in ${value}, reverting to original value`);
         value = originalValue;
       }
     } catch (error) {
@@ -457,15 +467,15 @@ export const processAndFormatValue = (
       // Check if value is extremely small before formatting
       if (Math.abs(value) < Math.pow(10, -param.decimalPoint)) {
         // For very small values, preserve scientific notation or original value
-        console.log(
-          `[deviceService] Value ${value} is too small for ${param.decimalPoint} decimal places, preserving original`
-        );
+        //console.log(
+        //  `[deviceService] Value ${value} is too small for ${param.decimalPoint} decimal places, preserving original`
+        //);
       } else {
         // For normal values, format decimal places
         value = parseFloat(value.toFixed(param.decimalPoint));
-        console.log(
-          `[deviceService] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`
-        );
+        //console.log(
+        //  `[deviceService] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`
+        //);
       }
     } catch (error) {
       console.error(`[deviceService] Error formatting decimal places:`, error);
@@ -475,11 +485,11 @@ export const processAndFormatValue = (
   // Apply min/max constraints if defined
   if (typeof value === 'number') {
     if (param.maxValue !== undefined && value > param.maxValue) {
-      console.log(`[deviceService] Value ${value} exceeds maxValue ${param.maxValue}, clamping`);
+      //console.log(`[deviceService] Value ${value} exceeds maxValue ${param.maxValue}, clamping`);
       value = param.maxValue;
     }
     if (param.minValue !== undefined && value < param.minValue) {
-      console.log(`[deviceService] Value ${value} below minValue ${param.minValue}, clamping`);
+      //console.log(`[deviceService] Value ${value} below minValue ${param.minValue}, clamping`);
       value = param.minValue;
     }
   }
@@ -509,10 +519,10 @@ export const processParameter = async (
           !Array.isArray(result.data) ||
           result.data.length <= relativeIndex
         ) {
-          console.log(
-            `[deviceService] Cannot read FLOAT32 - result data is invalid. Actual data:`,
-            result.data
-          );
+          //console.log(
+          //  `[deviceService] Cannot read FLOAT32 - result data is invalid. Actual data:`,
+          //  result.data
+          //);
           value = null;
         } else {
           const byteOrder = getByteOrder(param, device);
@@ -520,12 +530,12 @@ export const processParameter = async (
           const reg1 = result.data[relativeIndex];
           const reg2 = result.data[relativeIndex + 1];
           
-          console.log(`[deviceService] Raw registers: reg1=${reg1}, reg2=${reg2}`);
+          //console.log(`[deviceService] Raw registers: reg1=${reg1}, reg2=${reg2}`);
           
           value = processFloat32(reg1, reg2, byteOrder);
         }
       } else {
-        console.log(`[deviceService] Cannot read FLOAT32 - not enough registers available.`);
+        //console.log(`[deviceService] Cannot read FLOAT32 - not enough registers available.`);
         value = null;
       }
     } else {
@@ -535,25 +545,25 @@ export const processParameter = async (
         !Array.isArray(result.data) ||
         result.data.length <= relativeIndex
       ) {
-        console.log(
-          `[deviceService] Cannot read register at index ${relativeIndex} - result data is invalid.`
-        );
+        //console.log(
+        //  `[deviceService] Cannot read register at index ${relativeIndex} - result data is invalid.`
+        //);
         value = null;
       } else {
         value = result.data[relativeIndex];
-        console.log(`[deviceService] Read single register value: ${value}`);
+        //console.log(`[deviceService] Read single register value: ${value}`);
       }
     }
     
-    console.log(`[deviceService] Raw value at index ${relativeIndex}: ${value}`);
+    //console.log(`[deviceService] Raw value at index ${relativeIndex}: ${value}`);
     
     // Process and format the value
     value = processAndFormatValue(value, param);
     
     // Log the final processed value
-    console.log(
-      `[deviceService] Final processed value for parameter "${param.name}": ${value}${param.unit ? ' ' + param.unit : ''}`
-    );
+    //console.log(
+    //  `[deviceService] Final processed value for parameter "${param.name}": ${value}${param.unit ? ' ' + param.unit : ''}`
+    //);
     
     return value;
   } catch (error) {
@@ -584,7 +594,7 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
     
     // NEW STRUCTURE: Read each data point
     if (hasNewConfig && device.dataPoints) {
-      console.log(`[deviceService] Reading from device data points: ${device.dataPoints.length} points`);
+      //console.log(`[deviceService] Reading from device data points: ${device.dataPoints.length} points`);
       
       for (const dataPoint of device.dataPoints) {
         try {
@@ -599,21 +609,21 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
           
           // Process the result based on parser configuration
           if (parser && parser.parameters) {
-            console.log(`[deviceService] Processing parser with ${parser.parameters.length} parameters`);
+            //console.log(`[deviceService] Processing parser with ${parser.parameters.length} parameters`);
             
             for (const param of parser.parameters) {
               try {
-                console.log(
-                  `[deviceService] Processing parameter: ${param.name}, registerIndex: ${param.registerIndex}, dataType: ${param.dataType}`
-                );
+                //console.log(
+                //  `[deviceService] Processing parameter: ${param.name}, registerIndex: ${param.registerIndex}, dataType: ${param.dataType}`
+                //);
                 
                 // Calculate relative index
                 const relativeIndex = calculateRelativeIndex(param, range);
                 
                 if (relativeIndex < 0 || relativeIndex >= count) {
-                  console.log(
-                    `[deviceService] Parameter ${param.name} index out of range: ${relativeIndex} not in [0-${count - 1}]`
-                  );
+                  //console.log(
+                  //  `[deviceService] Parameter ${param.name} index out of range: ${relativeIndex} not in [0-${count - 1}]`
+                  //);
                   continue; // Skip if out of range
                 }
                 
@@ -692,10 +702,10 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
     }
     
     // Log the final readings array
-    console.log(
-      `[deviceService] Final readings results (${readings.length} values):`,
-      JSON.stringify(readings, null, 1)
-    );
+    //console.log(
+    //  `[deviceService] Final readings results (${readings.length} values):`,
+    //  JSON.stringify(readings, null, 1)
+    //);
     
     return readings;
   } finally {
@@ -733,11 +743,14 @@ export const readDeviceRegisters = async (
     // Read device registers
     const readings = await readDeviceRegistersData(device);
     
-    console.log(chalk.bgGreen.black(JSON.stringify(readings)));
+    //console.log(chalk.bgGreen.black(JSON.stringify(readings)));
     
     // Update device lastSeen timestamp
     device.lastSeen = new Date();
     await device.save();
+
+
+    
     
     // Return the result
     return {

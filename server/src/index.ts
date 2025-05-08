@@ -16,8 +16,8 @@ startServer()
 
     // Listen for termination signals
     process.on('SIGTERM', gracefulShutdown);
-    process.on('SIGINT', gracefulShutdown);
-  })
+    process.on('SIGINT', gracefulShutdown); 
+  }) 
   .catch(err => {
     console.error('Failed to start server:', err);
     process.exit(1);

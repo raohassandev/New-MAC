@@ -1,9 +1,50 @@
 import { Request, Response } from 'express';
 import * as deviceService from '../services';
+import { modbusLogger as logger } from '../../utils/logger';
+import { trackModbusRequest } from '../routes/monitoringRoutes';
 
 // Extended Request type with user property
 interface AuthRequest extends Request {
   user?: any;
+}
+
+/**
+ * Handle extremely small float values that might cause serialization issues
+ * @param data The data object to process
+ * @returns A new object with safe values
+ */
+function handleExtremelySmallValues(data: any): any {
+  // Handle null or undefined
+  if (data === null || data === undefined) {
+    return data;
+  }
+  
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map(item => handleExtremelySmallValues(item));
+  }
+  
+  // Handle objects
+  if (typeof data === 'object') {
+    const result: any = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        result[key] = handleExtremelySmallValues(data[key]);
+      }
+    }
+    return result;
+  }
+  
+  // Handle extremely small numbers
+  if (typeof data === 'number') {
+    if (!isFinite(data) || Math.abs(data) < 1e-20) {
+      logger.debug(`Replacing extremely small or invalid number: ${data} with 0`);
+      return 0;
+    }
+  }
+  
+  // Return unchanged for other types
+  return data;
 }
 
 /**

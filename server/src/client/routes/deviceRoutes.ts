@@ -41,6 +41,7 @@ router.post('/:id/test', deviceController.testDeviceConnection as express.Reques
 
 
 // Add device register reading endpoint
-router.get('/:id/read', deviceRegisterController.readDeviceRegisters as express.RequestHandler);
+// router.get('/:id/read', deviceRegisterController.readDeviceRegisters as express.RequestHandler);
+router.get('/:id/read', deviceController.readDeviceRegisters as express.RequestHandler);
 
 export default router;

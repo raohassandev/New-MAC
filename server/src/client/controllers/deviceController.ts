@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import * as deviceService from '../services';
+
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {
@@ -1539,15 +1541,13 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   try {
-    
-
     // Try to get the cached client device model first
     let DeviceModel: mongoose.Model<IDevice> | null = null;
 
     // Always try to get it from other sources
     if (!DeviceModel) {
       console.log(
-        '[deviceController] No cached device model for readDeviceRegisters, trying alternatives',
+        '[deviceController] No cached device model for readDeviceRegistersConsecutive, trying alternatives',
       );
 
       // Get the client database connection and models
@@ -1683,10 +1683,6 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
         //FIXME:
         // await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
         await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
-        // const inputPort = serialPort;
-        // const hardcodedPort = '/dev/tty.usbserial-A50285BI';
-
-        // compareStrings(inputPort, hardcodedPort);
       } else {
         throw new Error('Invalid connection configuration');
       }
@@ -1708,15 +1704,6 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
             const range = dataPoint.range;
             const parser = dataPoint.parser;
 
-            // Log the dataPoint structure for debugging
-            // console.log(`[deviceController] DataPoint structure:`, JSON.stringify({
-            //   range: range,
-            //   parser: {
-            //     parameterCount: parser?.parameters?.length || 0,
-            //     parameters: parser?.parameters || []
-            //   }
-            // }, null, 2));
-
             // Read registers based on function code
             let result;
 
@@ -1735,35 +1722,17 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
               );
             } else if (device.advancedSettings?.connectionOptions?.retries === 0) {
               // This is a trick - we're using the retries=0 as a flag for devices that need -1 adjustment
-              // This could be replaced with a more explicit flag in the future
               startAddress = startAddress - 1;
               console.log(
                 `[deviceController] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`,
               );
             }
 
-            // Determine optimal register count to read
-            let adjustedCount: number;
-
-            // For Chinese Energy Analyzers, we might need to read more registers
-            if (
-              device.make?.toLowerCase().includes('china') ||
-              device.make?.toLowerCase().includes('energy analyzer')
-            ) {
-              // Some Energy Analyzers require reading the full range to work properly
-              adjustedCount = range.count;
-              console.log(
-                `[deviceController] Using full register count ${adjustedCount} for Chinese Energy Analyzer`,
-              );
-            } else {
-              // For other devices, limit to 2 registers for better compatibility
-              adjustedCount = range.count > 2 ? 2 : range.count;
-              if (range.count > 2) {
-                console.log(
-                  `[deviceController] Reducing read count from ${range.count} to ${adjustedCount} for better compatibility`,
-                );
-              }
-            }
+            // Always use the full range count for consecutive register reading
+            const adjustedCount = range.count;
+            console.log(
+              `[deviceController] Using full register count ${adjustedCount} for consecutive register reading`,
+            );
 
             console.log(
               `[deviceController] Reading registers using FC${range.fc} from address ${startAddress}, count ${adjustedCount}`,
@@ -1779,14 +1748,14 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
               case 3:
                 console.log(`============holding Register`)
                 result = await client.readHoldingRegisters(startAddress, adjustedCount);
-                console.log(chalk.bgWhite(JSON.stringify(result)));
+                console.log(JSON.stringify(result));
                 break;
               case 4:
                 result = await client.readInputRegisters(startAddress, adjustedCount);
                 break;
               default:
                 result = await client.readHoldingRegisters(startAddress, adjustedCount);
-                console.log('readHoldingRegisters ', chalk.bgWhite(result));
+                console.log('readHoldingRegisters ', result);
             }
 
             console.log(
@@ -2208,9 +2177,6 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
                               `[deviceController] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`
                             );
                           }
-                          console.log(
-                            `[deviceController] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`,
-                          );
                         } catch (formatError) {
                           console.error(
                             `[deviceController] Error formatting decimal places for ${param.name}:`,
@@ -2350,9 +2316,63 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
+// export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
+//   try {
+//     console.log('[deviceRegisterController] Starting device register read');
+    
+//     const deviceId = req.params.id;
+//     if (!deviceId) {
+//       return res.status(400).json({ message: 'Device ID is required' });
+//     }
+    
+//     try {
+//       // Use the device service to read registers
+//       const result = await deviceService.readDeviceRegisters(deviceId, req);
+
+
+//       console.log(chalk.bgBlueBright.white("this is result" , result));
+      
+//       // Return the result
+//       res.json(result);
+//     } catch (error: any) {
+//       // Handle specific error types
+//       if (error.message.includes('not found')) {
+//         return res.status(404).json({ message: 'Device not found' });
+//       } else if (error.message.includes('disabled')) {
+//         return res.status(400).json({ message: 'Device is disabled' });
+//       } else if (error.message.includes('No data points or registers configured')) {
+//         return res.status(400).json({ message: 'No data points or registers configured for this device' });
+//       } else if (error.message.includes('Invalid connection configuration')) {
+//         return res.status(400).json({ message: 'Invalid device connection configuration' });
+//       } else if (error.message.includes('database')) {
+//         return res.status(500).json({ 
+//           message: 'Database connection error',
+//           error: error.message
+//         });
+//       } else {
+//         // For Modbus communication errors
+//         console.error('Modbus reading error:', error);
+//         return res.status(400).json({
+//           message: `Failed to read from device: ${error.message}`,
+//         });
+//       }
+//     }
+//   } catch (error: any) {
+//     console.error('Read registers error:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// };
+
+
+
+
 // @desc    Get devices by device driver ID
 // @route   GET /api/devices/by-driver/:driverId
 // @access  Private
+
+
+
 export const getDevicesByDriverId = async (req: AuthRequest, res: Response) => {
   try {
     console.log(

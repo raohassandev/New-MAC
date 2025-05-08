@@ -212,20 +212,82 @@ export const readDeviceRegisters = async (id: string) => {
   try {
     // Try with correct API path
     try {
-      const response = await api.get(`/client/api/devices/${id}/read`);
-      console.log('Reading Data is =>', response.data);
-      return response.data;
+      console.log(`[api.ts] Attempting to read registers for device ${id}`);
+      
+      
+      // Set a longer timeout specifically for this request
+      const response = await api.get(`/client/api/devices/${id}/read`, {
+        timeout: 60000, // 60 seconds timeout
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
+      
+      console.log('[api.ts] Successfully received response');
+      console.log('[api.ts] Response status:', response.status);
+      console.log('[api.ts] Response headers:', response.headers);
+      console.log('[api.ts] Data type:', typeof response.data);
+      console.log('[api.ts] Data preview:', JSON.stringify(response.data).substring(0, 200) + '...');
+      
+      // Create a deep copy of the data to avoid any reference issues
+      const responseData = JSON.parse(JSON.stringify(response.data));
+      console.log('[api.ts] Returning data with', 
+        responseData.readings ? responseData.readings.length : 0, 
+        'readings');
+      
+      return responseData;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        // If 404, try legacy path
-        const legacyResponse = await api.get(`/devices/${id}/read`);
-        return legacyResponse.data;
+      console.error('[api.ts] Error in primary read path:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('[api.ts] Response status:', error.response?.status);
+        console.error('[api.ts] Response data:', error.response?.data);
+        console.error('[api.ts] Request config:', error.config);
+        
+        if (error.response?.status === 404) {
+          // If 404, try legacy path
+          console.log('[api.ts] Trying legacy path for read');
+          const legacyResponse = await api.get(`/devices/${id}/read`, {
+            timeout: 60000 // 60 seconds timeout
+          });
+          console.log('[api.ts] Legacy path succeeded:', legacyResponse.data);
+          return legacyResponse.data;
+        }
       }
       throw error;
     }
   } catch (error) {
-    console.error('Error reading device registers:', error);
-    throw error;
+    console.error('[api.ts] Error reading device registers:', error);
+    // Log more details about the error
+    if (axios.isAxiosError(error)) {
+      console.error('[api.ts] Axios error details:');
+      console.error('- Status:', error.response?.status);
+      console.error('- Status text:', error.response?.statusText);
+      console.error('- Data:', error.response?.data);
+      console.error('- Headers:', error.response?.headers);
+      console.error('- Request URL:', error.config?.url);
+      console.error('- Request method:', error.config?.method);
+      console.error('- Timeout setting:', error.config?.timeout);
+      
+      // Create a default response with error information
+      return {
+        error: true,
+        message: `Error reading device: ${error.message}`,
+        deviceId: id,
+        timestamp: new Date(),
+        readings: []
+      };
+    }
+    
+    // For non-Axios errors, also return a structured error response
+    return {
+      error: true,
+      message: `Error: ${error.message || 'Unknown error'}`,
+      deviceId: id,
+      timestamp: new Date(),
+      readings: []
+    };
   }
 };
 
