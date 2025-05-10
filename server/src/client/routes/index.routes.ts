@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import authRoutes from './authRoutes';
+import authRoutes from './auth.routes';
 import deviceRoutes from './device.routes';
 import express from 'express';
-import monitoringRouter from './monitoringRoutes';
+import monitoringRouter from './monitoring.routes';
 import pollingRoutes from './polling.routes'
 
 export const clientRouter: Router = express.Router();

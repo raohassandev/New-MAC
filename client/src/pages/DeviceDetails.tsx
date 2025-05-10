@@ -2746,10 +2746,25 @@ const PollingControlsWrapper = () => {
         try {
           if (enable) {
             console.log(`[PollingControl] Starting server-side polling every ${pollingInterval}ms`);
-            await startPolling(pollingInterval);
+            const success = await startPolling(pollingInterval);
+            console.log(`[PollingControl] Start polling result: ${success ? 'success' : 'failed'}`);
           } else {
             console.log('[PollingControl] Stopping server-side polling');
-            await stopPolling();
+            const success = await stopPolling();
+            console.log(`[PollingControl] Stop polling result: ${success ? 'success' : 'failed'}`);
+            
+            // Force an additional stop call if needed - this is a safeguard
+            if (!success) {
+              console.log('[PollingControl] First stop attempt may have failed, trying again...');
+              setTimeout(async () => {
+                try {
+                  await stopPolling();
+                  console.log('[PollingControl] Second stop attempt completed');
+                } catch (retryErr) {
+                  console.error('[PollingControl] Error in second stop attempt:', retryErr);
+                }
+              }, 500);
+            }
           }
         } catch (err) {
           console.error('[PollingControl] Error toggling polling:', err);

@@ -4,8 +4,8 @@ import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
 
 import * as deviceService from '../services/device.service';
-import { Device, createDeviceModel, IDevice, clientModels } from '../models';
-import { getClientDbConnection } from '../models/index';
+import { Device, createDeviceModel, IDevice, clientModels } from '../models/index.model';
+import { getClientDbConnection } from '../models/index.model';
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {

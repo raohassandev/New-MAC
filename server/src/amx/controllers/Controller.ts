@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { DeviceDriverModel, createDeviceDriverModel } from '../models/deviceDriverModel';
-import { DeviceTypeModel, createDeviceTypeModel } from '../models/deviceTypeModel';
+import { DeviceDriverModel, createDeviceDriverModel } from '../models/deviceDriver.model';
+import { DeviceTypeModel, createDeviceTypeModel } from '../models/deviceType.model';
 import mongoose from 'mongoose';
 
 // Define a type for the user in Request

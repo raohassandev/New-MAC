@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
-import { IDevice } from '../models/Device';
+import { IDevice } from '../models/device.model';
 import { safeCloseModbusClient } from '../utils/modbusHelper';
-import { Device } from '../models';
+import { Device } from '../models/index.model';
 import { ensureClientDeviceModel } from '../utils/dbHelper';
 
 // Type for connection settings

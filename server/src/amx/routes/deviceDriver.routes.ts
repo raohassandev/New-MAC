@@ -8,7 +8,7 @@ import {
   createDeviceType,
   updateDeviceType,
   deleteDeviceType,
-} from '../controllers/DeviceTypeController';
+} from '../controllers/deviceType.controller';
 
 import {
   createDeviceDriver,
@@ -16,7 +16,7 @@ import {
   getAllDeviceDrivers,
   getDeviceDriverById,
   updateDeviceDriver,
-} from '../controllers/DeviceDriverController';
+} from '../controllers/deviceDriver.controller';
 
 export const deviceDriverRouter = express.Router();
 

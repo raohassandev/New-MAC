@@ -1,6 +1,6 @@
-import Device, { createDeviceModel } from './Device';
-import User from './User';
-import HistoricalData from './HistoricalData';
+import Device, { createDeviceModel } from './device.model';
+import User from './user.model';
+import HistoricalData from './historicalData.model';
 import mongoose from 'mongoose';
 
 // Export models
@@ -84,7 +84,7 @@ export function getClientDeviceModel() {
 }
 
 // Export interfaces
-export type { IUser } from './User';
+export type { IUser } from './user.model';
 export type {
   IDevice,
   IRegister,
@@ -95,5 +95,5 @@ export type {
   ITcpSettings,
   IRtuSettings,
   IConnectionSetting,
-} from './Device';
-export type { IHistoricalData } from './HistoricalData';
+} from './device.model';
+export type { IHistoricalData } from './historicalData.model';

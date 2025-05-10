@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 
-import User from '../models/User';
+import User from '../models/user.model';
 import bcrypt from 'bcryptjs';
-import { errorHandler } from '../../middleware/errorMiddleware';
+import { errorHandler } from '../../middleware/error.middleware';
 import jwt from 'jsonwebtoken';
 
 // Generate JWT

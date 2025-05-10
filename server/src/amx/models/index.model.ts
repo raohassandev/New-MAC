@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { createDeviceDriverModel } from './deviceDriverModel';
-import { createDeviceTypeModel } from './deviceTypeModel';
+import { createDeviceDriverModel } from './deviceDriver.model';
+import { createDeviceTypeModel } from './deviceType.model';
 
 /**
  * Initialize and return all AMX library models using the provided database connection
@@ -34,5 +34,5 @@ export const amxModels = (connection: mongoose.Connection) => {
 };
 
 // Export model creation functions for individual usage
-export * from './deviceDriverModel';
-export * from './deviceTypeModel';
+export * from './deviceDriver.model';
+export * from './deviceType.model';

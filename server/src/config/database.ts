@@ -1,9 +1,9 @@
 // src/config/database.ts
 import mongoose from 'mongoose';
-import { createDeviceModel } from '../client/models/Device';
-import { createDeviceDriverModel } from '../amx/models/deviceDriverModel';
-import { createDeviceTypeModel } from '../amx/models/deviceTypeModel';
-import HistoricalData from '../client/models/HistoricalData';
+import { createDeviceModel } from '../client/models/device.model';
+import { createDeviceDriverModel } from '../amx/models/deviceDriver.model';
+import { createDeviceTypeModel } from '../amx/models/deviceType.model';
+import HistoricalData from '../client/models/historicalData.model';
 import dotenv from 'dotenv';
 
 // Load environment variables

@@ -5,7 +5,7 @@ import {
   createDeviceModel,
   Device,
   IDevice,
-} from '../models';
+} from '../models/index.model';
 
 /**
  * Helper function to ensure we have a valid device model connected to the client database

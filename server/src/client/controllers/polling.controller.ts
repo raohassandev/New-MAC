@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import HistoricalData from '../models/HistoricalData';
+import HistoricalData from '../models/historicalData.model';
 import * as dataPollingService from '../services/polling.service';
 import mongoose from 'mongoose';
 import { getDeviceModel } from '../services/device.service';

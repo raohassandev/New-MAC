@@ -169,6 +169,24 @@ export function useDevicePolling(
   const startPolling = useCallback(async (intervalMs = refreshInterval): Promise<boolean> => {
     if (!deviceIdRef.current) return false;
     
+    // Ensure intervalMs is a number and within reasonable bounds
+    let actualIntervalMs = Number(intervalMs);
+    
+    // Use default if NaN or invalid
+    if (isNaN(actualIntervalMs) || actualIntervalMs <= 0) {
+      console.warn(`[useDevicePolling] Invalid interval: ${intervalMs}, using default: ${refreshInterval}`);
+      actualIntervalMs = refreshInterval;
+    }
+    
+    // Ensure minimum interval (1 second)
+    if (actualIntervalMs < 1000) {
+      console.warn(`[useDevicePolling] Interval too low: ${actualIntervalMs}, using minimum: 1000ms`);
+      actualIntervalMs = 1000;
+    }
+    
+    // Log the actual interval being used
+    console.log(`[useDevicePolling] Using polling interval: ${actualIntervalMs}ms`);
+    
     // Prevent rapid start/stop cycles by checking the last polling start time
     const now = Date.now();
     if (now - lastPollingStartTimeRef.current < 2000) {
@@ -216,9 +234,25 @@ export function useDevicePolling(
         return false;
       }
       
+      // First ensure any previous polling is completely stopped
+      if (refreshIntervalIdRef.current) {
+        console.log(`[useDevicePolling] Clearing any existing refresh interval before starting new one`);
+        clearInterval(refreshIntervalIdRef.current);
+        refreshIntervalIdRef.current = null;
+      }
+      
+      try {
+        // Force a stop call to ensure clean state on the server
+        console.log(`[useDevicePolling] Ensuring clean state before starting polling`);
+        await deviceDataApi.stopPolling(deviceIdRef.current);
+      } catch (cleanupErr) {
+        // It's okay if this fails - just log it
+        console.log(`[useDevicePolling] State cleanup error (non-critical): ${cleanupErr}`);
+      }
+      
       // Start polling with simplified approach
-      console.log(`[useDevicePolling] Starting polling for device: ${deviceIdRef.current}`);
-      const response = await deviceDataApi.startPolling(deviceIdRef.current, intervalMs);
+      console.log(`[useDevicePolling] Starting polling for device: ${deviceIdRef.current} with interval ${actualIntervalMs}ms`);
+      const response = await deviceDataApi.startPolling(deviceIdRef.current, actualIntervalMs);
       
       console.log(`[useDevicePolling] Start polling response:`, response.data);
       
@@ -230,12 +264,6 @@ export function useDevicePolling(
         
         // Get initial data
         await refreshDataRef.current(true);
-        
-        // Clear any existing interval first
-        if (refreshIntervalIdRef.current) {
-          clearInterval(refreshIntervalIdRef.current);
-          refreshIntervalIdRef.current = null;
-        }
         
         // Set up client-side refresh interval - less frequent to avoid multiple calls
         const intervalId = setInterval(() => {
@@ -257,7 +285,7 @@ export function useDevicePolling(
           const lastCallTimeStr = localStorage.getItem(`last_refresh_call_${deviceIdRef.current}`);
           const lastCallTime = lastCallTimeStr ? parseInt(lastCallTimeStr) : 0;
           
-          if (now - lastCallTime > Math.max(1000, intervalMs - 500)) {
+          if (now - lastCallTime > Math.max(1000, actualIntervalMs - 500)) {
             localStorage.setItem(`last_refresh_call_${deviceIdRef.current}`, now.toString());
             console.log(`[useDevicePolling] Client-side refresh at ${new Date().toISOString()}`);
             
@@ -267,7 +295,7 @@ export function useDevicePolling(
           } else {
             console.log(`[useDevicePolling] Skipping redundant refresh, last call was ${now - lastCallTime}ms ago`);
           }
-        }, Math.max(2000, intervalMs));  // Client refresh at same rate as server but with minimum 2s interval
+        }, Math.max(2000, actualIntervalMs));  // Client refresh at same rate as server but with minimum 2s interval
         
         // Store the interval ID in our ref so we can clear it later
         refreshIntervalIdRef.current = intervalId;
@@ -280,6 +308,11 @@ export function useDevicePolling(
         console.error(`[useDevicePolling] Failed to start polling:`, response?.data || 'No response data');
         setPollingStatus('error');
         setError(new Error(response?.data?.message || 'Failed to start polling'));
+        
+        // Reset polling state since it failed
+        setIsPolling(false);
+        isPollingRef.current = false;
+        
         return false;
       }
     } catch (err: any) {
@@ -288,6 +321,10 @@ export function useDevicePolling(
       const errorMessage = err.response?.data?.message || err.message || 'Failed to start polling';
       const errorObj = new Error(errorMessage);
       setError(errorObj);
+      
+      // Reset polling state on error
+      setIsPolling(false);
+      isPollingRef.current = false;
       
       if (onError && typeof onError === 'function') {
         onError(errorObj);
@@ -339,6 +376,7 @@ export function useDevicePolling(
       }
       
       // Make API request to stop server-side polling
+      console.log(`[useDevicePolling] Sending stop polling request to server for device: ${deviceIdRef.current}`);
       const response = await deviceDataApi.stopPolling(deviceIdRef.current);
       console.log(`[useDevicePolling] Stop polling response:`, response.data);
       
@@ -401,11 +439,32 @@ export function useDevicePolling(
         // We don't need to use the stopPolling function with its debouncing for cleanup
         // Instead, make a direct API call
         try {
-          deviceDataApi.stopPolling(deviceIdRef.current).catch(err => {
-            console.error(`[useDevicePolling] Error in direct API call during cleanup:`, err);
-          });
+          console.log(`[useDevicePolling] Cleanup: Making direct API call to stop polling for device ${deviceIdRef.current}`);
+          
+          // Make two calls to ensure it stops (belt and suspenders approach)
+          deviceDataApi.stopPolling(deviceIdRef.current)
+            .then(() => {
+              console.log(`[useDevicePolling] Cleanup: First stop polling call completed`);
+              
+              // Make a second call after a brief delay to ensure it stops
+              setTimeout(() => {
+                deviceDataApi.stopPolling(deviceIdRef.current)
+                  .then(() => console.log(`[useDevicePolling] Cleanup: Second stop polling call completed`))
+                  .catch(err => console.warn(`[useDevicePolling] Cleanup: Error in second stop call:`, err));
+              }, 500);
+            })
+            .catch(err => {
+              console.error(`[useDevicePolling] Cleanup: Error in direct API call during cleanup:`, err);
+              
+              // Try once more even if the first call failed
+              setTimeout(() => {
+                deviceDataApi.stopPolling(deviceIdRef.current)
+                  .then(() => console.log(`[useDevicePolling] Cleanup: Retry stop polling call completed`))
+                  .catch(err => console.warn(`[useDevicePolling] Cleanup: Error in retry stop call:`, err));
+              }, 500);
+            });
         } catch (err) {
-          console.error(`[useDevicePolling] Error stopping polling during cleanup:`, err);
+          console.error(`[useDevicePolling] Cleanup: Error stopping polling during cleanup:`, err);
         }
       }
       
