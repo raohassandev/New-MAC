@@ -102,12 +102,31 @@ export function useDevicePolling(
       localStorage.setItem(`last_actual_refresh_${deviceIdRef.current}`, now.toString());
     }
     
+    // If polling was stopped mid-process, abort
+    if (!forceRefresh && !isPollingRef.current) {
+      console.log(`[useDevicePolling] Aborting refresh because polling was stopped`);
+      return deviceData;
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
       console.log(`[useDevicePolling] Refreshing data for device ${deviceIdRef.current}${forceRefresh ? ' (forced)' : ''}`);
+      
+      // Double-check polling state again right before making the API call
+      if (!forceRefresh && !isPollingRef.current) {
+        console.log(`[useDevicePolling] Aborting API call because polling was stopped`);
+        return deviceData;
+      }
+      
       const response = await deviceDataApi.getCurrentData(deviceIdRef.current, forceRefresh);
+      
+      // And check one more time after the API call returns
+      if (!forceRefresh && !isPollingRef.current) {
+        console.log(`[useDevicePolling] Discarding results because polling was stopped`);
+        return deviceData;
+      }
       
       const responseData = response.data;
       const newData: DeviceData = {
@@ -132,6 +151,12 @@ export function useDevicePolling(
       
       return newData;
     } catch (err: any) {
+      // If polling was stopped during the API call, suppress the error
+      if (!forceRefresh && !isPollingRef.current) {
+        console.log(`[useDevicePolling] Suppressing error because polling was stopped`);
+        return deviceData;
+      }
+      
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch device data';
       const errorObj = new Error(errorMessage);
       setError(errorObj);
