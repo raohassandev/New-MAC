@@ -10,6 +10,87 @@ import {
   readInputRegistersWithTimeout,
 } from '../utils/modbusHelper';
 
+// Define new functions for reading registers with retry capability
+async function readHoldingRegistersWithRetries(
+  client: ModbusRTU,
+  address: number,
+  length: number,
+  timeout: number = 5000,
+  retries: number = 0,
+  retryDelay: number = 500
+): Promise<any> {
+  let attempts = 0;
+  let lastError;
+  
+  while (attempts <= retries) {
+    try {
+      console.log(chalk.blue(`Attempt ${attempts + 1}/${retries + 1} to read ${length} holding registers from address ${address}`));
+      
+      // Use the existing timeout function for basic reading
+      const result = await readHoldingRegistersWithTimeout(client, address, length, timeout);
+      return result;
+    } catch (error) {
+      lastError = error;
+      attempts++;
+      
+      // If we've reached max retries, throw the last error
+      if (attempts > retries) {
+        console.log(chalk.red(`Failed to read holding registers after ${attempts} attempts: ${(error as Error).message}`));
+        throw error;
+      }
+      
+      // Log the retry attempt
+      console.log(chalk.yellow(`Read holding registers failed (attempt ${attempts}/${retries + 1}), retrying in ${retryDelay}ms: ${(error as Error).message}`));
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  // This should never be reached, but TypeScript needs a return value
+  throw lastError;
+}
+
+async function readInputRegistersWithRetries(
+  client: ModbusRTU,
+  address: number,
+  length: number,
+  timeout: number = 5000,
+  retries: number = 0,
+  retryDelay: number = 500
+): Promise<any> {
+  let attempts = 0;
+  let lastError;
+  
+  while (attempts <= retries) {
+    try {
+      console.log(chalk.blue(`Attempt ${attempts + 1}/${retries + 1} to read ${length} input registers from address ${address}`));
+      
+      // Use the existing timeout function for basic reading
+      const result = await readInputRegistersWithTimeout(client, address, length, timeout);
+      return result;
+    } catch (error) {
+      lastError = error;
+      attempts++;
+      
+      // If we've reached max retries, throw the last error
+      if (attempts > retries) {
+        console.log(chalk.red(`Failed to read input registers after ${attempts} attempts: ${(error as Error).message}`));
+        throw error;
+      }
+      
+      // Log the retry attempt
+      console.log(chalk.yellow(`Read input registers failed (attempt ${attempts}/${retries + 1}), retrying in ${retryDelay}ms: ${(error as Error).message}`));
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  // This should never be reached, but TypeScript needs a return value
+  throw lastError;
+}
+
 // Import the specific types from modbus-serial
 import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU';
 
@@ -83,6 +164,11 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
         // Store in real-time cache
         realtimeDataCache.set(deviceId, deviceReading);
         console.log(chalk.blue(`Updated real-time cache for device ${readResult.deviceName} with ${deviceReading.readings.length} readings`));
+        
+        // Store in realtime database
+        // Don't await this call to avoid blocking - just let it run in the background
+        storeRealtimeData(deviceId, deviceReading)
+          .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
         
         // Store in history database
         await storeHistoricalData(deviceReading);
@@ -174,8 +260,15 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
       console.error(chalk.red(`💥 Unhandled client error: ${err?.message || String(err)}`));
     });
 
-    // Set default timeout
-    const connectionTimeout = 5000; // 5 seconds
+    // Set timeout from device advanced settings if available, otherwise use default
+    let connectionTimeout = 5000; // 5 seconds default
+    if (device.advancedSettings?.connectionOptions?.timeout !== undefined) {
+      const configuredTimeout = Number(device.advancedSettings.connectionOptions.timeout);
+      if (!isNaN(configuredTimeout) && configuredTimeout > 0) {
+        connectionTimeout = configuredTimeout;
+        console.log(chalk.cyan(`[polling] Using timeout from advanced settings: ${connectionTimeout}ms`));
+      }
+    }
     client.setTimeout(connectionTimeout);
 
     const readings: ParameterReading[] = [];
@@ -286,11 +379,35 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
               );
               try {
                 console.log(chalk.bgBlue.white(`📖 Reading ${range.count} holding registers in a single operation from address ${range.startAddress}`));
-                const holdingResult = await readHoldingRegistersWithTimeout( 
+                
+                // Get retry settings from advanced settings
+                let retries = 0;
+                let retryDelay = 500;
+                
+                if (device.advancedSettings?.connectionOptions?.retries !== undefined) {
+                  retries = Number(device.advancedSettings.connectionOptions.retries);
+                  if (isNaN(retries) || retries < 0) {
+                    retries = 0;
+                  }
+                  console.log(chalk.cyan(`[polling] Using retry setting from advanced settings: ${retries}`));
+                }
+                
+                if (device.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
+                  retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
+                  if (isNaN(retryDelay) || retryDelay < 0) {
+                    retryDelay = 500;
+                  }
+                  console.log(chalk.cyan(`[polling] Using retry delay from advanced settings: ${retryDelay}ms`));
+                }
+
+                // Use the timeout value we set earlier based on device settings
+                const holdingResult = await readHoldingRegistersWithRetries( 
                   client,
                   range.startAddress,
                   range.count,
-                  5000, // 5 second timeout
+                  connectionTimeout, 
+                  retries,
+                  retryDelay
                 );
                 
                 // Enhanced logging of the result
@@ -318,11 +435,35 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
               );
               try {
                 console.log(chalk.bgBlue.white(`📖 Reading ${range.count} input registers in a single operation from address ${range.startAddress}`));
-                const inputResult = await readInputRegistersWithTimeout(
+                
+                // Get retry settings from advanced settings
+                let retries = 0;
+                let retryDelay = 500;
+                
+                if (device.advancedSettings?.connectionOptions?.retries !== undefined) {
+                  retries = Number(device.advancedSettings.connectionOptions.retries);
+                  if (isNaN(retries) || retries < 0) {
+                    retries = 0;
+                  }
+                  console.log(chalk.cyan(`[polling] Using retry setting from advanced settings: ${retries}`));
+                }
+                
+                if (device.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
+                  retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
+                  if (isNaN(retryDelay) || retryDelay < 0) {
+                    retryDelay = 500;
+                  }
+                  console.log(chalk.cyan(`[polling] Using retry delay from advanced settings: ${retryDelay}ms`));
+                }
+                
+                // Use the timeout value we set earlier based on device settings
+                const inputResult = await readInputRegistersWithRetries(
                   client,
                   range.startAddress,
                   range.count,
-                  5000, // 5 second timeout
+                  connectionTimeout,
+                  retries,
+                  retryDelay
                 );
                 
                 // Enhanced logging of the result
@@ -348,7 +489,26 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
                 ),
               );
               // Default to reading holding registers if function code is unknown
-              result = await readHoldingRegistersWithTimeout(client, range.startAddress, range.count, 5000);
+              // Get retry settings
+              let retries = 0;
+              let retryDelay = 500;
+                
+              if (device.advancedSettings?.connectionOptions?.retries !== undefined) {
+                retries = Number(device.advancedSettings.connectionOptions.retries);
+                if (isNaN(retries) || retries < 0) {
+                  retries = 0;
+                }
+              }
+                
+              if (device.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
+                retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
+                if (isNaN(retryDelay) || retryDelay < 0) {
+                  retryDelay = 500;
+                }
+              }
+                
+              // Use the configured timeout
+              result = await readHoldingRegistersWithRetries(client, range.startAddress, range.count, connectionTimeout, retries, retryDelay);
           }
 
           // Make sure result is defined before continuing
@@ -623,6 +783,11 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
     realtimeDataCache.set(deviceId, deviceReading);
     console.log(chalk.blue(`Updated real-time cache for device ${device.name}`));
 
+    // Store in realtime database 
+    // Don't await this call to avoid blocking - just let it run in the background
+    storeRealtimeData(deviceId, deviceReading)
+      .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
+
     // Store in history database only if we have valid readings
     if (validReadings.length > 0) {
       await storeHistoricalData(deviceReading);
@@ -724,6 +889,72 @@ function swapBytes(word: number): number {
  */
 export function getRealtimeData(deviceId: string): DeviceReading | null {
   return realtimeDataCache.get(deviceId) || null;
+}
+
+/**
+ * Store real-time data for a device in the cache and database
+ * This allows external systems like the auto-polling service to share data
+ */
+export async function storeRealtimeData(deviceId: string, data: DeviceReading): Promise<void> {
+  if (data) {
+    // Update in-memory cache
+    realtimeDataCache.set(deviceId, data);
+    console.log(chalk.blue(`Updated real-time cache for device ${data.deviceName} from external source`));
+    
+    // Try to store in database as well
+    try {
+      // Try multiple approaches to get the RealtimeData model for resilience
+      let RealtimeDataModel;
+      
+      // First try with getClientModels
+      const clientModels = getClientModels();
+      if (clientModels && clientModels.RealtimeData) {
+        RealtimeDataModel = clientModels.RealtimeData;
+      }
+      
+      // If that failed, try with mongoose.model directly as a fallback
+      if (!RealtimeDataModel) {
+        try {
+          console.log(chalk.yellow(`Trying to get RealtimeData model with mongoose.model`));
+          RealtimeDataModel = mongoose.model('RealtimeData');
+        } catch (error) {
+          const modelError = error as Error;
+          console.warn(chalk.yellow(`Failed to get RealtimeData model: ${modelError?.message || String(error)}`));
+        }
+      }
+      
+      // If we still don't have a model, skip database storage
+      if (!RealtimeDataModel) {
+        console.warn(chalk.yellow(`⚠ RealtimeData model not available, skipping database storage`));
+        return; // Skip database storage instead of throwing an error
+      }
+      
+      // Find existing entry or create new one
+      const existingEntry = await RealtimeDataModel.findOne({ deviceId });
+      
+      if (existingEntry) {
+        // Update existing entry
+        existingEntry.readings = data.readings;
+        existingEntry.timestamp = data.timestamp;
+        existingEntry.lastUpdated = new Date();
+        await existingEntry.save();
+        console.log(chalk.green(`✅ Updated existing realtime database entry for device ${data.deviceName}`));
+      } else {
+        // Create new entry
+        await RealtimeDataModel.create({
+          deviceId,
+          deviceName: data.deviceName,
+          readings: data.readings,
+          timestamp: data.timestamp,
+          lastUpdated: new Date(),
+        });
+        console.log(chalk.green(`✅ Created new realtime database entry for device ${data.deviceName}`));
+      }
+    } catch (error) {
+      // Log error but don't throw - we still want the in-memory cache to be updated
+      console.error(chalk.red(`❌ Error storing realtime data in database: ${error instanceof Error ? error.message : String(error)}`));
+    }
+  }
 }
 
 /**

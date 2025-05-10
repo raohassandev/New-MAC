@@ -20,7 +20,12 @@ interface UseDevicesReturn {
   addDevice: (device: Omit<Device, '_id'>) => Promise<Device>;
   updateDevice: (device: Device) => Promise<Device>;
   deleteDevice: (id: string) => Promise<void>;
-  testConnection: (id: string) => Promise<{ success: boolean; message: string }>;
+  testConnection: (id: string) => Promise<{
+    error: undefined;
+    errorType: undefined;
+    troubleshooting: undefined;
+    deviceInfo: undefined; success: boolean; message: string 
+}>;
   readRegisters: (id: string) => Promise<any>;
   loadingDevice: boolean;
   deviceError: Error | null;

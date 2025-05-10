@@ -96,6 +96,8 @@ export interface ParameterConfig {
 
 // Device reading interface
 export interface DeviceReading {
+  registerIndex: string | undefined;
+  dataType(value: string | number | boolean | undefined, dataType: any): import("react").ReactNode;
   _id: string;
   deviceId: string;
   timestamp: Date | string;

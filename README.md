@@ -2,6 +2,24 @@
 
 MACSYS is a comprehensive solution for managing and monitoring industrial devices that communicate via the Modbus protocol.
 
+## Recent Improvements
+
+### Modbus Communication Enhancements
+
+- Improved consecutive register reading for better efficiency and reliability
+- Enhanced support for multi-register data types (FLOAT32, INT32, UINT32)
+- Added robust retry logic with configurable parameters per device
+- Fixed byte ordering issues for different device manufacturers
+- Added detailed logging for easier troubleshooting
+- Improved type safety and error handling throughout the codebase
+
+## Documentation
+
+See the following files for detailed documentation:
+
+- `server/src/client/utils/modbus-parsing-guide.md` - Guide to Modbus value parsing
+- `server/src/client/utils/test-modbus-parser.ts` - Test script for Modbus parsing functions
+
 ## Project Structure
 
 The project is organized as a monorepo with separate client and server packages:
@@ -54,6 +72,15 @@ To run only the client:
 npm run dev:client
 ```
 
+### Testing Modbus Communication
+
+To test the Modbus parser functionality:
+
+```bash
+cd server
+npx ts-node src/client/utils/test-modbus-parser.ts
+```
+
 ### Building for Production
 
 To build both client and server:
@@ -81,5 +108,4 @@ Copy the `.env.example` file to `.env` in both the root and server directories, 
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.# New-MAC
-# New-MAC
+This project is licensed under the MIT License - see the LICENSE file for details.

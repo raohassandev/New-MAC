@@ -39,19 +39,62 @@ export const getDeviceModel = async (reqContext: any): Promise<mongoose.Model<ID
   if (reqContext?.app?.locals?.clientModels?.Device) {
     const DeviceModel = reqContext.app.locals.clientModels.Device;
     //console.log('[deviceService] Using client-specific Device model from app.locals');
-    return DeviceModel;
+    
+    // Verify the connection is ready (readyState 1 means connected)
+    if (DeviceModel.db?.readyState as number === 1) {
+      return DeviceModel;
+    } else {
+      console.log('[deviceService] Device model from app.locals has invalid connection state:', 
+                  DeviceModel.db?.readyState);
+    }
   }
 
   // Use the helper function to ensure we have a valid client model
-  const DeviceModel = await ensureClientDeviceModel(reqContext);
+  try {
+    const DeviceModel = await ensureClientDeviceModel(reqContext);
+    
+    // Verify we got a valid model (readyState 1 means connected)
+    if (DeviceModel && DeviceModel.db?.readyState as number === 1) {
+      return DeviceModel;
+    }
+  } catch (error) {
+    console.error('[deviceService] Error ensuring client device model:', error);
+  }
   
-  // If we still don't have a valid model, use the default Device model as fallback
-  if (!DeviceModel) {
+  // If we get here, neither approach worked - use the default Device model as fallback
+  // But first, check if the default model's connection is ready (readyState 1 means connected)
+  if (Device.db?.readyState as number === 1) {
     //console.log('[deviceService] Using default Device model as fallback');
     return Device;
   }
   
-  return DeviceModel;
+  // If we get here, all approaches failed - attempt to repair the mongoose connection
+  try {
+    console.warn('[deviceService] All connection attempts failed, attempting to recreate default connection');
+    
+    // Check if we need to recreate the connection - readyState 1 means connected
+    if (mongoose.connection.readyState as number !== 1) {
+      // Wait for connection to finish if connecting (readyState 2 means connecting)
+      if (mongoose.connection.readyState as number === 2) {
+        console.log('[deviceService] Mongoose is connecting, waiting for completion...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+      
+      // If still not connected, try to reconnect
+      if (mongoose.connection.readyState as number !== 1) {
+        const clientDbUri = process.env.MONGO_URI || 'mongodb://localhost:27017/client';
+        await mongoose.connect(clientDbUri);
+        console.log('[deviceService] Reconnected to database');
+      }
+    }
+    
+    return Device;
+  } catch (reconnectError) {
+    console.error('[deviceService] Failed to reconnect to database:', reconnectError);
+    
+    // At this point, we've tried everything - just return Device and hope for the best
+    return Device;
+  }
 };
 
 /**
@@ -91,6 +134,18 @@ export const connectToModbusDevice = async (
   // Combined slaveId (prefer the one from the matching connection type)
   const slaveId = connectionType === 'tcp' ? tcpSlaveId : rtuSlaveId || device.slaveId || 1;
 
+  // Apply advanced settings if available
+  if (device.advancedSettings) {
+    // Set timeout from advanced settings
+    if (device.advancedSettings.connectionOptions?.timeout) {
+      const timeout = Number(device.advancedSettings.connectionOptions.timeout);
+      if (!isNaN(timeout) && timeout > 0) {
+        console.log(`[deviceService] Setting timeout to ${timeout}ms from advanced settings`);
+        client.setTimeout(timeout);
+      }
+    }
+  }
+
   // Connect based on connection type
   if (connectionType === 'tcp' && ip && port) {
     await client.connectTCP(ip, { port });
@@ -101,8 +156,8 @@ export const connectToModbusDevice = async (
     if (stopBits) rtuOptions.stopBits = stopBits;
     if (parity) rtuOptions.parity = parity;
 
-    //FIXME: Hardcoded port for testing - replace with actual serialPort
-    await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
+    // Use the actual serial port from the device configuration
+    await client.connectRTUBuffered(serialPort, rtuOptions);
   } else {
     throw new Error('Invalid connection configuration');
   }
@@ -159,42 +214,93 @@ export const readModbusRegisters = async (
   client: ModbusRTU,
   fc: number,
   startAddress: number,
-  count: number
+  count: number,
+  device?: IDevice
 ): Promise<any> => {
-  //console.log(chalk.yellow(`[deviceService] Reading ${count} registers using FC${fc} from address ${startAddress}`));
+  console.log(chalk.yellow(`[deviceService] Reading ${count} registers using FC${fc} from address ${startAddress}`));
   
-  let result;
-  switch (fc) {
-    case 1:
-      result = await client.readCoils(startAddress, count);
-      break;
-    case 2:
-      result = await client.readDiscreteInputs(startAddress, count);
-      break;
-    case 3:
-      //console.log(chalk.blue('=== Reading Holding Registers ==='));
-      result = await client.readHoldingRegisters(startAddress, count);
-      break;
-    case 4:
-      result = await client.readInputRegisters(startAddress, count);
-      break;
-    default:
-      result = await client.readHoldingRegisters(startAddress, count);
+  // Get retry settings from device advanced settings if available
+  let maxRetries = 0; // Default to no retries
+  if (device?.advancedSettings?.connectionOptions?.retries !== undefined) {
+    maxRetries = Number(device.advancedSettings.connectionOptions.retries);
+    if (isNaN(maxRetries) || maxRetries < 0) {
+      maxRetries = 0;
+    }
+    console.log(`[deviceService] Using retry setting from advanced settings: ${maxRetries}`);
   }
 
-  // Enhanced logging for modbus results
-  if (result && Array.isArray(result.data)) {
-    //console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
-    //console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
-    
-    if (result.buffer) {
-      //console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
+  let retryDelay = 500; // Default retry delay in ms
+  if (device?.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
+    retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
+    if (isNaN(retryDelay) || retryDelay < 0) {
+      retryDelay = 500;
     }
-  } else {
-    //console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
+    console.log(`[deviceService] Using retry delay from advanced settings: ${retryDelay}ms`);
   }
   
-  return result;
+  // Function to attempt the read operation with retries
+  const attemptReadWithRetries = async (): Promise<any> => {
+    let attempts = 0;
+    let lastError;
+    
+    while (attempts <= maxRetries) {
+      try {
+        let result;
+        switch (fc) {
+          case 1:
+            result = await client.readCoils(startAddress, count);
+            break;
+          case 2:
+            result = await client.readDiscreteInputs(startAddress, count);
+            break;
+          case 3:
+            console.log(chalk.blue(`=== Reading Holding Registers (attempt ${attempts + 1}/${maxRetries + 1}) ===`));
+            result = await client.readHoldingRegisters(startAddress, count);
+            break;
+          case 4:
+            result = await client.readInputRegisters(startAddress, count);
+            break;
+          default:
+            result = await client.readHoldingRegisters(startAddress, count);
+        }
+        
+        // Log success and return the result
+        if (result && Array.isArray(result.data)) {
+          console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
+          console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
+          
+          if (result.buffer) {
+            console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
+          }
+        } else {
+          console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        attempts++;
+        
+        // If we've reached max retries, throw the last error
+        if (attempts > maxRetries) {
+          console.log(chalk.red(`[deviceService] Failed after ${attempts} attempts: ${(error as Error).message}`));
+          throw error;
+        }
+        
+        // Log the retry attempt
+        console.log(chalk.yellow(`[deviceService] Read failed (attempt ${attempts}/${maxRetries + 1}), retrying in ${retryDelay}ms: ${(error as Error).message}`));
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    
+    // This should never be reached, but TypeScript needs a return value
+    throw lastError;
+  };
+  
+  // Execute the read operation with retries
+  return attemptReadWithRetries();
 };
 
 /**
@@ -379,6 +485,9 @@ export const processValidRegistersAsFloat = (
   byteOrder: string
 ): number | null => {
   try {
+    // Log the input values
+    console.log(`[processValidRegistersAsFloat] Processing registers: reg1=${reg1} (0x${reg1.toString(16)}), reg2=${reg2} (0x${reg2.toString(16)}), byteOrder=${byteOrder}`);
+    
     // Create buffer to store the values
     const buffer = Buffer.alloc(4);
     
@@ -392,42 +501,56 @@ export const processValidRegistersAsFloat = (
       default: mappedByteOrder = 'ABCD';
     }
     
+    console.log(`[processValidRegistersAsFloat] Using byte order: ${mappedByteOrder}`);
+    
     // Write the registers to buffer based on byte order
     if (mappedByteOrder === 'ABCD') {
       buffer.writeUInt16BE(reg1, 0);
       buffer.writeUInt16BE(reg2, 2);
+      console.log(`[processValidRegistersAsFloat] ABCD: Written reg1(${reg1}) at bytes 0-1, reg2(${reg2}) at bytes 2-3`);
     } else if (mappedByteOrder === 'CDAB') {
       buffer.writeUInt16BE(reg2, 0);
       buffer.writeUInt16BE(reg1, 2);
+      console.log(`[processValidRegistersAsFloat] CDAB: Written reg2(${reg2}) at bytes 0-1, reg1(${reg1}) at bytes 2-3`);
     } else if (mappedByteOrder === 'BADC') {
       buffer.writeUInt16LE(reg1, 0);
       buffer.writeUInt16LE(reg2, 2);
+      console.log(`[processValidRegistersAsFloat] BADC: Written reg1(${reg1}) reversed at bytes 0-1, reg2(${reg2}) reversed at bytes 2-3`);
     } else if (mappedByteOrder === 'DCBA') {
       buffer.writeUInt16LE(reg2, 0);
       buffer.writeUInt16LE(reg1, 2);
+      console.log(`[processValidRegistersAsFloat] DCBA: Written reg2(${reg2}) reversed at bytes 0-1, reg1(${reg1}) reversed at bytes 2-3`);
     }
+    
+    // Log the buffer content in hexadecimal
+    console.log(`[processValidRegistersAsFloat] Buffer hex: ${buffer.toString('hex')}`);
     
     // Reading the float should be consistent with how we wrote the bytes
     let value: number;
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readFloatBE(0);
+      console.log(`[processValidRegistersAsFloat] Reading as BigEndian float: ${value}`);
     } else {
       value = buffer.readFloatLE(0);
+      console.log(`[processValidRegistersAsFloat] Reading as LittleEndian float: ${value}`);
     }
     
     // Check for NaN, Infinity, or extremely small values close to zero
     if (!isFinite(value)) {
+      console.log(`[processValidRegistersAsFloat] Value is not finite (${value}), returning 0`);
       return 0; // Return 0 instead of null for invalid values
     }
     
     // Handle extremely small values that are likely precision errors
     if (Math.abs(value) < 1e-30) {
+      console.log(`[processValidRegistersAsFloat] Value is too small (${value}), returning 0`);
       return 0;
     }
     
     // Round to 6 decimal places to avoid potential JSON serialization issues
     // For most industrial sensors, 6 decimal places is more than enough precision
     const roundedValue = Number(value.toFixed(6));
+    console.log(`[processValidRegistersAsFloat] Final rounded value (6 decimals): ${roundedValue}`);
     return roundedValue;
   } catch (error) {
     console.error('[deviceService] Buffer operation error:', error);
@@ -661,42 +784,39 @@ export const processParameter = async (
     if ((param.dataType === 'FLOAT32' || 
          param.dataType === 'INT32' || 
          param.dataType === 'UINT32') && 
-        param.wordCount === 2) {
+        (param.wordCount === 2 || !param.wordCount)) { // Make wordCount optional (default to 2 for these types)
       // For multi-word data types, we need to read two consecutive registers
-      if (relativeIndex + 1 < result.data.length) {
-        // Check if data exists
-        if (
-          !result.data ||
-          !Array.isArray(result.data) ||
-          result.data.length <= relativeIndex
-        ) {
-          console.log(
-            `[deviceService] Cannot read ${param.dataType} - result data is invalid. Actual data:`,
-            result.data
-          );
-          value = null;
-        } else {
-          const byteOrder = getByteOrder(param, device);
-          
-          const reg1 = result.data[relativeIndex];
-          const reg2 = result.data[relativeIndex + 1];
-          
-          console.log(`[deviceService] Raw registers for ${param.dataType}: reg1=${reg1}, reg2=${reg2}, byteOrder=${byteOrder}`);
-          
-          // Process based on data type
-          if (param.dataType === 'FLOAT32') {
-            value = processFloat32(reg1, reg2, byteOrder);
-          } else if (param.dataType === 'INT32') {
-            value = processInt32(reg1, reg2, byteOrder);
-          } else if (param.dataType === 'UINT32') {
-            value = processUInt32(reg1, reg2, byteOrder);
-          }
-          
-          console.log(`[deviceService] Processed ${param.dataType} value: ${value}`);
-        }
-      } else {
-        console.log(`[deviceService] Cannot read ${param.dataType} - not enough registers available.`);
+      // First check if result data array exists and has enough elements
+      if (
+        !result.data ||
+        !Array.isArray(result.data) ||
+        result.data.length <= relativeIndex ||
+        result.data.length <= relativeIndex + 1
+      ) {
+        console.log(
+          `[deviceService] Cannot read ${param.dataType} - result data is invalid or too short. Need index ${relativeIndex} and ${relativeIndex + 1}, but data length is ${result.data?.length || 0}. Actual data:`,
+          result.data
+        );
         value = null;
+      } else {
+        // We have valid data with enough registers
+        const byteOrder = getByteOrder(param, device);
+        
+        const reg1 = result.data[relativeIndex];
+        const reg2 = result.data[relativeIndex + 1];
+        
+        console.log(`[deviceService] Raw registers for ${param.dataType}: reg1=${reg1}, reg2=${reg2}, byteOrder=${byteOrder}`);
+        
+        // Process based on data type
+        if (param.dataType === 'FLOAT32') {
+          value = processFloat32(reg1, reg2, byteOrder);
+        } else if (param.dataType === 'INT32') {
+          value = processInt32(reg1, reg2, byteOrder);
+        } else if (param.dataType === 'UINT32') {
+          value = processUInt32(reg1, reg2, byteOrder);
+        }
+        
+        console.log(`[deviceService] Processed ${param.dataType} value: ${value}`);
       }
     } else {
       // Standard single register processing
@@ -764,8 +884,8 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
           // Get adjusted address and count
           const { startAddress, count } = getAdjustedAddressAndCount(device, range);
           
-          // Read registers
-          const result = await readModbusRegisters(client, range.fc, startAddress, count);
+          // Read registers with device context for advanced settings
+          const result = await readModbusRegisters(client, range.fc, startAddress, count, device);
           
           // Process the result based on parser configuration
           if (parser && parser.parameters) {
@@ -891,6 +1011,7 @@ export const readDeviceRegisters = async (
     
     // Find the device
     device = await DeviceModel.findById(deviceId);
+
     
     if (!device) {
       throw new Error('Device not found');
@@ -932,6 +1053,43 @@ export const readDeviceRegisters = async (
  * Test connection to a Modbus device
  * This is a modularized version of the testDeviceConnection controller
  */
+/**
+ * Test function for verifying the register reading and parsing logic
+ */
+export const testModbusParser = (
+  registers: number[],
+  dataType: string = 'FLOAT32',
+  byteOrder: string = 'ABCD'
+): any => {
+  try {
+    console.log(`=== Testing Modbus Parser for ${dataType} ===`);
+    console.log(`Input registers: [${registers.join(', ')}]`);
+    console.log(`Byte order: ${byteOrder}`);
+    
+    let result: any = null;
+    
+    // Process based on data type
+    if (dataType === 'FLOAT32' && registers.length >= 2) {
+      result = processFloat32(registers[0], registers[1], byteOrder);
+      console.log(`Processed FLOAT32 value: ${result}`);
+    } else if (dataType === 'INT32' && registers.length >= 2) {
+      result = processInt32(registers[0], registers[1], byteOrder);
+      console.log(`Processed INT32 value: ${result}`);
+    } else if (dataType === 'UINT32' && registers.length >= 2) {
+      result = processUInt32(registers[0], registers[1], byteOrder);
+      console.log(`Processed UINT32 value: ${result}`);
+    } else {
+      console.log(`Single register value: ${registers[0]}`);
+      result = registers[0];
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`Error testing parser: ${error}`);
+    return null;
+  }
+};
+
 export const testConnection = async (
   deviceId: string, 
   reqContext: any
@@ -981,8 +1139,16 @@ export const testConnection = async (
       };
     }
     
-    // Set connection timeout to handle non-responsive devices
-    const connectionTimeout = 10000; // 10 seconds
+    // Get connection timeout from advanced settings or use default
+    let connectionTimeout = 10000; // Default: 10 seconds
+    
+    if (device.advancedSettings?.connectionOptions?.timeout) {
+      const configuredTimeout = Number(device.advancedSettings.connectionOptions.timeout);
+      if (!isNaN(configuredTimeout) && configuredTimeout > 0) {
+        connectionTimeout = configuredTimeout;
+        console.log(chalk.cyan(`[deviceService] Using timeout from advanced settings: ${connectionTimeout}ms`));
+      }
+    }
     
     // Get connection settings (support both new and legacy format)
     const connectionType =
@@ -1191,22 +1357,72 @@ export const testConnection = async (
       ),
     );
     
-    // Read register based on function code
-    switch (functionCode) {
-      case 1:
-        await client.readCoils(address, 1);
+    // Get retry settings from advanced settings
+    let retries = 0;
+    let retryDelay = 500; // default 500ms between retries
+    
+    if (device.advancedSettings?.connectionOptions?.retries !== undefined) {
+      retries = Number(device.advancedSettings.connectionOptions.retries);
+      if (isNaN(retries) || retries < 0) {
+        retries = 0;
+      }
+      console.log(chalk.cyan(`[deviceService] Using retry setting from advanced settings: ${retries}`));
+    }
+    
+    if (device.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
+      retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
+      if (isNaN(retryDelay) || retryDelay < 0) {
+        retryDelay = 500;
+      }
+      console.log(chalk.cyan(`[deviceService] Using retry delay from advanced settings: ${retryDelay}ms`));
+    }
+    
+    // Try to read a register with retry logic based on advanced settings
+    let attempts = 0;
+    let lastError: any;
+    
+    while (attempts <= retries) {
+      try {
+        console.log(chalk.yellow(`[deviceService] Test read attempt ${attempts + 1}/${retries + 1} using FC${functionCode} address ${address}`));
+        
+        // Read register based on function code
+        switch (functionCode) {
+          case 1:
+            await client.readCoils(address, 1);
+            break;
+          case 2:
+            await client.readDiscreteInputs(address, 1);
+            break;
+          case 3:
+            await client.readHoldingRegisters(address, 1);
+            break;
+          case 4:
+            await client.readInputRegisters(address, 1);
+            break;
+          default:
+            await client.readHoldingRegisters(address, 1);
+        }
+        
+        // If we get here, read was successful - break out of retry loop
+        console.log(chalk.green(`[deviceService] Test read successful on attempt ${attempts + 1}`));
         break;
-      case 2:
-        await client.readDiscreteInputs(address, 1);
-        break;
-      case 3:
-        await client.readHoldingRegisters(address, 1);
-        break;
-      case 4:
-        await client.readInputRegisters(address, 1);
-        break;
-      default:
-        await client.readHoldingRegisters(address, 1);
+        
+      } catch (error) {
+        lastError = error;
+        attempts++;
+        
+        // If we've reached max retries, throw the last error
+        if (attempts > retries) {
+          console.log(chalk.red(`[deviceService] Test read failed after ${attempts} attempts: ${(error as Error).message}`));
+          throw error;
+        }
+        
+        // Log the retry attempt
+        console.log(chalk.yellow(`[deviceService] Test read failed (attempt ${attempts}/${retries + 1}), retrying in ${retryDelay}ms: ${(error as Error).message}`));
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
     }
     
     console.log(chalk.bgGreen.black(`[deviceService] Read operation successful!`));

@@ -4,8 +4,6 @@ import * as dataPollingService from '../services/polling.service';
 import mongoose from 'mongoose';
 import { getDeviceModel } from '../services/device.service';
 
-
-
 /**
  * Helper to convert readyState to a human-readable status
  */
@@ -221,8 +219,9 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
   try {
     const deviceId = req.params.id;
     const forceRefresh = req.query.forceRefresh === 'true';
+    const readOnly = req.query.readOnly === 'true'; // New parameter to avoid database operations
     
-    console.log(`[deviceDataController] Getting current data for device ID: ${deviceId}${forceRefresh ? ' (force refresh)' : ''}`);
+    console.log(`[deviceDataController] Getting current data for device ID: ${deviceId}${forceRefresh ? ' (force refresh)' : ''}${readOnly ? ' (read-only mode)' : ''}`);
     
     // Check if deviceId is in the correct format
     if (!mongoose.Types.ObjectId.isValid(deviceId)) {
@@ -261,98 +260,154 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
     let realtimeData = dataPollingService.getRealtimeData(deviceId);
     let deviceName = device ? device.name : `Device ${deviceId}`;
 
-    // Check if this device has polling enabled
-    const isPollingActive = dataPollingService.isDevicePollingActive(deviceId);
-    console.log(`[deviceDataController] Device ${deviceId} polling status: ${isPollingActive ? 'active' : 'inactive'}`);
-    
-    // Only poll if polling is active or forceRefresh is requested AND polling is active
-    if ((forceRefresh && isPollingActive) || (isPollingActive && !realtimeData)) {
-      try {
-        console.log(`[deviceDataController] Polling device ${deviceId} because polling is active`);
-        // Pass the req object to pollDevice so it can use app.locals if needed
-        const freshData = await dataPollingService.pollDevice(deviceId, req);
+    // Check if auto-polling service is running by trying to import and check its status
+    let isAutoPollingActive = false;
+    try {
+      const autoPollingService = require('../services/autoPolling.service');
+      const stats = autoPollingService.getPollingStats();
+      isAutoPollingActive = stats.isPollingActive;
+      
+      console.log(`[deviceDataController] Auto-polling service status: ${isAutoPollingActive ? 'active' : 'inactive'}`);
+    } catch (error) {
+      console.warn(`[deviceDataController] Could not determine auto-polling status: ${error}`);
+    }
 
-        if (!freshData) {
+    // Check if device-specific polling is enabled (via frontend)
+    const isDevicePollingActive = dataPollingService.isDevicePollingActive(deviceId);
+    console.log(`[deviceDataController] Device ${deviceId} polling status: ${isDevicePollingActive ? 'active' : 'inactive'}`);
+    
+    // Priority order for data retrieval:
+    // 1. Use cached data if available and recent (< 30 seconds old)
+    // 2. Use auto-polling service if running
+    // 3. Use device-specific polling if enabled
+    // 4. Poll directly if forced refresh requested
+    
+    // If read-only mode is specified, only return cached data without any polling
+    if (readOnly) {
+      console.log(`[deviceDataController] READ-ONLY MODE: Using only cached data for device ${deviceId}`);
+      // Just continue to the return statement - no polling will be done
+    }
+    else {
+      const isCachedDataRecent = realtimeData && 
+                              realtimeData.timestamp && 
+                              (new Date().getTime() - new Date(realtimeData.timestamp).getTime() < 30000);
+      
+      if (isCachedDataRecent) {
+        console.log(`[deviceDataController] Using recent cached data for device ${deviceId}`);
+        // Don't poll again, just use the cached data
+      }
+      else if (!isCachedDataRecent && isAutoPollingActive && forceRefresh) {
+        // If auto-polling is active and we need fresh data, trigger a single poll via auto-polling service
+        try {
+          console.log(`[deviceDataController] Triggering auto-polling refresh for device ${deviceId}`);
+          const autoPollingService = require('../services/autoPolling.service');
+          
+          // Collect but don't await the polling (just trigger it for next cycle)
+          autoPollingService.scheduleImmediatePoll(deviceId);
+          
+          // Still use existing cached data if available
+          if (!realtimeData) {
+            console.log(`[deviceDataController] Waiting for auto-polling data for device ${deviceId}, polling once...`);
+            // If no cached data, do one direct poll to get initial data
+            const freshData = await dataPollingService.pollDevice(deviceId, req);
+            if (freshData) {
+              realtimeData = freshData;
+            }
+          }
+        } catch (error) {
+          console.warn(`[deviceDataController] Error using auto-polling service: ${error}`);
+        }
+      }
+      // Poll directly as a last resort if we need fresh data and other methods aren't available
+      else if ((forceRefresh && (isDevicePollingActive || !isAutoPollingActive)) || 
+              (isDevicePollingActive && !realtimeData && !isAutoPollingActive)) {
+        try {
+          console.log(`[deviceDataController] Polling device ${deviceId} directly (auto-polling inactive)`);
+          // Pass the req object to pollDevice so it can use app.locals if needed
+          const freshData = await dataPollingService.pollDevice(deviceId, req);
+
+          if (!freshData) {
+            if (realtimeData) {
+              // If we have cached data but failed to refresh, still return the cached data
+              // but with a warning
+              return res.json({
+                ...realtimeData,
+                success: true,
+                stale: true,
+                message: 'Failed to refresh data, returning cached data',
+                timestamp: realtimeData.timestamp,
+                deviceName,
+              });
+            }
+            
+            // No cached data and couldn't get fresh data
+            if (!deviceFound) {
+              // If the device wasn't found in the database, let the client know
+              return res.status(200).json({ 
+                success: true,
+                message: 'Device not found in database. No data available.',
+                deviceId,
+                deviceName,
+                hasData: false,
+                readings: []
+              });
+            } else {
+              // Device exists but no data yet
+              return res.status(200).json({ 
+                success: true,
+                message: 'No data available for this device. To retrieve data, start polling for this device.',
+                deviceId,
+                deviceName,
+                pollingStatus: 'inactive',
+                hasData: false,
+                readings: []
+              });
+            }
+          }
+
+          realtimeData = freshData;
+        } catch (error) {
+          // Type-safe error handling
+          const pollError = error as Error;
+          const errorMessage = pollError?.message || String(error);
+          
+          console.error(`[deviceDataController] Error polling device:`, errorMessage);
+          
+          // If we have cached data but failed to refresh, still return the cached data
           if (realtimeData) {
-            // If we have cached data but failed to refresh, still return the cached data
-            // but with a warning
             return res.json({
               ...realtimeData,
               success: true,
               stale: true,
-              message: 'Failed to refresh data, returning cached data',
+              error: errorMessage,
+              message: 'Error refreshing data, returning cached data',
               timestamp: realtimeData.timestamp,
               deviceName,
             });
           }
           
-          // No cached data and couldn't get fresh data
-          if (!deviceFound) {
-            // If the device wasn't found in the database, let the client know
-            return res.status(200).json({ 
-              success: true,
-              message: 'Device not found in database. No data available.',
-              deviceId,
-              deviceName,
-              hasData: false,
-              readings: []
-            });
-          } else {
-            // Device exists but no data yet
-            return res.status(200).json({ 
-              success: true,
-              message: 'No data available for this device. To retrieve data, start polling for this device.',
-              deviceId,
-              deviceName,
-              pollingStatus: 'inactive',
-              hasData: false,
-              readings: []
-            });
-          }
-        }
-
-        realtimeData = freshData;
-      } catch (error) {
-        // Type-safe error handling
-        const pollError = error as Error;
-        const errorMessage = pollError?.message || String(error);
-        
-        console.error(`[deviceDataController] Error polling device:`, errorMessage);
-        
-        // If we have cached data but failed to refresh, still return the cached data
-        if (realtimeData) {
-          return res.json({
-            ...realtimeData,
-            success: true,
-            stale: true,
-            error: errorMessage,
-            message: 'Error refreshing data, returning cached data',
-            timestamp: realtimeData.timestamp,
+          // No cached data and couldn't get fresh data due to error
+          return res.status(200).json({ 
+            success: false,
+            message: `Error polling device: ${errorMessage}`,
+            deviceId,
             deviceName,
+            hasData: false,
+            readings: []
           });
         }
-        
-        // No cached data and couldn't get fresh data due to error
+      } else if (!realtimeData && !isDevicePollingActive && !isAutoPollingActive) {
+        // No data available and polling is not active
         return res.status(200).json({ 
-          success: false,
-          message: `Error polling device: ${errorMessage}`,
+          success: true,
+          message: 'No data available for this device. To retrieve data, start polling for this device.',
           deviceId,
           deviceName,
+          pollingStatus: 'inactive',
           hasData: false,
           readings: []
         });
       }
-    } else if (!realtimeData && !isPollingActive) {
-      // No data available and polling is not active
-      return res.status(200).json({ 
-        success: true,
-        message: 'No data available for this device. To retrieve data, start polling for this device.',
-        deviceId,
-        deviceName,
-        pollingStatus: 'inactive',
-        hasData: false,
-        readings: []
-      });
     }
 
     // Make sure realtimeData is not null before returning
@@ -379,160 +434,6 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Get current device data error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Get historical data for a device
-// @route   GET /api/devices/:id/data/history
-// @access  Private
-export const getDeviceHistoricalData = async (req: Request, res: Response) => {
-  try {
-    const deviceId = req.params.id;
-    
-    // Check if deviceId is in valid format
-    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
-      console.error(`[deviceDataController] Invalid device ID format: ${deviceId}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid device ID format'
-      });
-    }
-    
-    const DeviceModel = await getDeviceModel(req);
-    
-    
-    // Try to lookup the device, but doesn't matter if we don't find it
-    const device = await DeviceModel.findById(deviceId);
-    
-    // For historical data, we actually do need the device to exist
-    // since it's stored in the database
-    if (!device) {
-      console.log(`[deviceDataController] Device not found for historical data: ${deviceId}`);
-      return res.status(200).json({ 
-        success: false,
-        message: 'Device not found - no historical data available',
-        deviceId,
-        data: []
-      });
-    }
-    
-    const deviceName = device.name;
-
-    // Get query parameters
-    const startDate = req.query.startDate || req.query.startTime
-      ? new Date(req.query.startDate as string || req.query.startTime as string)
-      : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default to last 24 hours
-
-    const endDate = req.query.endDate || req.query.endTime 
-      ? new Date(req.query.endDate as string || req.query.endTime as string) 
-      : new Date();
-
-    // Get parameters as array or single value
-    const parameterNames = req.query.parameters 
-      ? (req.query.parameters as string).split(',') 
-      : req.query.parameter 
-        ? [(req.query.parameter as string)] 
-        : undefined;
-    
-    const limit = parseInt(req.query.limit as string) || 1000;
-    const format = (req.query.format as string) || 'grouped'; // 'grouped', 'timeseries', or 'raw'
-
-    // Build query
-    const query: any = {
-      deviceId: new mongoose.Types.ObjectId(deviceId),
-      timestamp: { $gte: startDate, $lte: endDate },
-    };
-
-    // Add parameter filter if specified
-    if (parameterNames && parameterNames.length > 0) {
-      query.parameterName = { $in: parameterNames };
-    }
-
-    // Execute query
-    const historicalData = await HistoricalData.find(query)
-      .sort({ timestamp: -1 })
-      .limit(limit)
-      .lean();
-
-    // Single parameter time series format
-    if (parameterNames && parameterNames.length === 1 && format === 'timeseries') {
-      const formattedData = historicalData.map(entry => ({
-        timestamp: entry.timestamp,
-        value: entry.value,
-        unit: entry.unit,
-        quality: entry.quality,
-      }));
-
-      return res.json({
-        success: true,
-        deviceId,
-        deviceName: device.name,
-        parameter: parameterNames[0],
-        format: 'timeseries',
-        data: formattedData,
-        timeRange: {
-          start: startDate,
-          end: endDate,
-        },
-      });
-    }
-
-    // Raw format - just return the data with minimal processing
-    if (format === 'raw') {
-      return res.json({
-        success: true,
-        deviceId,
-        deviceName: device.name,
-        format: 'raw',
-        parameters: [...new Set(historicalData.map(entry => entry.parameterName))],
-        data: historicalData,
-        timeRange: {
-          start: startDate,
-          end: endDate,
-        },
-      });
-    }
-
-    // Default: grouped by timestamp
-    const groupedData = new Map<string, any>();
-
-    historicalData.forEach(entry => {
-      const timestampStr = entry.timestamp.toISOString();
-
-      if (!groupedData.has(timestampStr)) {
-        groupedData.set(timestampStr, {
-          timestamp: entry.timestamp,
-          values: {},
-        });
-      }
-
-      groupedData.get(timestampStr).values[entry.parameterName] = {
-        value: entry.value,
-        unit: entry.unit || '',
-        quality: entry.quality || 'unknown',
-      };
-    });
-
-    res.json({
-      success: true,
-      deviceId,
-      deviceName: device.name,
-      format: 'grouped',
-      parameters: [...new Set(historicalData.map(entry => entry.parameterName))],
-      data: Array.from(groupedData.values()),
-      timeRange: {
-        start: startDate,
-        end: endDate,
-      },
-      count: historicalData.length,
-    });
-  } catch (error: any) {
-    console.error('Get device historical data error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

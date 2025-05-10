@@ -199,8 +199,18 @@ const startServer = async () => {
         `- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`,
       );
 
-      // Auto-polling has been disabled - polling is only enabled when frontend triggers it
-      console.log('Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend.');
+      // Initialize the automatic polling service for all enabled devices
+      try {
+        // Import the auto-polling service
+        const { startAutoPollingService } = require('./client/services/autoPolling.service');
+        
+        // Start the auto-polling service
+        await startAutoPollingService();
+        console.log('✅ Auto-polling service started - all enabled devices will be polled automatically');
+      } catch (pollingError) {
+        console.warn('⚠️ Failed to start auto-polling service:', pollingError);
+        console.log('⚠️ Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend or API.');
+      }
     });
 
     return server;

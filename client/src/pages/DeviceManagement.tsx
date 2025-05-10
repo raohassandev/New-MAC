@@ -463,7 +463,7 @@ const DeviceManagement: React.FC = () => {
   };
 
   const onNewDeviceFormClose = () => {
-    // setIsNewDeviceFormOpen(false);
+    setIsNewDeviceFormOpen(false);
   };
 
   const stats = getDeviceStats();
