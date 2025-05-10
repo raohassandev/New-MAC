@@ -11,7 +11,7 @@ const router: Router = express.Router();
 // Routes for device polling
 router.post(
   '/:id/polling/start',
-  // checkPermission(['manage_devices']) as express.RequestHandler,
+  // checkPermission(['manage_devices']) as express.RequestHandler, 
   deviceDataController.startDevicePolling as express.RequestHandler,
 );
 

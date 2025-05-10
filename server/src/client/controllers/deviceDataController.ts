@@ -5,7 +5,7 @@ import * as dataPollingService from '../services/dataPollingService';
 import mongoose from 'mongoose';
 
 // @desc    Start polling a device
-// @route   POST /api/devices/:id/polling/start
+// @route   POST /api/devices/:id/polling/startc
 // @access  Private
 export const startDevicePolling = async (req: Request, res: Response) => {
   try {
