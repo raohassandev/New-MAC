@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect as authenticate } from '../../middleware/authMiddleware';
+// import { protect as authenticate } from '../../middleware/authMiddleware';
 
 // Import from new direct database controllers instead of the old Controller
 import {

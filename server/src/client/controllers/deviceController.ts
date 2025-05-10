@@ -1541,6 +1541,20 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   try {
+    // Helper function to log register values in hex format
+    const logRegistersInHex = (name: string, reg1: any, reg2?: any, byteOrder?: string) => {
+      if (reg2 !== undefined) {
+        // For two registers (like FLOAT32)
+        const hex1 = typeof reg1 === 'number' ? reg1.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
+        const hex2 = typeof reg2 === 'number' ? reg2.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
+        console.log(`[HEX] Parameter ${name}: reg1=0x${hex1}, reg2=0x${hex2}, byteOrder=${byteOrder || 'N/A'}`);
+      } else {
+        // For single register
+        const hex = typeof reg1 === 'number' ? reg1.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
+        console.log(`[HEX] Parameter ${name}: reg=0x${hex}`);
+      }
+    };
+
     // Try to get the cached client device model first
     let DeviceModel: mongoose.Model<IDevice> | null = null;
 
@@ -1672,6 +1686,7 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
     try {
       // Connect based on connection type
       if (connectionType === 'tcp' && ip && port) {
+        console.log(`[deviceController] Connecting to ${ip}:${port} with slaveId ${slaveId}`);
         await client.connectTCP(ip, { port });
       } else if (connectionType === 'rtu' && serialPort) {
         const rtuOptions: any = {};
@@ -1680,29 +1695,37 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
         if (stopBits) rtuOptions.stopBits = stopBits;
         if (parity) rtuOptions.parity = parity;
 
+        console.log(`[deviceController] Connecting to RTU port ${serialPort} with options:`, rtuOptions);
+        
         //FIXME:
-        // await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
-        await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
+        await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
+        // await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
       } else {
         throw new Error('Invalid connection configuration');
       }
 
       if (slaveId !== undefined) {
         client.setID(slaveId);
+        console.log(`[deviceController] Set slave ID to ${slaveId}`);
       } else {
         client.setID(1); // Default slave ID
+        console.log(`[deviceController] Using default slave ID: 1`);
       }
 
       // NEW STRUCTURE: Read each data point
       if (hasNewConfig && device.dataPoints) {
         console.log(
-          `[deviceController] Reading from device data points: ${device.dataPoints.length} points`,
+          // `[deviceController] Found ${device.dataPoints.length} data points to read`
         );
 
         for (const dataPoint of device.dataPoints) {
           try {
             const range = dataPoint.range;
             const parser = dataPoint.parser;
+
+            // console.log(
+            //   // `[deviceController] Processing data point with range startAddress=${range.startAddress}, count=${range.count}, fc=${range.fc}`
+            // );
 
             // Read registers based on function code
             let result;
@@ -1723,548 +1746,420 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
             } else if (device.advancedSettings?.connectionOptions?.retries === 0) {
               // This is a trick - we're using the retries=0 as a flag for devices that need -1 adjustment
               startAddress = startAddress - 1;
-              console.log(
-                `[deviceController] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`,
-              );
+              // console.log(
+              //   `[deviceController] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`,
+              // );
             }
 
             // Always use the full range count for consecutive register reading
-            const adjustedCount = range.count;
-            console.log(
-              `[deviceController] Using full register count ${adjustedCount} for consecutive register reading`,
-            );
-
-            console.log(
-              `[deviceController] Reading registers using FC${range.fc} from address ${startAddress}, count ${adjustedCount}`,
-            );
+            const count = range.count;
+            // console.log(
+            //   `[deviceController] Reading full range of ${count} registers from address ${startAddress} using FC${range.fc}`
+            // );
 
             switch (range.fc) {
               case 1:
-                result = await client.readCoils(startAddress, adjustedCount);
+                result = await client.readCoils(startAddress, count);
                 break;
               case 2:
-                result = await client.readDiscreteInputs(startAddress, adjustedCount);
+                result = await client.readDiscreteInputs(startAddress, count);
                 break;
               case 3:
-                console.log(`============holding Register`)
-                result = await client.readHoldingRegisters(startAddress, adjustedCount);
-                console.log(JSON.stringify(result));
+                console.log(`[deviceController] Reading holding registers...`);
+                result = await client.readHoldingRegisters(startAddress, count);
+                console.log(`[deviceController] Read result:`, JSON.stringify(result));
                 break;
               case 4:
-                result = await client.readInputRegisters(startAddress, adjustedCount);
+                result = await client.readInputRegisters(startAddress, count);
                 break;
               default:
-                result = await client.readHoldingRegisters(startAddress, adjustedCount);
-                console.log('readHoldingRegisters ', result);
+                console.log(`[deviceController] Unknown function code ${range.fc}, defaulting to readHoldingRegisters`);
+                result = await client.readHoldingRegisters(startAddress, count);
             }
 
             console.log(
-              `[deviceController] Successfully read ${adjustedCount} registers from address ${startAddress} using FC${range.fc}`,
+              `[deviceController] Successfully read ${count} registers from address ${startAddress} using FC${range.fc}`
             );
-            console.log(`[deviceController] Read Result:`, result);
+
+            // Log raw registers in hex format
+            if (result.data && Array.isArray(result.data)) {
+              console.log('[HEX] All raw registers:');
+              for (let i = 0; i < result.data.length; i++) {
+                const value = result.data[i];
+                if (typeof value === 'number') {
+                  const hex = value.toString(16).padStart(4, '0').toUpperCase();
+                  console.log(`[HEX]   Register ${startAddress + i}: 0x${hex} (${value})`);
+                } else {
+                  console.log(`[HEX]   Register ${startAddress + i}: INVALID`);
+                }
+              }
+            }
 
             // Process the result based on parser configuration
             if (parser && parser.parameters) {
               console.log(
-                `[deviceController] Processing parser with ${parser.parameters.length} parameters`,
+                `[deviceController] Processing ${parser.parameters.length} parameters`
               );
+
+              // Check if result has data
+              if (!result.data || !Array.isArray(result.data)) {
+                console.error(
+                  `[deviceController] Invalid result data:`,
+                  result
+                );
+                throw new Error('Invalid result data');
+              }
+
+              console.log(`[deviceController] Raw register data:`, JSON.stringify(result.data));
 
               for (const param of parser.parameters) {
                 try {
                   console.log(
-                    `[deviceController] Processing parameter: ${param.name}, registerIndex: ${param.registerIndex}, dataType: ${param.dataType}`,
+                    `[deviceController] Processing parameter "${param.name}", registerIndex=${param.registerIndex}, dataType=${param.dataType}, byteOrder=${param.byteOrder}`
                   );
 
-                  // Determine relative index based on the register addressing mode
-                  let relativeIndex: number;
-
-                  // Check if the parameter's registerIndex is within the range's bounds
-                  const isWithinRange =
-                    param.registerIndex >= range.startAddress &&
-                    param.registerIndex < range.startAddress + range.count;
-
-                  // If registerIndex is within the range's bounds, it's likely an absolute address
-                  if (isWithinRange) {
-                    relativeIndex = param.registerIndex - range.startAddress;
-                    console.log(
-                      `[deviceController] Using absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${relativeIndex}`,
-                    );
-                  }
-                  // If registerIndex is very small, it's likely a direct offset (relative)
-                  else if (param.registerIndex < range.count) {
-                    relativeIndex = param.registerIndex;
-                    console.log(
-                      `[deviceController] Using relative addressing mode with direct offset: ${param.registerIndex}`,
-                    );
-                  }
-                  // If none of the above, guess based on whether it's closer to a direct offset or an absolute address
-                  else {
-                    // Calculate both possibilities
-                    const asRelative = param.registerIndex;
-                    const asAbsolute = param.registerIndex - range.startAddress;
-
-                    // Choose the one that makes more sense (is in range)
-                    if (asAbsolute >= 0 && asAbsolute < range.count) {
-                      relativeIndex = asAbsolute;
-                      console.log(
-                        `[deviceController] Inferred absolute addressing mode: ${param.registerIndex} - ${range.startAddress} = ${relativeIndex}`,
-                      );
-                    } else {
-                      // Fallback to treating it as a direct offset but warn about potential issues
-                      relativeIndex = asRelative;
-                      console.log(
-                        `[deviceController] WARNING: Register index ${param.registerIndex} doesn't align with range ${range.startAddress}-${range.startAddress + range.count - 1}. Using as direct offset.`,
-                      );
-                    }
-                  }
-
+                  // Determine register index to use (template uses indexes relative to the range start)
+                  const relativeIndex = param.registerIndex;
+                  
                   console.log(
-                    `[deviceController] Final calculated relative index: ${relativeIndex}`,
+                    `[deviceController] Parameter ${param.name} using relative index ${relativeIndex}`
                   );
 
-                  if (relativeIndex < 0 || relativeIndex >= adjustedCount) {
+                  // Check if the register index is valid
+                  if (relativeIndex < 0 || relativeIndex >= count) {
                     console.log(
-                      `[deviceController] Parameter ${param.name} index out of range: ${relativeIndex} not in [0-${adjustedCount - 1}]`,
+                      `[deviceController] Parameter ${param.name} index out of range: ${relativeIndex} not in [0-${count - 1}]`
                     );
                     continue; // Skip if out of range
                   }
 
-                  let value: any;
+                  let value: any = null;
 
-                  try {
-                    // Handle data types that span multiple registers
-                    if (param.dataType === 'FLOAT32' && param.wordCount === 2) {
-                      // For FLOAT32, we need to read two consecutive registers
-                      if (relativeIndex + 1 < adjustedCount) {
-                        // Check if data exists
-                        if (
-                          !result.data ||
-                          !Array.isArray(result.data) ||
-                          result.data.length <= relativeIndex
-                        ) {
+                  // Handle different data types
+                  if (param.dataType === 'FLOAT32' && param.wordCount === 2) {
+                    // For FLOAT32, we need to read two consecutive registers
+                    if (relativeIndex + 1 < count) {
+                      // Check if data exists and is valid
+                      if (result.data.length <= relativeIndex + 1) {
+                        console.log(
+                          `[deviceController] Not enough data for FLOAT32 at index ${relativeIndex}`
+                        );
+                        value = null;
+                      } else {
+                        const reg1 = result.data[relativeIndex];
+                        const reg2 = result.data[relativeIndex + 1];
+
+                        // Log the registers in hex format
+                        logRegistersInHex(param.name, reg1, reg2, param.byteOrder);
+
+                        console.log(
+                          `[deviceController] Processing FLOAT32: reg1=${reg1}, reg2=${reg2}, byte Order=${param.byteOrder}`
+                        );
+
+                        // Validate registers are numbers
+                        if (typeof reg1 !== 'number' || typeof reg2 !== 'number') {
                           console.log(
-                            `[deviceController] Cannot read FLOAT32 - result data is invalid. Actual data:`,
-                            result.data,
+                            `[deviceController] Invalid register values for parameter ${param.name}: reg1=${reg1}, reg2=${reg2}`
                           );
-                          value = null;
-                        } else {
-                          // Apply device-specific defaults for byte order based on device make/model
-                          let byteOrder = param.byteOrder;
-
-                          // If no byte order is specified, apply defaults based on device make
-                          if (!byteOrder) {
-                            // Handle specific manufacturers' defaults
-                            if (
-                              device.make?.toLowerCase().includes('china') ||
-                              device.make?.toLowerCase().includes('energy analyzer')
-                            ) {
-                              // China Energy Analyzer typically uses CDAB format
-                              byteOrder = 'CDAB';
-                              console.log(
-                                `[deviceController] Applying China Energy Analyzer default byte order: CDAB`,
-                              );
-                            } else if (device.make?.toLowerCase().includes('schneider')) {
-                              // Schneider Electric typically uses ABCD format
-                              byteOrder = 'ABCD';
-                              console.log(
-                                `[deviceController] Applying Schneider Electric default byte order: ABCD`,
-                              );
-                            } else if (device.make?.toLowerCase().includes('siemens')) {
-                              // Siemens typically uses BADC format
-                              byteOrder = 'BADC';
-                              console.log(
-                                `[deviceController] Applying Siemens default byte order: BADC`,
-                              );
-                            } else {
-                              // Default to ABCD if no specific match
-                              byteOrder = 'ABCD';
-                              console.log(
-                                `[deviceController] No device-specific byte order found, using default: ABCD`,
-                              );
-                            }
-                          }
-
-                          console.log(
-                            `[deviceController] Processing FLOAT32 with byteOrder: ${byteOrder}`,
-                          );
-
-                          const reg1 = result.data[relativeIndex];
-                          const reg2 = result.data[relativeIndex + 1];
-
-                          console.log(
-                            `[deviceController] Raw registers: reg1=${reg1}, reg2=${reg2}`,
-                          );
-
-                          // Validate registers are numbers
-                          if (typeof reg1 !== 'number' || typeof reg2 !== 'number') {
-                            console.log(
-                              `[deviceController] Invalid register values: reg1=${reg1}, reg2=${reg2}. Both must be numbers.`,
-                            );
-                            // Make sure reg1 and reg2 are valid numbers before processing
-                            const validReg1 = typeof reg1 === 'number' ? reg1 : 0;
-                            const validReg2 = typeof reg2 === 'number' ? reg2 : 0;
-
-                            console.log(
-                              `[deviceController] Using fallback values: reg1=${validReg1}, reg2=${validReg2}`,
-                            );
-
-                            // Use a more robust approach with a try-catch
-                            try {
-                              // Create buffer to store the values
-                              const buffer = Buffer.alloc(4);
-
-                              // Map byteOrder string to ByteOrder enum
-                              let mappedByteOrder: string;
-                              switch (byteOrder) {
-                                case 'ABCD':
-                                  mappedByteOrder = 'ABCD';
-                                  break;
-                                case 'CDAB':
-                                  mappedByteOrder = 'CDAB';
-                                  break;
-                                case 'BADC':
-                                  mappedByteOrder = 'BADC';
-                                  break;
-                                case 'DCBA':
-                                  mappedByteOrder = 'DCBA';
-                                  break;
-                                default:
-                                  console.log(
-                                    `[deviceController] Unknown byte order: ${byteOrder}, defaulting to ABCD`,
-                                  );
-                                  mappedByteOrder = 'ABCD';
-                              }
-
-                              // Write the registers to the buffer according to byte order
-                              if (mappedByteOrder === 'ABCD') {
+                          
+                          // Use fallback values if needed
+                          const validReg1 = typeof reg1 === 'number' ? reg1 : 0;
+                          const validReg2 = typeof reg2 === 'number' ? reg2 : 0;
+                          
+                          try {
+                            // Create buffer to store the values
+                            const buffer = Buffer.alloc(4);
+                            
+                            // Apply byte ordering based on the parameter specification
+                            switch (param.byteOrder) {
+                              case 'ABCD':
                                 buffer.writeUInt16BE(validReg1, 0);
                                 buffer.writeUInt16BE(validReg2, 2);
-                              } else if (mappedByteOrder === 'CDAB') {
+                                break;
+                              case 'CDAB':
                                 buffer.writeUInt16BE(validReg2, 0);
                                 buffer.writeUInt16BE(validReg1, 2);
-                              } else if (mappedByteOrder === 'BADC') {
-                                // Swap bytes within each word
+                                break;
+                              case 'BADC':
                                 buffer.writeUInt16LE(validReg1, 0);
                                 buffer.writeUInt16LE(validReg2, 2);
-                              } else if (mappedByteOrder === 'DCBA') {
-                                // Complete reverse
+                                break;
+                              case 'DCBA':
                                 buffer.writeUInt16LE(validReg2, 0);
                                 buffer.writeUInt16LE(validReg1, 2);
-                              }
-
-                              // Convert buffer to float - don't need the signed check as floating point is always signed
-                              value = buffer.readFloatBE(0);
-
-                              console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
-
-                              // Check for NaN or Infinity
-                              if (!isFinite(value)) {
-                                console.log(
-                                  `[deviceController] Warning: FLOAT32 conversion resulted in ${value}, using null instead.`,
-                                );
-                                value = null;
-                              }
-                            } catch (bufferError) {
-                              console.error(
-                                `[deviceController] Buffer operation error:`,
-                                bufferError,
-                              );
+                                break;
+                              default:
+                                console.log(`[deviceController] Unknown byte order ${param.byteOrder}, defaulting to ABCD`);
+                                buffer.writeUInt16BE(validReg1, 0);
+                                buffer.writeUInt16BE(validReg2, 2);
+                            }
+                            
+                            // Convert buffer to float
+                            value = buffer.readFloatBE(0);
+                            
+                            console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
+                            
+                            // Check for NaN or Infinity
+                            if (!isFinite(value)) {
+                              console.log(`[deviceController] Invalid FLOAT32 value: ${value}`);
                               value = null;
                             }
-                          } else {
-                            // Both registers are valid numbers, proceed normally
-                            try {
-                              // Create buffer to store the values
-                              const buffer = Buffer.alloc(4);
-
-                              // Map byteOrder string to ByteOrder enum
-                              let mappedByteOrder: string;
-                              switch (byteOrder) {
-                                case 'ABCD':
-                                  mappedByteOrder = 'ABCD';
-                                  break;
-                                case 'CDAB':
-                                  mappedByteOrder = 'CDAB';
-                                  break;
-                                case 'BADC':
-                                  mappedByteOrder = 'BADC';
-                                  break;
-                                case 'DCBA':
-                                  mappedByteOrder = 'DCBA';
-                                  break;
-                                default:
-                                  console.log(
-                                    `[deviceController] Unknown byte order: ${byteOrder}, defaulting to ABCD`,
-                                  );
-                                  mappedByteOrder = 'ABCD';
-                              }
-
-                              // Write the registers to the buffer according to byte order
-                              if (mappedByteOrder === 'ABCD') {
+                          } catch (bufferError) {
+                            console.error(`[deviceController] Error processing FLOAT32:`, bufferError);
+                            value = null;
+                          }
+                        } else {
+                          // Both registers are valid numbers, proceed normally
+                          try {
+                            // Create buffer to store the values
+                            const buffer = Buffer.alloc(4);
+                            
+                            // Apply byte ordering based on the parameter specification
+                            switch (param.byteOrder) {
+                              case 'ABCD':
                                 buffer.writeUInt16BE(reg1, 0);
                                 buffer.writeUInt16BE(reg2, 2);
-                              } else if (mappedByteOrder === 'CDAB') {
+                                break;
+                              case 'CDAB':
                                 buffer.writeUInt16BE(reg2, 0);
                                 buffer.writeUInt16BE(reg1, 2);
-                              } else if (mappedByteOrder === 'BADC') {
-                                // Swap bytes within each word
+                                break;
+                              case 'BADC':
                                 buffer.writeUInt16LE(reg1, 0);
                                 buffer.writeUInt16LE(reg2, 2);
-                              } else if (mappedByteOrder === 'DCBA') {
-                                // Complete reverse
+                                break;
+                              case 'DCBA':
                                 buffer.writeUInt16LE(reg2, 0);
                                 buffer.writeUInt16LE(reg1, 2);
-                              }
-
-                              // Convert buffer to float
-                              value = buffer.readFloatBE(0);
-
-                              console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
-
-                              // Check for NaN or Infinity
-                              if (!isFinite(value)) {
-                                console.log(
-                                  `[deviceController] Warning: FLOAT32 conversion resulted in ${value}, using null instead.`,
-                                );
-                                value = null;
-                              }
-                            } catch (bufferError) {
-                              console.error(
-                                `[deviceController] Buffer operation error:`,
-                                bufferError,
-                              );
+                                break;
+                              default:
+                                console.log(`[deviceController] Unknown byte order ${param.byteOrder}, defaulting to ABCD`);
+                                buffer.writeUInt16BE(reg1, 0);
+                                buffer.writeUInt16BE(reg2, 2);
+                            }
+                            
+                            // Convert buffer to float
+                            value = buffer.readFloatBE(0);
+                            
+                            console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
+                            
+                            // Check for NaN or Infinity
+                            if (!isFinite(value)) {
+                              console.log(`[deviceController] Invalid FLOAT32 value: ${value}`);
                               value = null;
                             }
+                          } catch (bufferError) {
+                            console.error(`[deviceController] Error processing FLOAT32:`, bufferError);
+                            value = null;
                           }
                         }
-                      } else {
-                        console.log(
-                          `[deviceController] Cannot read FLOAT32 - not enough registers available.`,
-                        );
-                        value = null;
                       }
                     } else {
-                      // Standard single register processing
-                      if (
-                        !result.data ||
-                        !Array.isArray(result.data) ||
-                        result.data.length <= relativeIndex
-                      ) {
-                        console.log(
-                          `[deviceController] Cannot read register at index ${relativeIndex} - result data is invalid.`,
-                        );
-                        value = null;
-                      } else {
-                        value = result.data[relativeIndex];
-                        console.log(`[deviceController] Read single register value: ${value}`);
-                      }
-                    }
-                  } catch (dataTypeError) {
-                    console.error(
-                      `[deviceController] Error processing data type ${param.dataType}:`,
-                      dataTypeError,
-                    );
-                    value = null;
-                  }
-
-                  console.log(`[deviceController] Raw value at index ${relativeIndex}: ${value}`);
-
-                  try {
-                    // Skip further processing if value is null
-                    if (value === null || value === undefined) {
                       console.log(
-                        `[deviceController] Skipping scaling/formatting for ${param.name} because value is ${value}`,
+                        `[deviceController] Not enough registers available for FLOAT32 at index ${relativeIndex}`
                       );
+                      value = null;
+                    }
+                  } else if (param.dataType === 'UINT16') {
+                    // Standard single register processing for UINT16
+                    if (result.data.length <= relativeIndex) {
+                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
+                      value = null;
                     } else {
-                      // Make sure value is a number before applying scaling
-                      if (typeof value !== 'number') {
-                        console.log(
-                          `[deviceController] Warning: Value for ${param.name} is not a number (${typeof value}: ${value}), attempting to convert`,
-                        );
-                        const numericValue = Number(value);
-                        if (!isNaN(numericValue)) {
-                          value = numericValue;
-                          console.log(
-                            `[deviceController] Successfully converted value to number: ${value}`,
-                          );
-                        } else {
-                          console.log(
-                            `[deviceController] Could not convert value to number, setting to null`,
-                          );
-                          value = null;
-                        }
-                      }
-
-                      // Apply scaling factor if defined and value is a number
-                      if (
-                        param.scalingFactor &&
-                        param.scalingFactor !== 1 &&
-                        typeof value === 'number'
-                      ) {
-                        try {
-                          const originalValue = value;
-                          value = value * param.scalingFactor;
-                          console.log(
-                            `[deviceController] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`,
-                          );
-
-                          // Check for invalid results
-                          if (!isFinite(value)) {
-                            console.log(
-                              `[deviceController] Warning: Scaling resulted in ${value}, reverting to original value`,
-                            );
-                            value = originalValue;
-                          }
-                        } catch (scalingError) {
-                          console.error(
-                            `[deviceController] Error applying scaling factor to ${param.name}:`,
-                            scalingError,
-                          );
-                        }
-                      }
-
-                      // Apply scaling equation if defined and value is a number
-                      if (param.scalingEquation && typeof value === 'number') {
-                        try {
-                          // Simple equation evaluation (x is the value)
-                          const x = value;
-                          const originalValue = value;
-
-                          // Use Function constructor to safely evaluate the equation
-                          value = new Function('x', `return ${param.scalingEquation}`)(x);
-                          console.log(
-                            `[deviceController] Applied scaling equation: ${param.scalingEquation} with x=${originalValue}, result=${value}`,
-                          );
-
-                          // Check for invalid results
-                          if (!isFinite(value)) {
-                            console.log(
-                              `[deviceController] Warning: Equation resulted in ${value}, reverting to original value`,
-                            );
-                            value = originalValue;
-                          }
-                        } catch (equationError: any) {
-                          console.error(
-                            `[deviceController] Scaling equation error for parameter ${param.name}:`,
-                            equationError,
-                          );
-                          // Keep the original value if the equation fails
-                          console.log(
-                            `[deviceController] Keeping original value due to equation error`,
-                          );
-                        }
-                      }
-
-                      // Format decimal places if defined and value is a number
-                      if (
-                        param.decimalPoint !== undefined &&
-                        param.decimalPoint >= 0 &&
-                        typeof value === 'number'
-                      ) {
-                        try {
-                          const originalValue = value;
-                          
-                          // Check if value is extremely small before formatting
-                          if (Math.abs(value) < Math.pow(10, -param.decimalPoint)) {
-                            // For very small values, preserve scientific notation or original value
-                            console.log(
-                              `[deviceController] Value ${value} is too small for ${param.decimalPoint} decimal places, preserving original`
-                            );
-                          } else {
-                            // For normal values, format decimal places
-                            value = parseFloat(value.toFixed(param.decimalPoint));
-                            console.log(
-                              `[deviceController] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`
-                            );
-                          }
-                        } catch (formatError) {
-                          console.error(
-                            `[deviceController] Error formatting decimal places for ${param.name}:`,
-                            formatError,
-                          );
-                        }
-                      }
-
-                      // Apply min/max constraints if defined and value is a number
-                      if (typeof value === 'number') {
-                        if (param.maxValue !== undefined && value > param.maxValue) {
-                          console.log(
-                            `[deviceController] Value ${value} exceeds maxValue ${param.maxValue}, clamping`,
-                          );
-                          value = param.maxValue;
-                        }
-                        if (param.minValue !== undefined && value < param.minValue) {
-                          console.log(
-                            `[deviceController] Value ${value} below minValue ${param.minValue}, clamping`,
-                          );
-                          value = param.minValue;
-                        }
+                      const reg = result.data[relativeIndex];
+                      // Log the register in hex format
+                      logRegistersInHex(param.name, reg);
+                      
+                      value = reg;
+                      console.log(`[deviceController] Read UINT16 value: ${value}`);
+                    }
+                  } else if (param.dataType === 'INT16') {
+                    // Convert UINT16 to INT16 (two's complement)
+                    if (result.data.length <= relativeIndex) {
+                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
+                      value = null;
+                    } else {
+                      const raw = result.data[relativeIndex];
+                      // Log the register in hex format
+                      logRegistersInHex(param.name, raw);
+                      
+                      // Make sure raw is a number before comparing
+                      if (typeof raw === 'number') {
+                        // Convert to signed 16-bit integer
+                        value = raw > 32767 ? raw - 65536 : raw;
+                        console.log(`[deviceController] Converted INT16 value: ${value} (from raw ${raw})`);
+                      } else {
+                        console.log(`[deviceController] Invalid INT16 value: ${raw}`);
+                        value = null;
                       }
                     }
-                  } catch (processingError) {
-                    console.error(
-                      `[deviceController] Error during value processing for ${param.name}:`,
-                      processingError,
-                    );
-                    // Leave value as is, don't change it due to error in processing
+                  } else if (param.dataType === 'BOOL') {
+                    // Boolean value processing
+                    if (result.data.length <= relativeIndex) {
+                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
+                      value = null;
+                    } else {
+                      const reg = result.data[relativeIndex];
+                      // Log the register in hex format
+                      logRegistersInHex(param.name, reg);
+                      
+                      value = !!reg;
+                      console.log(`[deviceController] Converted BOOL value: ${value}`);
+                    }
+                  } else {
+                    // Default to raw value for other data types
+                    if (result.data.length <= relativeIndex) {
+                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
+                      value = null;
+                    } else {
+                      const reg = result.data[relativeIndex];
+                      // Log the register in hex format
+                      logRegistersInHex(param.name, reg);
+                      
+                      value = reg;
+                      console.log(`[deviceController] Read raw value: ${value}`);
+                    }
                   }
 
-                  // Log the final processed value
+                  // Apply scaling and formatting if value is not null
+                  if (value !== null) {
+                    // Make sure value is a number before applying scaling
+                    if (typeof value !== 'number') {
+                      console.log(
+                        `[deviceController] Warning: Value for ${param.name} is not a number: ${typeof value}`
+                      );
+                      const numericValue = Number(value);
+                      if (!isNaN(numericValue)) {
+                        value = numericValue;
+                      } else {
+                        value = null;
+                      }
+                    }
+
+                    // Apply scaling factor if defined
+                    if (param.scalingFactor && param.scalingFactor !== 1 && typeof value === 'number') {
+                      const originalValue = value;
+                      value = value * param.scalingFactor;
+                      console.log(
+                        `[deviceController] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`
+                      );
+                    }
+
+                    // Apply scaling equation if defined
+                    if (param.scalingEquation && typeof value === 'number') {
+                      try {
+                        const x = value;
+                        const originalValue = value;
+                        value = new Function('x', `return ${param.scalingEquation}`)(x);
+                        console.log(
+                          `[deviceController] Applied equation: ${param.scalingEquation} with x=${originalValue} = ${value}`
+                        );
+                      } catch (equationError) {
+                        console.error(`[deviceController] Equation error:`, equationError);
+                      }
+                    }
+
+                    // Format decimal places if defined
+                    if (param.decimalPoint !== undefined && param.decimalPoint >= 0 && typeof value === 'number') {
+                      if (Math.abs(value) < Math.pow(10, -param.decimalPoint)) {
+                        console.log(`[deviceController] Value too small for formatting, preserving original`);
+                      } else {
+                        const originalValue = value;
+                        value = parseFloat(value.toFixed(param.decimalPoint));
+                        console.log(
+                          `[deviceController] Formatted to ${param.decimalPoint} decimal places: ${originalValue} -> ${value}`
+                        );
+                      }
+                    }
+
+                    // Apply min/max constraints if defined
+                    if (typeof value === 'number') {
+                      if (param.maxValue !== undefined && value > param.maxValue) {
+                        value = param.maxValue;
+                        console.log(`[deviceController] Clamped to max value: ${param.maxValue}`);
+                      }
+                      if (param.minValue !== undefined && value < param.minValue) {
+                        value = param.minValue;
+                        console.log(`[deviceController] Clamped to min value: ${param.minValue}`);
+                      }
+                    }
+                  }
+
+                  // Add the processed value to readings
                   console.log(
-                    `[deviceController] Final processed value for parameter "${param.name}": ${value}${param.unit ? ' ' + param.unit : ''}`,
+                    `[deviceController] Final value for ${param.name}: ${value}${param.unit ? ' ' + param.unit : ''}`
                   );
 
                   readings.push({
                     name: param.name,
-                    registerIndex: param.registerIndex,
-                    address: param.registerIndex, // Added for frontend compatibility
+                    registerIndex: range.startAddress + param.registerIndex, // Absolute register address
+                    address: range.startAddress + param.registerIndex, // For frontend compatibility
                     value: value,
                     unit: param.unit || '',
                     dataType: param.dataType,
-                    // Include additional metadata that might be useful for debugging
                     description: param.description || '',
+                    byteOrder: param.byteOrder || 'ABCD',
+                    rawRegisters: param.dataType === 'FLOAT32' ? 
+                      [result.data[relativeIndex], result.data[relativeIndex + 1]] : 
+                      [result.data[relativeIndex]]
                   });
-                } catch (paramError: any) {
-                  console.error(
-                    `[deviceController] Error processing parameter ${param.name}:`,
-                    paramError,
-                  );
+                } catch (paramError: any) { // Type as 'any' to fix TS18046 error
+                  console.error(`[deviceController] Error processing parameter ${param.name}:`, paramError);
                   readings.push({
                     name: param.name,
-                    registerIndex: param.registerIndex,
+                    registerIndex: range.startAddress + param.registerIndex,
                     value: null,
                     unit: param.unit || '',
-                    error: paramError.message,
+                    error: paramError.message || 'Unknown error',
                   });
                 }
               }
             }
-          } catch (rangeError: any) {
+          } catch (rangeError: any) { // Type as 'any' to fix TS18046 error
             console.error(
-              `Error reading range (${dataPoint.range.startAddress}-${dataPoint.range.startAddress + dataPoint.range.count - 1}):`,
-              rangeError,
+              `[deviceController] Error reading range (${dataPoint.range.startAddress}-${dataPoint.range.startAddress + dataPoint.range.count - 1}):`,
+              rangeError
             );
-            // Continue to next range even if this one fails
           }
         }
       }
       // LEGACY STRUCTURE: Read each configured register
       else if (hasLegacyConfig && device.registers) {
+        console.log(`[deviceController] Using legacy register configuration`);
+        
         for (const register of device.registers) {
           try {
+            console.log(
+              `[deviceController] Reading legacy register ${register.address} with length ${register.length}`
+            );
+            
             const result = await client.readHoldingRegisters(register.address, register.length);
+
+            // Log raw register in hex format
+            if (result.data && result.data.length > 0) {
+              const reg = result.data[0];
+              logRegistersInHex(register.name, reg);
+            }
 
             // Process the result based on register configuration
             let value = result.data[0];
 
             // Apply scale factor if defined
             if (register.scaleFactor && register.scaleFactor !== 1) {
+              const originalValue = value;
               value = value / register.scaleFactor;
+              console.log(
+                `[deviceController] Applied legacy scale factor: ${originalValue} / ${register.scaleFactor} = ${value}`
+              );
             }
 
             // Format decimal places if defined
             if (register.decimalPoint && register.decimalPoint > 0) {
+              const originalValue = value;
               value = parseFloat(value.toFixed(register.decimalPoint));
+              console.log(
+                `[deviceController] Formatted legacy decimal places: ${originalValue} -> ${value}`
+              );
             }
 
             readings.push({
@@ -2273,13 +2168,15 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
               value: value,
               unit: register.unit || '',
             });
-          } catch (registerError: any) {
+          } catch (registerError: any) { // Type as 'any' to fix TS18046 error
+            console.error(`[deviceController] Error reading legacy register:`, registerError);
+            
             readings.push({
               name: register.name,
               address: register.address,
               value: null,
               unit: register.unit || '',
-              error: registerError.message,
+              error: registerError.message || 'Unknown error',
             });
           }
         }
@@ -2289,30 +2186,27 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
       device.lastSeen = new Date();
       await device.save();
 
-      // Log the final readings array
-      console.log(
-        `[deviceController] Final readings results (${readings.length} values):`,
-        JSON.stringify(readings, null, 1),
-      );
-
+      console.log(`[deviceController] Completed reading with ${readings.length} values`);
+      
+      // Return the result
       res.json({
         deviceId: device._id,
         deviceName: device.name,
         timestamp: new Date(),
         readings,
       });
-    } catch (modbusError: any) {
-      console.error('Modbus reading error => :', modbusError);
+    } catch (modbusError: any) { // Type as 'any' to fix TS18046 error
+      console.error('[deviceController] Modbus error:', modbusError);
       res.status(400).json({
-        message: `Failed to read from device: ${modbusError.message}`,
+        message: `Failed to read from device: ${modbusError.message || 'Unknown error'}`,
       });
     } finally {
-      // Use our helper function to safely close the connection
+      // Safely close the connection
       await safeCloseModbusClient(client);
     }
-  } catch (error: any) {
-    console.error('Read registers error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: any) { // Type as 'any' to fix TS18046 error
+    console.error('[deviceController] General error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message || 'Unknown error' });
   }
 };
 

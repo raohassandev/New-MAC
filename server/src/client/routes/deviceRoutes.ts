@@ -1,6 +1,6 @@
 import * as deviceController from '../controllers/deviceController';
 import * as deviceRegisterController from '../controllers/deviceRegisterController';
-import { checkPermission, protect } from '../../middleware/authMiddleware';
+// import { checkPermission, protect } from '../../middleware/authMiddleware';
 import { Router } from 'express';
 import express from 'express';
 
@@ -22,7 +22,7 @@ router
 router.get('/by-driver/:driverId', deviceController.getDevicesByDriverId as express.RequestHandler);
 
 // Add a route for getting devices by usage category
-router.get('/by-usage/:usage', deviceController.getDevicesByUsage as express.RequestHandler);
+router.get('/by-usage/:usage', deviceController.getDevicesByUsage as express.RequestHandler); 
 
 router
   .route('/:id')

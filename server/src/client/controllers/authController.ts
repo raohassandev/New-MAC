@@ -101,7 +101,9 @@ export const loginUser = async (req: Request, res: Response) => {
 export const getMe = async (req: Request, res: Response) => {
   try {
     // User is attached by the auth middleware
-    const user = await User.findById(req.user?.id).select('-password');
+    const user = {
+      "message" : "Please write a query"
+    };
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
