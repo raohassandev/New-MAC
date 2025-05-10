@@ -31,9 +31,10 @@ import {
   Info,
 } from 'lucide-react';
 import { useDevices } from '../hooks/useDevices';
+import { useDevicePolling } from '../hooks/useDevicePolling';
 import { useAuth } from '../context/AuthContext';
 import { Device, DeviceReading } from '../types/device.types';
-import { ConnectionErrorDisplay } from '../components/ui';
+import { ConnectionErrorDisplay, DeviceValidator } from '../components/ui';
 import { formatByDataType } from '../utils/modbusValueFormatter';
 
 const DeviceDetails: React.FC = () => {
@@ -72,10 +73,43 @@ const DeviceDetails: React.FC = () => {
   const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
   const communicationLogRef = useRef<HTMLDivElement>(null);
 
-  // Auto-polling settings
-  const [autoPolling, setAutoPolling] = useState<boolean>(true);
+  // Use the polling hook instead of manual polling
+  const {
+    deviceData: polledDeviceData,
+    isPolling: autoPolling,
+    startPolling,
+    stopPolling,
+    refreshData: refreshDeviceData,
+    pollingStatus,
+    lastUpdated,
+  } = useDevicePolling(deviceId || '', {
+    autoStart: true,
+    refreshInterval: 5000,
+    onDataReceived: (data) => {
+      // Update readings when new data arrives
+      if (data.readings) {
+        setReadings(data.readings);
+        addCommunicationLog({
+          type: 'response',
+          operation: 'Auto Poll Data',
+          message: `Received ${data.readings.length} readings from device ${data.deviceName}`,
+          details: data,
+        });
+      }
+    },
+    onError: (err) => {
+      setError(err.message);
+      addCommunicationLog({
+        type: 'error',
+        operation: 'Auto Poll Data',
+        message: `Error: ${err.message}`,
+        details: err,
+      });
+    },
+  });
+
+  // State for polling interval (UI only)
   const [pollingInterval, setPollingInterval] = useState<number>(5000); // 5 seconds default
-  const pollingTimerRef = useRef<number | null>(null);
   
   // Display settings
   const [showScientificNotation, setShowScientificNotation] = useState<boolean>(false);
@@ -132,34 +166,17 @@ const DeviceDetails: React.FC = () => {
     fetchDeviceData();
   }, [deviceId]); // Removed getDevice from dependencies to prevent infinite loop
 
-  // Set up auto-polling of device data
+  // We're now using the useDevicePolling hook instead of manual timer setup
+  // This effect updates the polling interval when it changes in the UI
   useEffect(() => {
-    // Clean up existing timer if any
-    if (pollingTimerRef.current) {
-      window.clearInterval(pollingTimerRef.current);
-      pollingTimerRef.current = null;
+    if (deviceId && device && autoPolling) {
+      console.log(`Updating polling interval to ${pollingInterval}ms for device ${device.name}`);
+      // Stop current polling and restart with new interval
+      stopPolling().then(() => {
+        startPolling(pollingInterval);
+      }).catch(console.error);
     }
-
-    // Only set up polling if enabled and we have a valid device
-    if (autoPolling && deviceId && device) {
-      console.log(`Starting auto-polling every ${pollingInterval}ms for device ${device.name}`);
-
-      // Create a new interval that calls the read registers function
-      pollingTimerRef.current = window.setInterval(() => {
-        console.log(`Auto-polling: Fetching data for device ${device.name}...`);
-        // Use the async function with silent success (don't show success message on each poll)
-        handleReadRegistersAsync(false);
-      }, pollingInterval);
-    }
-
-    // Clean up on unmount or when dependencies change
-    return () => {
-      if (pollingTimerRef.current) {
-        window.clearInterval(pollingTimerRef.current);
-        pollingTimerRef.current = null;
-      }
-    };
-  }, [autoPolling, pollingInterval, deviceId, device]);
+  }, [pollingInterval]); // Only depend on pollingInterval
 
   const handleBack = () => {
     navigate('/devices');
@@ -434,9 +451,9 @@ const DeviceDetails: React.FC = () => {
           },
         });
 
-        // Call the actual API endpoint via the readRegisters function
+        // Use the original readRegisters function from useDevices for compatibility
         try {
-          
+          // Call the API endpoint via the readRegisters function
           const result = await readRegisters(deviceId);
           console.log(`[DeviceDetails] Read registers result:`, result);
           
@@ -577,8 +594,112 @@ const DeviceDetails: React.FC = () => {
   );
 
   // Regular handler for button click that calls the async function with full UI feedback
+  // Using the original readRegisters function for compatibility
   const handleReadRegisters = () => {
-    handleReadRegistersAsync(true);
+    setReadingData(true);
+    setError(null);
+    setErrorDetails(null);
+    setSuccess(null);
+    
+    setCommunicationStatus({
+      type: 'sending',
+      operation: 'Manual Read Data',
+      timestamp: new Date(),
+      message: `Reading data from ${device?.name}`,
+    });
+
+    // Add to logs
+    addCommunicationLog({
+      type: 'request',
+      operation: 'Manual Read Data',
+      message: `Request: Reading data from device ${device?.name}`,
+      details: {
+        deviceId,
+        registers: device?.registers?.map(r => r.name) || [],
+      },
+    });
+    
+    // Use the original readRegisters function from useDevices
+    readRegisters(deviceId || '')
+      .then((data) => {
+        if (data && data.readings) {
+          setReadings(data.readings);
+          setSuccess('Successfully read data from device');
+          
+          setCommunicationStatus({
+            type: 'success',
+            operation: 'Manual Read Data',
+            timestamp: new Date(),
+            message: 'Successfully read data from device',
+          });
+          
+          addCommunicationLog({
+            type: 'response',
+            operation: 'Manual Read Data',
+            message: `Response: Successfully read ${data.readings.length} registers`,
+            details: data,
+          });
+        } else {
+          throw new Error('Failed to read device data');
+        }
+      })
+      .catch((err) => {
+        setError(err.message);
+        
+        setCommunicationStatus({
+          type: 'error',
+          operation: 'Manual Read Data',
+          timestamp: new Date(),
+          message: err.message,
+        });
+        
+        addCommunicationLog({
+          type: 'error',
+          operation: 'Manual Read Data',
+          message: `Error: ${err.message}`,
+          details: err,
+        });
+      })
+      .finally(() => {
+        setReadingData(false);
+      });
+  };
+  
+  // Handle toggling auto-polling
+  const handleToggleAutoPolling = async () => {
+    if (autoPolling) {
+      // Currently polling, so stop it
+      const success = await stopPolling();
+      if (success) {
+        addCommunicationLog({
+          type: 'info',
+          operation: 'Auto Poll',
+          message: `Auto-polling stopped for device ${device?.name}`,
+        });
+      } else {
+        addCommunicationLog({
+          type: 'error',
+          operation: 'Auto Poll',
+          message: `Failed to stop auto-polling for device ${device?.name}`,
+        });
+      }
+    } else {
+      // Currently not polling, so start it
+      const success = await startPolling(pollingInterval);
+      if (success) {
+        addCommunicationLog({
+          type: 'info',
+          operation: 'Auto Poll',
+          message: `Auto-polling started for device ${device?.name} every ${pollingInterval}ms`,
+        });
+      } else {
+        addCommunicationLog({
+          type: 'error',
+          operation: 'Auto Poll',
+          message: `Failed to start auto-polling for device ${device?.name}`,
+        });
+      }
+    }
   };
 
   const handleInputChange = (
@@ -614,6 +735,12 @@ const DeviceDetails: React.FC = () => {
         <AlertCircle size={48} className="mx-auto mb-4 text-red-500" />
         <h2 className="mb-2 text-xl font-semibold text-red-700">Error Loading Device</h2>
         <p className="mb-4 text-red-600">{error}</p>
+        
+        {/* Show the device validator to help diagnose issues */}
+        <div className="mb-6">
+          <DeviceValidator />
+        </div>
+        
         <button
           onClick={handleBack}
           className="inline-flex items-center rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
@@ -631,6 +758,12 @@ const DeviceDetails: React.FC = () => {
         <AlertCircle size={48} className="mx-auto mb-4 text-gray-500" />
         <h2 className="mb-2 text-xl font-semibold text-gray-700">Device Not Found</h2>
         <p className="mb-4 text-gray-600">The requested device could not be found.</p>
+        
+        {/* Show the device validator to help diagnose issues */}
+        <div className="mb-6">
+          <DeviceValidator />
+        </div>
+        
         <button
           onClick={handleBack}
           className="inline-flex items-center rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
@@ -2562,71 +2695,85 @@ const DeviceDetails: React.FC = () => {
   );
 };
 
-// Add a polling controls wrapper component
+// Add a polling controls wrapper component that uses the new polling system
 const PollingControlsWrapper = () => {
   // This is a high-order component that wraps DeviceDetails with polling functionality
   return function WithPollingControls(Component: React.ComponentType<any>) {
     const WrappedComponent = (props: any) => {
-      const [autoPolling, setAutoPolling] = useState(false); // Default to disabled
-      const [pollingInterval, setPollingInterval] = useState(5000); // Default to 5 seconds to avoid overwhelming the Modbus connection
-      const pollingTimerRef = useRef<number | null>(null);
       const { deviceId } = useParams<{ deviceId: string }>();
-      const { readRegisters } = useDevices();
-
-      // Set up polling effect
+      const [pollingInterval, setPollingInterval] = useState(5000); // Default to 5 seconds
+      
+      // Use the polling hook instead of manual setup
+      const { 
+        isPolling: autoPolling, 
+        startPolling,
+        stopPolling,
+        refreshData,
+        lastUpdated,
+        pollingStatus
+      } = useDevicePolling(deviceId || '', {
+        autoStart: false, // We'll control this through the UI
+        refreshInterval: pollingInterval,
+        onDataReceived: (data) => {
+          console.log('[PollingControl] Data received:', {
+            timestamp: new Date().toISOString(),
+            deviceId,
+            readingsCount: data.readings.length,
+            sampleReading: data.readings[0]
+          });
+        },
+        onError: (err) => {
+          console.error('[PollingControl] Error in server-side polling:', err.message);
+        }
+      });
+      
+      // Handle interval changes
       useEffect(() => {
-        // Clean up existing timer
-        if (pollingTimerRef.current) {
-          window.clearInterval(pollingTimerRef.current);
-          pollingTimerRef.current = null;
-        }
-
-        // Only set up polling if enabled and we have a device ID
         if (autoPolling && deviceId) {
-          console.log(`Setting up auto-polling every ${pollingInterval}ms for device ${deviceId}`);
-
-          // Create a polling interval
-          pollingTimerRef.current = window.setInterval(async () => {
-            try {
-              // Read registers and log the result to console
-              console.log(`[PollingControl] Auto-polling: Fetching data for device ${deviceId}...`);
-              const result = await readRegisters(deviceId);
-              
-              // Check if the result indicates an error
-              if (result && result.error) {
-                console.error(`[PollingControl] Error in polling:`, result.message);
-                return; // Skip the rest of the processing for this cycle
-              }
-
-              // Verify we have readings before proceeding
-              if (result && result.readings && result.readings.length > 0) {
-                console.log('[PollingControl] Successfully received data from device');
-                console.log('[PollingControl] Modbus Register Data:', {
-                  timestamp: new Date().toISOString(),
-                  deviceId,
-                  readingsCount: result.readings.length,
-                  sampleReading: result.readings[0]
-                });
-                
-                // Optional: You could dispatch an event or use a callback to update UI with the new readings
-                // This would require passing a callback function to this component
-              } else {
-                console.warn('[PollingControl] No readings received in polling response');
-              }
-            } catch (error) {
-              console.error('[PollingControl] Error in auto-polling:', error);
-            }
-          }, pollingInterval);
+          console.log(`[PollingControl] Updating polling interval to ${pollingInterval}ms`);
+          
+          // Stop and restart polling with new interval
+          stopPolling().then(() => {
+            startPolling(pollingInterval);
+          }).catch(err => {
+            console.error('[PollingControl] Error updating interval:', err);
+          });
         }
-
-        // Clean up on unmount
-        return () => {
-          if (pollingTimerRef.current) {
-            window.clearInterval(pollingTimerRef.current);
-            pollingTimerRef.current = null;
+      }, [pollingInterval]); // Only run when polling interval changes
+      
+      // Handle toggling auto-polling
+      const handleTogglePolling = async (enable: boolean) => {
+        try {
+          if (enable) {
+            console.log(`[PollingControl] Starting server-side polling every ${pollingInterval}ms`);
+            await startPolling(pollingInterval);
+          } else {
+            console.log('[PollingControl] Stopping server-side polling');
+            await stopPolling();
           }
-        };
-      }, [autoPolling, pollingInterval, deviceId, readRegisters]);
+        } catch (err) {
+          console.error('[PollingControl] Error toggling polling:', err);
+        }
+      };
+      
+      // Handle manual read
+      const handleManualRead = async () => {
+        try {
+          console.log(`[PollingControl] Manual read requested for device ${deviceId}`);
+          const result = await refreshData(true); // Force refresh
+          
+          if (result) {
+            console.log('[PollingControl] Manual read result:', {
+              timestamp: new Date().toISOString(),
+              deviceId,
+              readingsCount: result.readings.length,
+              sample: result.readings[0]
+            });
+          }
+        } catch (err) {
+          console.error('[PollingControl] Manual read error:', err);
+        }
+      };
 
       return (
         <>
@@ -2636,27 +2783,16 @@ const PollingControlsWrapper = () => {
                 <input
                   type="checkbox"
                   checked={autoPolling}
-                  onChange={e => setAutoPolling(e.target.checked)}
+                  onChange={e => handleTogglePolling(e.target.checked)}
                   className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Auto-poll</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {autoPolling ? 'Polling Active' : 'Start Polling'}
+                </span>
               </label>
               
               <button
-                onClick={() => {
-                  // Attempt a single manual read
-                  console.log(`[PollingControl] Manual read requested for device ${deviceId}`);
-                  readRegisters(deviceId)
-                    .then(result => {
-                      console.log('[PollingControl] Manual read result:', result);
-                      if (result && result.readings) {
-                        console.log(`[PollingControl] Got ${result.readings.length} readings`);
-                      }
-                    })
-                    .catch(err => {
-                      console.error('[PollingControl] Manual read error:', err);
-                    });
-                }}
+                onClick={handleManualRead}
                 className="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
               >
                 Read Now
@@ -2673,6 +2809,12 @@ const PollingControlsWrapper = () => {
                 <option value="5000">5 seconds</option>
                 <option value="10000">10 seconds</option>
               </select>
+              
+              {lastUpdated && (
+                <span className="ml-2 text-xs text-gray-500">
+                  Updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
             </div>
           </div>
           <Component {...props} />

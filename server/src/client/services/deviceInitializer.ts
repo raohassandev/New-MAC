@@ -1,5 +1,5 @@
 import { getClientModels } from '../../config/database';
-import * as dataPollingService from './dataPollingService';
+import * as dataPollingService from './polling.service';
 import { IDevice } from '../models/Device';
 
 /**

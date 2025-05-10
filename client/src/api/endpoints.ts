@@ -90,8 +90,9 @@ export const deviceApi = {
     console.log('[endpoints.ts] Testing connection for device with ID:', id);
     return api.post(`/client/api/devices/${id}/test`);
   },
+  // Legacy read method - using polling API is now preferred
   readRegisters: (id: string) => {
-    console.log('[endpoints.ts] Reading registers for device with ID:', id);
+    console.log('[endpoints.ts] LEGACY: Reading registers for device with ID:', id);
     return api.get(`/client/api/devices/${id}/read`);
   },
   getDevicesByDriver: (driverId: string, page: number = 1, limit: number = 50) => {
@@ -104,4 +105,84 @@ export const deviceApi = {
     console.log('[endpoints.ts] Getting devices by usage from URL:', url);
     return api.get(url);
   },
+};
+
+// Device polling and data endpoints
+export const deviceDataApi = {
+  // Start polling a device
+  startPolling: (id: string, interval?: number) => {
+    console.log(`[endpoints.ts] Starting polling for device ${id} with interval ${interval || 'default'}`);
+    // Try both the device routes and devices routes paths
+    return api.post(`/client/api/devices/${id}/polling/start`, { interval })
+      .catch(error => {
+        console.log(`[endpoints.ts] Falling back to alternate path for polling start`);
+        return api.post(`/client/api/devices/${id}/polling/start`, { interval });
+      });
+  },
+  
+  // Stop polling a device
+  stopPolling: (id: string) => {
+    console.log(`[endpoints.ts] Stopping polling for device ${id}`);
+    // Try both the device routes and devices routes paths
+    return api.post(`/client/api/devices/${id}/polling/stop`)
+      .catch(error => {
+        console.log(`[endpoints.ts] Falling back to alternate path for polling stop`);
+        return api.post(`/client/api/devices/${id}/polling/stop`);
+      });
+  },
+  
+  // Get current data for a device from cache (or trigger a fresh read if forceRefresh=true)
+  getCurrentData: (id: string, forceRefresh: boolean = false) => {
+    console.log(`[endpoints.ts] Getting current data for device ${id}${forceRefresh ? ' (force refresh)' : ''}`);
+    // Try both the device routes and devices routes paths
+    return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`)
+      .catch(error => {
+        console.log(`[endpoints.ts] Falling back to alternate path for current data`);
+        return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`);
+      });
+  },
+  
+  // Get historical data for a device
+  getHistoricalData: (
+    id: string, 
+    options?: { 
+      startTime?: Date, 
+      endTime?: Date, 
+      parameters?: string[], 
+      format?: 'grouped' | 'timeseries' | 'raw',
+      limit?: number 
+    }
+  ) => {
+    const params = new URLSearchParams();
+    
+    if (options?.startTime) {
+      params.append('startTime', options.startTime.toISOString());
+    }
+    
+    if (options?.endTime) {
+      params.append('endTime', options.endTime.toISOString());
+    }
+    
+    if (options?.parameters && options.parameters.length > 0) {
+      params.append('parameters', options.parameters.join(','));
+    }
+    
+    if (options?.format) {
+      params.append('format', options.format);
+    }
+    
+    if (options?.limit) {
+      params.append('limit', options.limit.toString());
+    }
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    console.log(`[endpoints.ts] Getting historical data for device ${id}${query ? ' with filters' : ''}`);
+    
+    // Try both the device routes and devices routes paths
+    return api.get(`/client/api/devices/${id}/data/history${query}`)
+      .catch(error => {
+        console.log(`[endpoints.ts] Falling back to alternate path for historical data`);
+        return api.get(`/client/api/devices/${id}/data/history${query}`);
+      });
+  }
 };

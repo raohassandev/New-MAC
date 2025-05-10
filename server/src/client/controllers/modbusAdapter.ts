@@ -110,34 +110,42 @@ export async function createDeviceFromData(device: any): Promise<string> {
               let dataType: DataType;
               let byteOrder: ByteOrder;
 
+              // Helper function to map 4-byte word order
+              const map4ByteOrder = (paramByteOrder: string): ByteOrder => {
+                switch (paramByteOrder) {
+                  case 'ABCD': return ByteOrder.ABCD;
+                  case 'CDAB': return ByteOrder.CDAB;
+                  case 'BADC': return ByteOrder.BADC;
+                  case 'DCBA': return ByteOrder.DCBA;
+                  default: return ByteOrder.ABCD;
+                }
+              };
+
+              // Helper function to map 2-byte word order
+              const map2ByteOrder = (paramByteOrder: string): ByteOrder => {
+                return paramByteOrder === 'AB' ? ByteOrder.AB : ByteOrder.BA;
+              };
+
               switch (param.dataType) {
                 case 'FLOAT32':
                   dataType = DataType.FLOAT32;
-                  // Map byte order
-                  switch (param.byteOrder) {
-                    case 'ABCD':
-                      byteOrder = ByteOrder.ABCD;
-                      break;
-                    case 'CDAB':
-                      byteOrder = ByteOrder.CDAB;
-                      break;
-                    case 'BADC':
-                      byteOrder = ByteOrder.BADC;
-                      break;
-                    case 'DCBA':
-                      byteOrder = ByteOrder.DCBA;
-                      break;
-                    default:
-                      byteOrder = ByteOrder.ABCD;
-                  }
+                  byteOrder = map4ByteOrder(param.byteOrder || 'ABCD');
+                  break;
+                case 'INT32':
+                  dataType = DataType.INT32;
+                  byteOrder = map4ByteOrder(param.byteOrder || 'ABCD');
+                  break;
+                case 'UINT32':
+                  dataType = DataType.UINT32;
+                  byteOrder = map4ByteOrder(param.byteOrder || 'ABCD');
                   break;
                 case 'INT16':
                   dataType = DataType.INT16;
-                  byteOrder = param.byteOrder === 'AB' ? ByteOrder.AB : ByteOrder.BA;
+                  byteOrder = map2ByteOrder(param.byteOrder || 'AB');
                   break;
                 case 'UINT16':
                   dataType = DataType.UINT16;
-                  byteOrder = param.byteOrder === 'AB' ? ByteOrder.AB : ByteOrder.BA;
+                  byteOrder = map2ByteOrder(param.byteOrder || 'AB');
                   break;
                 default:
                   dataType = DataType.UINT16;

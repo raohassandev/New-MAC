@@ -210,10 +210,21 @@ export const testDevice = async (id: string) => {
 
 export const readDeviceRegisters = async (id: string) => {
   try {
+    // Basic validation of device ID format
+    if (!id || id.length < 12) {
+      console.error(`[api.ts] Invalid device ID format: ${id}`);
+      return {
+        error: true,
+        message: `Invalid device ID format: ID appears to be malformed`,
+        deviceId: id,
+        timestamp: new Date(),
+        readings: []
+      };
+    }
+    
     // Try with correct API path
     try {
       console.log(`[api.ts] Attempting to read registers for device ${id}`);
-      
       
       // Set a longer timeout specifically for this request
       const response = await api.get(`/client/api/devices/${id}/read`, {
@@ -245,14 +256,43 @@ export const readDeviceRegisters = async (id: string) => {
         console.error('[api.ts] Response data:', error.response?.data);
         console.error('[api.ts] Request config:', error.config);
         
+        // Check for specific error conditions
+        if (error.response?.status === 400 && error.response?.data?.message?.includes('Invalid device ID')) {
+          console.error(`[api.ts] Invalid device ID format rejected by server: ${id}`);
+          return {
+            error: true,
+            message: `Invalid device ID format: ${error.response.data.message || 'ID rejected by server'}`,
+            deviceId: id,
+            timestamp: new Date(),
+            readings: []
+          };
+        }
+        
         if (error.response?.status === 404) {
-          // If 404, try legacy path
+          // If 404, first check if it's a device not found error
+          if (error.response?.data?.message?.includes('not found')) {
+            console.error(`[api.ts] Device not found: ${id}`);
+            return {
+              error: true,
+              message: `Device not found: ${id}`,
+              deviceId: id,
+              timestamp: new Date(),
+              readings: []
+            };
+          }
+          
+          // Try legacy path as a last resort
           console.log('[api.ts] Trying legacy path for read');
-          const legacyResponse = await api.get(`/devices/${id}/read`, {
-            timeout: 60000 // 60 seconds timeout
-          });
-          console.log('[api.ts] Legacy path succeeded:', legacyResponse.data);
-          return legacyResponse.data;
+          try {
+            const legacyResponse = await api.get(`/devices/${id}/read`, {
+              timeout: 60000 // 60 seconds timeout
+            });
+            console.log('[api.ts] Legacy path succeeded:', legacyResponse.data);
+            return legacyResponse.data;
+          } catch (legacyError) {
+            console.error('[api.ts] Legacy path also failed:', legacyError);
+            throw error; // Throw the original error
+          }
         }
       }
       throw error;
@@ -273,7 +313,7 @@ export const readDeviceRegisters = async (id: string) => {
       // Create a default response with error information
       return {
         error: true,
-        message: `Error reading device: ${error.message}`,
+        message: `Error reading device: ${error.response?.data?.message || error.message}`,
         deviceId: id,
         timestamp: new Date(),
         readings: []

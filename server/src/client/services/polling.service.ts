@@ -42,25 +42,104 @@ const realtimeDataCache = new Map<string, DeviceReading>();
  * @param deviceId The ID of the device to poll
  * @returns A promise that resolves with the device readings
  */
-export async function pollDevice(deviceId: string): Promise<DeviceReading | null> {
+// Import from the correct service file
+// We have two service files with similar functionality: device.service.ts and deviceService.ts
+// Import the one that works correctly with the read endpoint
+import * as deviceService from './device.service';
+
+export async function pollDevice(deviceId: string, req?: any): Promise<DeviceReading | null> {
   let client = null;
 
   try {
     console.log(chalk.blue(`Starting poll for device ${deviceId}`));
 
-    // Get the Device model from client connection
-    const clientModels = getClientModels();
-    if (!clientModels || !clientModels.Device) {
-      throw new Error('Client Device model not available');
+    // First, try to use the same approach as the read endpoint
+    try {
+      console.log(chalk.cyan(`Using deviceService.readDeviceRegisters for consistency with read endpoint`));
+      
+      const readResult = await deviceService.readDeviceRegisters(deviceId, req);
+      console.log(chalk.green(`Successfully read registers using device service: ${readResult.readings.length} readings`));
+      
+      // Debug log the actual readings
+      console.log(chalk.cyan('Readings from deviceService:'), readResult.readings);
+      
+      // If successful, convert the result to our DeviceReading format
+      if (readResult && readResult.readings && readResult.readings.length > 0) {
+        const deviceReading: DeviceReading = {
+          deviceId: new mongoose.Types.ObjectId(readResult.deviceId),
+          deviceName: readResult.deviceName,
+          timestamp: new Date(),
+          readings: readResult.readings.map(r => ({
+            name: r.name,
+            registerIndex: r.registerIndex,
+            address: r.address,
+            value: r.value,
+            unit: r.unit || '',
+            dataType: r.dataType,
+            error: r.error
+          }))
+        };
+        
+        // Store in real-time cache
+        realtimeDataCache.set(deviceId, deviceReading);
+        console.log(chalk.blue(`Updated real-time cache for device ${readResult.deviceName} with ${deviceReading.readings.length} readings`));
+        
+        // Store in history database
+        await storeHistoricalData(deviceReading);
+        
+        return deviceReading;
+      } else {
+        console.log(chalk.yellow(`Device service returned empty or invalid readings, falling back to original implementation`));
+      }
+    } catch (error) {
+      const serviceError = error as Error;
+      console.log(chalk.yellow(`Error using deviceService.readDeviceRegisters: ${serviceError?.message || String(error)}`));
+      console.log(chalk.yellow(`Falling back to original polling implementation...`));
     }
-    const Device = clientModels.Device;
 
-    // Find the device
-    console.log(chalk.cyan(`Looking up device ${deviceId} in database...`));
-    const device = await Device.findById(deviceId).exec();
-
+    // Fall back to the original implementation if the above fails
+    // Try multiple ways to get the device model to improve resiliency
+    let Device;
+    let device;
+    
+    // First try using getClientModels - the standard approach
+    const models = getClientModels();
+    if (models && models.Device) {
+      console.log(chalk.cyan(`Using Device model from getClientModels()`));
+      Device = models.Device;
+      
+      // Try to find the device
+      console.log(chalk.cyan(`Looking up device ${deviceId} in database...`));
+      console.log(chalk.cyan(`Connection status: ${Device.db?.readyState}, database: ${Device.db?.name}`));
+      device = await Device.findById(deviceId).exec();
+    }
+    
+    // If that failed, try using req.app.locals if available
+    if (!device && req && req.app && req.app.locals.clientModels && req.app.locals.clientModels.Device) {
+      console.log(chalk.cyan(`Using Device model from req.app.locals.clientModels`));
+      Device = req.app.locals.clientModels.Device;
+      console.log(chalk.cyan(`Connection status via app.locals: ${Device.db?.readyState}, database: ${Device.db?.name}`));
+      device = await Device.findById(deviceId).exec();
+    }
+    
+    // If still no device, try with mongoose.model directly as last resort
     if (!device) {
-      console.warn(chalk.yellow(`⚠ Device ${deviceId} not found in database`));
+      try {
+        console.log(chalk.cyan(`Trying with mongoose.model('Device') as last resort`));
+        const LastResortDevice = mongoose.model('Device');
+        device = await LastResortDevice.findById(deviceId).exec();
+      } catch (error) {
+        const err = error as Error;
+        console.warn(chalk.yellow(`Failed to get device with mongoose.model: ${err?.message || String(error)}`));
+      }
+    }
+
+    // If we still don't have a device, check if we can proceed anyway
+    if (!device) {
+      console.warn(chalk.yellow(`⚠ Device ${deviceId} not found in database but will attempt to proceed`));
+      
+      // For polling, we could potentially skip database validation in some cases
+      // and rely on cached connection parameters, but for now we'll return null
       return null;
     }
 
@@ -311,13 +390,30 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
             for (const param of parser.parameters) {
               try {
-                // Get the register index relative to the range start
-                const relativeIndex = param.registerIndex - range.startAddress;
+                // Calculate the register index relative to the range start
+                // This logic is very important - need to properly handle both absolute and relative addressing
+                let relativeIndex;
+                
+                // Check if parameter index is within the valid range
+                if (param.registerIndex >= range.startAddress && 
+                    param.registerIndex < range.startAddress + range.count) {
+                  // This is an absolute index (register address), calculate the relative position
+                  relativeIndex = param.registerIndex - range.startAddress;
+                  console.log(chalk.cyan(`Parameter ${param.name} uses absolute addressing: ${param.registerIndex} -> ${relativeIndex}`));
+                } else if (param.registerIndex < range.count) {
+                  // This is already a relative index (offset from start)
+                  relativeIndex = param.registerIndex;
+                  console.log(chalk.cyan(`Parameter ${param.name} uses relative addressing: ${param.registerIndex}`));
+                } else {
+                  // Not a valid index - either way
+                  relativeIndex = param.registerIndex - range.startAddress;
+                  console.log(chalk.yellow(`Parameter ${param.name} has unusual register index ${param.registerIndex}, trying as absolute index`));
+                }
 
                 if (relativeIndex < 0 || relativeIndex >= range.count) {
                   console.log(
                     chalk.yellow(
-                      `⚠ Parameter ${param.name} register index ${param.registerIndex} is out of range, skipping`,
+                      `⚠ Parameter ${param.name} register index ${param.registerIndex} is out of range (relative: ${relativeIndex}), skipping`,
                     ),
                   );
                   continue; // Skip if out of range
@@ -506,7 +602,16 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
     device.lastSeen = new Date();
     await device.save();
 
-    // Prepare the result
+    // Check if we have any actual readings with values
+    const validReadings = readings.filter(r => r.value !== null && r.value !== undefined && !r.error);
+    
+    console.log(chalk.cyan(`Found ${validReadings.length} valid readings out of ${readings.length} total readings`));
+    
+    if (validReadings.length === 0 && readings.length > 0) {
+      console.log(chalk.yellow(`⚠ No valid readings found for device ${device.name} (${deviceId}) - all readings have null values or errors`));
+    }
+    
+    // Prepare the result with all readings (including errors)
     const deviceReading: DeviceReading = {
       deviceId: device._id,
       deviceName: device.name,
@@ -518,11 +623,15 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
     realtimeDataCache.set(deviceId, deviceReading);
     console.log(chalk.blue(`Updated real-time cache for device ${device.name}`));
 
-    // Store in history database
-    await storeHistoricalData(deviceReading);
-    console.log(
-      chalk.green(`✓ Successfully polled device ${device.name} with ${readings.length} readings`),
-    );
+    // Store in history database only if we have valid readings
+    if (validReadings.length > 0) {
+      await storeHistoricalData(deviceReading);
+      console.log(
+        chalk.green(`✓ Successfully polled device ${device.name} with ${validReadings.length} valid readings`),
+      );
+    } else {
+      console.log(chalk.yellow(`⚠ No valid readings to store in historical data for device ${device.name}`));
+    }
 
     return deviceReading;
   } catch (error: any) {
@@ -532,14 +641,29 @@ export async function pollDevice(deviceId: string): Promise<DeviceReading | null
 
     try {
       // Get device name for better error reporting
-      const clientModels = getClientModels();
       let deviceName = deviceId;
-
-      if (clientModels && clientModels.Device) {
-        const device = await clientModels.Device.findById(deviceId).select('name').lean().exec();
-        if (device && device.name) {
-          deviceName = device.name;
+      
+      // Try multiple ways to get device name to improve resilience
+      try {
+        // First try using the client models from getClientModels()
+        const clientModels = getClientModels();
+        if (clientModels && clientModels.Device) {
+          const device = await clientModels.Device.findById(deviceId).select('name').lean().exec();
+          if (device && device.name) {
+            deviceName = device.name;
+          }
         }
+        
+        // If that didn't work, try req.app.locals
+        if (deviceName === deviceId && req && req.app && req.app.locals.clientModels) {
+          const device = await req.app.locals.clientModels.Device.findById(deviceId).select('name').lean().exec();
+          if (device && device.name) {
+            deviceName = device.name;
+          }
+        }
+      } catch (error) {
+        const nameError = error as Error;
+        console.warn(chalk.yellow(`⚠ Could not get device name: ${nameError?.message || String(error)}`));
       }
 
       // Create error reading for the device
@@ -603,6 +727,15 @@ export function getRealtimeData(deviceId: string): DeviceReading | null {
 }
 
 /**
+ * Check if a device has active polling
+ * @param deviceId The ID of the device
+ * @returns True if the device is being actively polled, false otherwise
+ */
+export function isDevicePollingActive(deviceId: string): boolean {
+  return pollingIntervals.has(deviceId);
+}
+
+/**
  * Store device reading in historical database
  * @param deviceReading The device reading to store
  */
@@ -613,14 +746,33 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
       chalk.blue(`Preparing to store historical data for device ${deviceReading.deviceName}`),
     );
 
+    // Try multiple approaches to get the HistoricalData model for resilience
+    let HistoricalData;
+    
+    // First try with getClientModels
     const clientModels = getClientModels();
-    if (!clientModels || !clientModels.HistoricalData) {
+    if (clientModels && clientModels.HistoricalData) {
+      HistoricalData = clientModels.HistoricalData;
+    }
+    
+    // If that failed, try with mongoose.model directly as a fallback
+    if (!HistoricalData) {
+      try {
+        console.log(chalk.yellow(`Trying to get HistoricalData model with mongoose.model`));
+        HistoricalData = mongoose.model('HistoricalData');
+      } catch (error) {
+        const modelError = error as Error;
+        console.warn(chalk.yellow(`Failed to get HistoricalData model: ${modelError?.message || String(error)}`));
+      }
+    }
+    
+    // If we still don't have a model, skip historical data storage
+    if (!HistoricalData) {
       console.warn(
         chalk.yellow(`⚠ HistoricalData model not available, skipping historical data storage`),
       );
       return; // Skip historical data storage instead of throwing an error
     }
-    const HistoricalData = clientModels.HistoricalData;
 
     // Filter out readings with errors or null values
     const validReadings = deviceReading.readings.filter(
@@ -674,26 +826,54 @@ export function startPollingDevice(deviceId: string, intervalMs = 10000): NodeJS
     ),
   );
 
-  // The polling function with improved error handling
+  // The polling function with improved error handling and resilience
   const doPoll = async () => {
     console.log(chalk.blue(`📊 Running polling cycle for device ${deviceId}`));
     try {
-      await pollDevice(deviceId);
+      // Just pass null for req since we don't have access to it here
+      await pollDevice(deviceId, null);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`❌ Error polling device ${deviceId}: ${errorMessage}`));
       
-      // Check if device exists and is enabled
+      // Check if device exists and is enabled using multiple approaches for resilience
+      let deviceFound = false;
+      let deviceEnabled = true;
+      
       try {
+        // First try with getClientModels
         const clientModels = getClientModels();
         if (clientModels?.Device) {
           const device = await clientModels.Device.findById(deviceId).select('enabled').lean().exec();
-          
-          // If device is disabled or deleted, stop polling
-          if (!device || device.enabled === false) {
-            console.log(chalk.yellow(`⚠ Device ${deviceId} is disabled or deleted, stopping polling`));
-            stopPollingDevice(deviceId);
+          if (device) {
+            deviceFound = true;
+            // Handle device.enabled safely with type checking
+            deviceEnabled = device && typeof device === 'object' && 'enabled' in device ? 
+              device.enabled !== false : true; // treat undefined as enabled
           }
+        }
+        
+        // If device not found, try with mongoose.model directly as last resort
+        if (!deviceFound) {
+          try {
+            const LastResortDevice = mongoose.model('Device');
+            const device = await LastResortDevice.findById(deviceId).select('enabled').lean().exec();
+            if (device) {
+              deviceFound = true;
+              // Handle device.enabled safely with type checking
+              deviceEnabled = device && typeof device === 'object' && 'enabled' in device ? 
+                device.enabled !== false : true;
+            }
+          } catch (error) {
+            const modelError = error as Error;
+            console.warn(chalk.yellow(`Failed to check device with mongoose.model: ${modelError?.message || String(error)}`));
+          }
+        }
+          
+        // If device is disabled or deleted, stop polling
+        if (!deviceEnabled) {
+          console.log(chalk.yellow(`⚠ Device ${deviceId} is disabled, stopping polling`));
+          stopPollingDevice(deviceId);
         }
       } catch (checkError) {
         // If we can't check the device, continue polling

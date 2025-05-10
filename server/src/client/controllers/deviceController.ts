@@ -1,6 +1,13 @@
 import { Request, Response } from 'express';
-import * as deviceService from '../services';
+import mongoose from 'mongoose';
+import ModbusRTU from 'modbus-serial';
+import chalk from 'chalk';
 
+import * as deviceService from '../services/device.service';
+import * as modbusAdapter from './modbusAdapter';
+import { Device, createDeviceModel, IDevice, clientModels } from '../models';
+import { getClientDbConnection } from '../models/index';
+import { createModbusRTUClient, safeCloseModbusClient } from './modbusHelper';
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {
@@ -12,13 +19,6 @@ interface AuthRequest extends Request {
     email?: string;
   };
 }
-import mongoose from 'mongoose';
-
-import { Device, createDeviceModel, IDevice, clientModels } from '../models';
-import { getClientDbConnection } from '../models/index';
-import ModbusRTU from 'modbus-serial';
-import chalk from 'chalk';
-import { createModbusRTUClient, safeCloseModbusClient } from './modbusHelper';
 
 // @desc    Get all devices
 // @route   GET /api/devices
@@ -293,7 +293,6 @@ function compareStrings(a: string, b: string) {
 // @desc    Get a single device
 // @route   GET /api/devices/:id
 // @access  Private
-
 export const getDevices = async (req: AuthRequest, res: Response) => {
   try {
     console.log('[deviceController] getDevices: Starting retrieval of devices');
@@ -1073,445 +1072,65 @@ export const deleteDevice = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
   try {
-    console.log(
-      chalk.bgYellow.white(
-        '[deviceController] testDeviceConnection: Starting device connection test',
-      ),
-    );
-
-    // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = null;
-
-    // Always try to get it from other sources
-    if (!DeviceModel) {
-      console.log(
-        chalk.bgRed.white(
-          '[deviceController] No cached device model for testDeviceConnection, trying alternatives',
-        ),
-      );
-
-      // Get the client database connection and models
-      const clientModels = req.app.locals.clientModels;
-      const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-
-      // Check if we have client models
-      if (clientModels && clientModels.Device) {
-        DeviceModel = clientModels.Device;
-        console.log(
-          chalk.bgYellow.white(
-            '[deviceController] Using client-specific Device model from app.locals',
-          ),
-        );
-      } else if (mainDBConnection && mainDBConnection.readyState === 1) {
-        // Check if mainDBConnection (client connection) is available
-        console.log(
-          chalk.bgGreen.white('[deviceController] Creating Device model with client connection'),
-        );
-        try {
-          DeviceModel = createDeviceModel(mainDBConnection);
-        } catch (err) {
-          console.error(
-            chalk.bgRed.white(
-              '[deviceController] Error creating Device model with client connection:',
-            ),
-            err,
-          );
-          console.warn(
-            chalk.bgYellow.white('[deviceController] Falling back to default Device model'),
-          );
-          DeviceModel = Device;
-        }
-      } else {
-        console.warn(
-          chalk.bgYellow.white('[deviceController] No client database connection available'),
-        );
-        DeviceModel = Device;
-      }
-    } else {
-      console.log(chalk.bgYellow.white('[deviceController] Using cached client device model'));
+    console.log(chalk.bgYellow.white('[deviceController] Starting device connection test'));
+    
+    const deviceId = req.params.id;
+    
+    if (!deviceId) {
+      return res.status(400).json({ message: 'Device ID is required' });
     }
-
-    // Safety check to ensure we only use client database models
-    if (!DeviceModel || DeviceModel.db?.name !== 'client') {
-      console.error(
-        chalk.bgRed.white(
-          `[deviceController] ERROR: Model connected to wrong database: ${DeviceModel?.db?.name || 'unknown'}`,
-        ),
-      );
-      console.log(chalk.bgBlue.white('[deviceController] Forcing reconnection to client database'));
-
-      // Try to force create a new model with the client DB
-      const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-      if (
-        mainDBConnection &&
-        mainDBConnection.readyState === 1 &&
-        mainDBConnection.name === 'client'
-      ) {
-        try {
-          DeviceModel = createDeviceModel(mainDBConnection);
-          console.log(
-            chalk.green.white(
-              `[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`,
-            ),
-          );
-        } catch (reconnectError) {
-          console.error(
-            chalk.bgRed.white('[deviceController] Could not reconnect to client database:'),
-            reconnectError,
-          );
-        }
-      }
-    }
-
-    // Make sure we have a valid model
-    if (!DeviceModel) {
-      console.error(chalk.bgRed.white('[deviceController] Failed to get a valid Device model'));
-      return res.status(500).json({
-        message: 'Database connection error',
-        error: 'Could not initialize database model',
-      });
-    }
-
-    const device = await DeviceModel.findById(req.params.id);
-
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
-    }
-
-    if (!device.enabled) {
+    
+    // Check if deviceId is in the correct format
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
       return res.status(400).json({
         success: false,
-        message: 'Device is disabled',
+        message: 'Invalid device ID format'
       });
     }
-
-    // Test Modbus connection
-    let client: ModbusRTU | null = null;
+    
     try {
-      // Get connection settings (support both new and legacy format)
-      const connectionType =
-        device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-
-      // Get TCP settings
-      const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : device.ip || '';
-      const port =
-        connectionType === 'tcp' ? device.connectionSetting?.tcp?.port : device.port || 0;
-      const tcpSlaveId =
-        connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
-
-      // Get RTU settings
-      const serialPort =
-        connectionType === 'rtu'
-          ? device.connectionSetting?.rtu?.serialPort
-          : device.serialPort || '';
-      const baudRate =
-        connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : device.baudRate || 0;
-      const dataBits =
-        connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : device.dataBits || 0;
-      const stopBits =
-        connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : device.stopBits || 0;
-      const parity =
-        connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : device.parity || '';
-      const rtuSlaveId =
-        connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
-
-      // Combined slaveId (prefer the one from the matching connection type)
-      const slaveId = connectionType === 'tcp' ? tcpSlaveId : rtuSlaveId || device.slaveId || 1;
-
-      // Log connection details for debugging
-      console.log(
-        chalk.cyan(
-          `[deviceController] Testing connection to ${connectionType.toUpperCase()} device:`,
-        ),
-      );
-      if (connectionType === 'tcp') {
-        console.log(chalk.cyan(`[deviceController] IP: ${ip}, Port: ${port}, SlaveID: ${slaveId}`));
+      
+      // Use the device service to test the connection
+      // This will handle database connection, device finding, and testing Modbus connection
+      const result = await deviceService.testConnection(deviceId, req);
+      
+      // Since we want to maintain exact consistency of the response format,
+      // we could make minor adjustments to the service response if needed
+      
+      // Log the result
+      if (result.success) {
+        console.log(chalk.green(`[deviceController] Successfully connected to device ${deviceId}`));
       } else {
-        console.log(
-          chalk.cyan(
-            `[deviceController] Serial Port: ${serialPort}, Baud Rate: ${baudRate}, SlaveID: ${slaveId}`,
-          ),
-        );
+        console.log(chalk.yellow(`[deviceController] Connection failed for device ${deviceId}: ${result.message}`));
       }
-
-      // Set connection timeout to handle non-responsive devices
-      const connectionTimeout = 10000; // 10 seconds
-
-      // Create a standard client to use existing code
-      client = new ModbusRTU();
-
-      try {
-        // Connect based on connection type
-        if (connectionType === 'tcp' && ip && port) {
-          // Set a timeout for TCP connection
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(
-              () => reject(new Error(`Connection timeout after ${connectionTimeout}ms`)),
-              connectionTimeout,
-            );
-          });
-
-          // Race the connection and timeout
-          await Promise.race([client.connectTCP(ip, { port }), timeoutPromise]);
-
-          console.log(
-            chalk.green(`[deviceController] Successfully connected to TCP device at ${ip}:${port}`),
-          );
-        } else if (connectionType === 'rtu' && serialPort) {
-          const rtuOptions: any = {};
-          if (baudRate) rtuOptions.baudRate = baudRate;
-          if (dataBits) rtuOptions.dataBits = dataBits;
-          if (stopBits) rtuOptions.stopBits = stopBits;
-          if (parity) rtuOptions.parity = parity;
-
-          // Use our helper function for RTU connections to avoid port contention
-          await safeCloseModbusClient(client); // Close the standard client first
-          client = await createModbusRTUClient(serialPort, {
-            baudRate: baudRate || 9600,
-            dataBits: (dataBits as 5 | 6 | 7 | 8) || 8,
-            stopBits: (stopBits as 1 | 2) || 1,
-            parity: (parity as 'none' | 'even' | 'odd') || 'none',
-            timeout: connectionTimeout,
-            unitId: slaveId,
-          });
-
-          console.log(
-            chalk.green(`[deviceController] Successfully connected to RTU device at ${serialPort}`),
-          );
-        } else {
-          throw new Error('Invalid connection configuration');
-        }
-      } catch (connectionError: any) {
-        // Add more detailed error reporting
-        console.error(chalk.red(`[deviceController] Connection error:`), connectionError);
-
-        if (connectionError.code === 'ECONNREFUSED') {
-          throw new Error(
-            `Connection refused at ${ip}:${port}. The device may be offline or unreachable.`,
-          );
-        } else if (
-          connectionError.code === 'ETIMEDOUT' ||
-          connectionError.message.includes('timeout')
-        ) {
-          throw new Error(`Connection timed out. Device at ${ip}:${port} is not responding.`);
-        } else if (connectionError.message.includes('Port is opening')) {
-          throw new Error(`Serial port ${serialPort} is already in use by another process.`);
-        } else {
-          // Re-throw with original error for other cases
-          throw connectionError;
-        }
-      }
-
-      if (slaveId !== undefined) {
-        client.setID(slaveId);
-      } else {
-        client.setID(1); // Default slave ID
-      }
-
-      // Try to read a register from first dataPoint or legacy register
-      let address = 0;
-      let functionCode = 3; // Default to readHoldingRegisters
-
-      if (device.dataPoints && device.dataPoints.length > 0) {
-        address = device.dataPoints[0].range.startAddress;
-        functionCode = device.dataPoints[0].range.fc;
-      } else if (device.registers && device.registers.length > 0) {
-        address = device.registers[0].address;
-      }
-
-      console.log(
-        chalk.yellow(
-          `[deviceController] Testing read operation with address ${address} using function code ${functionCode}`,
-        ),
-      );
-
-      // Read register based on function code
-      switch (functionCode) {
-        case 1:
-          await client.readCoils(address, 1);
-          break;
-        case 2:
-          await client.readDiscreteInputs(address, 1);
-          break;
-        case 3:
-          await client.readHoldingRegisters(address, 1);
-          break;
-        case 4:
-          await client.readInputRegisters(address, 1);
-          break;
-        default:
-          await client.readHoldingRegisters(address, 1);
-      }
-
-      console.log(chalk.bgGreen.black(`[deviceController] Read operation successful!`));
-
-      // Update device lastSeen timestamp
-      device.lastSeen = new Date();
-      await device.save();
-      console.log(
-        chalk.green(`[deviceController] Updated device lastSeen timestamp to ${device.lastSeen}`),
-      );
-
-      // Send a clear success response with additional details for the frontend
-      const successResponse = {
-        success: true,
-        message: 'Successfully connected to device',
-        deviceInfo: {
-          name: device.name,
-          id: device._id,
-          connectionType:
-            device.connectionSetting?.connectionType || device.connectionType || 'tcp',
-          address:
-            device.connectionSetting?.connectionType === 'tcp' && device.connectionSetting?.tcp
-              ? `${device.connectionSetting.tcp.ip || ''}:${device.connectionSetting.tcp.port || ''}`
-              : device.connectionSetting?.rtu?.serialPort || '',
-          lastSeen: device.lastSeen,
-        },
-        timestamp: new Date().toISOString(),
-        status: 'CONNECTED',
-      };
-
-      console.log(
-        chalk.green(
-          `[deviceController] Sending success response to client: ${JSON.stringify(successResponse)}`,
-        ),
-      );
-      res.json(successResponse);
-    } catch (modbusError: any) {
-      console.error(chalk.bgRed.white('Modbus connection error:'), modbusError);
-
-      // Create a more detailed error message based on error type
-      let errorMessage = 'Connection failed';
-      let errorType = 'UNKNOWN_ERROR';
-      let troubleshooting = 'Verify your device configuration and try again.';
-
-      // Store the connection type in local variable
-      const deviceConnectionType =
-        device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-
-      // Store connection info locally for error messages to avoid scope issues
-      const deviceIp =
-        deviceConnectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : device.ip || '';
-      const devicePort =
-        deviceConnectionType === 'tcp' ? device.connectionSetting?.tcp?.port : device.port || 0;
-      const deviceSerialPort =
-        deviceConnectionType === 'rtu'
-          ? device.connectionSetting?.rtu?.serialPort
-          : device.serialPort || '';
-
-      if (modbusError.code === 'ECONNREFUSED') {
-        errorType = 'CONNECTION_REFUSED';
-        errorMessage = `Connection refused at ${deviceIp}:${devicePort}. The device may be offline or unreachable.`;
-        troubleshooting =
-          'Please check:\n• Device is powered on and network is connected\n• IP address and port are correct\n• Any firewalls or network security is allowing the connection\n• The device is properly configured to accept Modbus TCP connections';
-        console.log(
-          chalk.red(`[deviceController] Connection refused at ${deviceIp}:${devicePort}`),
-        );
-      } else if (modbusError.code === 'ETIMEDOUT') {
-        errorType = 'CONNECTION_TIMEOUT';
-        errorMessage = `Connection timed out when connecting to ${deviceIp}:${devicePort}. The device is not responding.`;
-        troubleshooting =
-          'Please check:\n• Network connectivity to the device\n• Device is powered on and functioning\n• Device is not in a busy state or overloaded\n• Network latency is not too high';
-        console.log(
-          chalk.red(
-            `[deviceController] Connection timed out for device at ${deviceIp}:${devicePort}`,
-          ),
-        );
-      } else if (modbusError.message.includes('No such file or directory')) {
-        errorType = 'PORT_NOT_FOUND';
-        errorMessage = `Serial port ${deviceSerialPort} does not exist on this system.`;
-        troubleshooting =
-          'Please check:\n• Serial port name is correct (COM ports on Windows, /dev/tty* on Linux/Mac)\n• Serial device is properly connected to the computer\n• Serial-to-USB adapter drivers are installed if applicable\n• The port is not being used by another application';
-        console.log(chalk.red(`[deviceController] Serial port not found: ${deviceSerialPort}`));
-      } else if (modbusError.message.includes('Access denied')) {
-        errorType = 'PERMISSION_DENIED';
-        errorMessage = `Permission denied for serial port ${deviceSerialPort}.`;
-        troubleshooting =
-          'Please check:\n• Your account has permissions to access serial ports\n• On Linux/Mac, you may need to add your user to the "dialout" group\n• Serial port is not locked by another process\n• Try running the application with administrator/root privileges';
-        console.log(
-          chalk.red(`[deviceController] Permission denied for serial port: ${deviceSerialPort}`),
-        );
-      } else if (modbusError.message.includes('Port is opening')) {
-        errorType = 'PORT_BUSY';
-        errorMessage = 'The serial port is in use by another process.';
-        troubleshooting =
-          'Please check:\n• Close any other applications that might be using the serial port\n• Restart the device to release any locked port connections\n• On Windows, check Device Manager to see if the port has any conflicts';
-        console.log(chalk.red(`[deviceController] Serial port busy: ${deviceSerialPort}`));
-      } else if (modbusError.message.includes('Received no valid response')) {
-        errorType = 'DEVICE_NO_RESPONSE';
-        errorMessage = 'The device did not respond correctly to the Modbus request.';
-        troubleshooting =
-          'Please check:\n• The slave/unit ID is correct\n• The Modbus device is configured to respond to the function code being used\n• The device supports the Modbus commands being sent\n• The register address is within the valid range for this device';
-        console.log(
-          chalk.red(
-            `[deviceController] No valid response from device, slave ID: ${device.slaveId}`,
-          ),
-        );
-      } else if (modbusError.message.includes('Illegal function')) {
-        errorType = 'ILLEGAL_FUNCTION';
-        errorMessage = 'The device does not support the Modbus function being used.';
-        troubleshooting =
-          'Please check:\n• The device documentation for supported Modbus function codes\n• Verify the correct function code is being used for this device\n• Some devices only support a subset of Modbus functions';
-        console.log(chalk.red(`[deviceController] Illegal function code`));
-      } else if (modbusError.message.includes('Illegal data address')) {
-        errorType = 'ILLEGAL_ADDRESS';
-        errorMessage = 'The register address requested does not exist on this device.';
-        troubleshooting =
-          'Please check:\n• The register address map documentation for your device\n• Address mapping (e.g., some devices start at 0, others at 1)\n• Address offsets and ranges for this specific device model';
-        console.log(chalk.red(`[deviceController] Illegal data address error`));
-      } else if (modbusError.message.includes('Port Not Open')) {
-        errorType = 'PORT_NOT_OPEN';
-        errorMessage = 'The connection was lost during communication.';
-        troubleshooting =
-          'Please check:\n• Device power and network stability\n• Connection issues or interference\n• Try restarting both the device and the application';
-        console.log(chalk.red(`[deviceController] Port Not Open error - connection lost`));
-      } else if (modbusError.message) {
-        errorMessage = `${errorMessage}: ${modbusError.message}`;
-        troubleshooting =
-          'Review device documentation and Modbus specifications for more specific guidance.';
-        console.log(chalk.red(`[deviceController] Error: ${modbusError.message}`));
-      }
-
-      console.log(
-        chalk.yellow(`[deviceController] Sending error response with type: ${errorType}`),
-      );
-
-      // Structure the error response to be more easily interpretable by the frontend
-      const errorResponse = {
+      
+      // Return the response in the same format as before - which should match the service response exactly
+      return res.status(200).json(result);
+    } catch (error: any) {
+      // This shouldn't happen often since the service handles its own errors
+      console.error(chalk.bgRed.white('[deviceController] Unhandled error in test connection:'), error);
+      
+      // Structure server errors consistently with other responses
+      const serverErrorResponse = {
         success: false,
-        message: errorMessage,
-        error: modbusError.message,
-        troubleshooting: troubleshooting,
-        errorType: errorType,
-        deviceInfo: {
-          name: device.name,
-          id: device._id,
-          connectionType: deviceConnectionType,
-          // Safely build the address string with null checks and defaults
-          address:
-            deviceConnectionType === 'tcp'
-              ? `${deviceIp || 'unknown'}:${devicePort || 'unknown'}`
-              : deviceSerialPort || 'unknown',
-        },
+        message: 'Server error processing the connection test',
+        error: error.message,
+        errorType: 'SERVER_ERROR',
         timestamp: new Date().toISOString(),
         status: 'ERROR',
+        deviceInfo: {
+          id: deviceId,
+        },
       };
-
-      console.log(
-        chalk.yellow(`[deviceController] Error response: ${JSON.stringify(errorResponse)}`),
-      );
-
-      // Use 200 status with success: false instead of 400 to ensure the frontend always receives and can display the response
-      res.status(200).json(errorResponse);
-    } finally {
-      // Use our safer helper function to close the connection
-      await safeCloseModbusClient(client);
-      console.log(chalk.blue(`[deviceController] Closed Modbus connection`));
+      
+      // Use 200 status with success: false for consistency with other error responses
+      return res.status(200).json(serverErrorResponse);
     }
   } catch (error: any) {
-    console.error(chalk.bgRed.white('Test connection error:'), error);
-
-    // Structure server errors consistently with other responses
+    // This is a catch-all for errors that escape the inner try/catch
+    console.error(chalk.bgRed.white('[deviceController] Critical error in test connection:'), error);
+    
     const serverErrorResponse = {
       success: false,
       message: 'Server error processing the connection test',
@@ -1521,751 +1140,248 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
       status: 'ERROR',
       deviceInfo: {
         id: req.params.id,
-        // We don't have the device info here since the error happened before we could retrieve it
       },
     };
-
-    console.log(
-      chalk.bgRed.white(
-        `[deviceController] Server error response: ${JSON.stringify(serverErrorResponse)}`,
-      ),
-    );
-
-    // Use 200 status with success: false for consistency with other error responses
-    res.status(200).json(serverErrorResponse);
+    
+    return res.status(200).json(serverErrorResponse);
   }
 };
 
 // @desc    Read registers from a device
 // @route   GET /api/devices/:id/read
 // @access  Private
+
 export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   try {
-    // Helper function to log register values in hex format
-    const logRegistersInHex = (name: string, reg1: any, reg2?: any, byteOrder?: string) => {
-      if (reg2 !== undefined) {
-        // For two registers (like FLOAT32)
-        const hex1 = typeof reg1 === 'number' ? reg1.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
-        const hex2 = typeof reg2 === 'number' ? reg2.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
-        console.log(`[HEX] Parameter ${name}: reg1=0x${hex1}, reg2=0x${hex2}, byteOrder=${byteOrder || 'N/A'}`);
-      } else {
-        // For single register
-        const hex = typeof reg1 === 'number' ? reg1.toString(16).padStart(4, '0').toUpperCase() : 'INVALID';
-        console.log(`[HEX] Parameter ${name}: reg=0x${hex}`);
-      }
-    };
-
-    // Try to get the cached client device model first
-    let DeviceModel: mongoose.Model<IDevice> | null = null;
-
-    // Always try to get it from other sources
-    if (!DeviceModel) {
-      console.log(
-        '[deviceController] No cached device model for readDeviceRegistersConsecutive, trying alternatives',
-      );
-
-      // Get the client database connection and models
-      const clientModels = req.app.locals.clientModels;
-      const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-
-      // Check if we have client models
-      if (clientModels && clientModels.Device) {
-        DeviceModel = clientModels.Device;
-        console.log('[deviceController] Using client-specific Device model from app.locals');
-      } else if (mainDBConnection && mainDBConnection.readyState === 1) {
-        // Check if mainDBConnection (client connection) is available
-        console.log('[deviceController] Creating Device model with client connection');
-        try {
-          DeviceModel = createDeviceModel(mainDBConnection);
-        } catch (err) {
-          console.error(
-            '[deviceController] Error creating Device model with client connection:',
-            err,
-          );
-          console.warn('[deviceController] Falling back to default Device model');
-          DeviceModel = Device;
-        }
-      } else {
-        console.warn('[deviceController] No client database connection available');
-        DeviceModel = Device;
-      }
-    } else {
-      console.log('[deviceController] Using cached client device model');
+    console.log('[deviceController] Starting device register read using service');
+    
+    const deviceId = req.params.id;
+    
+    if (!deviceId) {
+      return res.status(400).json({ message: 'Device ID is required' });
     }
-
-    // Safety check to ensure we only use client database models
-    if (!DeviceModel || DeviceModel.db?.name !== 'client') {
-      console.error(
-        `[deviceController] ERROR: Model connected to wrong database: ${DeviceModel?.db?.name || 'unknown'}`,
-      );
-      console.log('[deviceController] Forcing reconnection to client database');
-
-      // Try to force create a new model with the client DB
-      const mainDBConnection = req.app.locals.mainDB || getClientDbConnection();
-      if (
-        mainDBConnection &&
-        mainDBConnection.readyState === 1 &&
-        mainDBConnection.name === 'client'
-      ) {
-        try {
-          DeviceModel = createDeviceModel(mainDBConnection);
-          console.log(
-            `[deviceController] Successfully reconnected to client database: ${DeviceModel.db?.name}`,
-          );
-        } catch (reconnectError) {
-          console.error(
-            '[deviceController] Could not reconnect to client database:',
-            reconnectError,
-          );
-        }
-      }
-    }
-
-    // Make sure we have a valid model
-    if (!DeviceModel) {
-      console.error('[deviceController] Failed to get a valid Device model');
-      return res.status(500).json({
-        message: 'Database connection error',
-        error: 'Could not initialize database model',
+    
+    // Check if deviceId is in the correct format
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid device ID format'
       });
     }
-
-    const device = await DeviceModel.findById(req.params.id);
-
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
-    }
-
-    if (!device.enabled) {
-      return res.status(400).json({ message: 'Device is disabled' });
-    }
-
-    // Check if device has any configuration for reading
-    const hasNewConfig = device.dataPoints && device.dataPoints.length > 0;
-    const hasLegacyConfig = device.registers && device.registers.length > 0;
-
-    if (!hasNewConfig && !hasLegacyConfig) {
-      return res
-        .status(400)
-        .json({ message: 'No data points or registers configured for this device' });
-    }
-
-    // Get connection settings (support both new and legacy format)
-    const connectionType =
-      device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-
-    // Get TCP settings
-    const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : device.ip || '';
-    const port = connectionType === 'tcp' ? device.connectionSetting?.tcp?.port : device.port || 0;
-    const tcpSlaveId =
-      connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
-
-    // Get RTU settings
-    const serialPort =
-      connectionType === 'rtu'
-        ? device.connectionSetting?.rtu?.serialPort
-        : device.serialPort || '';
-    const baudRate =
-      connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : device.baudRate || 0;
-    const dataBits =
-      connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : device.dataBits || 0;
-    const stopBits =
-      connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : device.stopBits || 0;
-    const parity =
-      connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : device.parity || '';
-    const rtuSlaveId =
-      connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
-
-    // Combined slaveId (prefer the one from the matching connection type)
-    const slaveId = connectionType === 'tcp' ? tcpSlaveId : rtuSlaveId || device.slaveId || 1;
-
-    // Initialize Modbus client
-    const client = new ModbusRTU();
-    const readings: any[] = [];
-
+    
     try {
-      // Connect based on connection type
-      if (connectionType === 'tcp' && ip && port) {
-        console.log(`[deviceController] Connecting to ${ip}:${port} with slaveId ${slaveId}`);
-        await client.connectTCP(ip, { port });
-      } else if (connectionType === 'rtu' && serialPort) {
-        const rtuOptions: any = {};
-        if (baudRate) rtuOptions.baudRate = baudRate;
-        if (dataBits) rtuOptions.dataBits = dataBits;
-        if (stopBits) rtuOptions.stopBits = stopBits;
-        if (parity) rtuOptions.parity = parity;
-
-        console.log(`[deviceController] Connecting to RTU port ${serialPort} with options:`, rtuOptions);
-        
-        //FIXME:
-        await client.connectRTUBuffered(serialPort.replace(/\s+/g, ''), rtuOptions);
-        // await client.connectRTUBuffered('/dev/tty.usbserial-A50285BI', rtuOptions);
-      } else {
-        throw new Error('Invalid connection configuration');
-      }
-
-      if (slaveId !== undefined) {
-        client.setID(slaveId);
-        console.log(`[deviceController] Set slave ID to ${slaveId}`);
-      } else {
-        client.setID(1); // Default slave ID
-        console.log(`[deviceController] Using default slave ID: 1`);
-      }
-
-      // NEW STRUCTURE: Read each data point
-      if (hasNewConfig && device.dataPoints) {
-        console.log(
-          // `[deviceController] Found ${device.dataPoints.length} data points to read`
-        );
-
-        for (const dataPoint of device.dataPoints) {
-          try {
-            const range = dataPoint.range;
-            const parser = dataPoint.parser;
-
-            // console.log(
-            //   // `[deviceController] Processing data point with range startAddress=${range.startAddress}, count=${range.count}, fc=${range.fc}`
-            // );
-
-            // Read registers based on function code
-            let result;
-
-            // Apply device-specific register address adjustments
-            let startAddress = range.startAddress;
-
-            // Handle different register addressing conventions based on device make
-            if (
-              device.make?.toLowerCase().includes('china') ||
-              device.make?.toLowerCase().includes('energy analyzer')
-            ) {
-              // Some Chinese Energy Analyzers use 1-based addressing while Modbus is 0-based
-              // No adjustment needed - already uses absolute addressing
-              console.log(
-                `[deviceController] Using standard register addressing for Chinese Energy Analyzer`,
-              );
-            } else if (device.advancedSettings?.connectionOptions?.retries === 0) {
-              // This is a trick - we're using the retries=0 as a flag for devices that need -1 adjustment
-              startAddress = startAddress - 1;
-              // console.log(
-              //   `[deviceController] Using 0-based register addressing (adjusted from ${range.startAddress} to ${startAddress})`,
-              // );
-            }
-
-            // Always use the full range count for consecutive register reading
-            const count = range.count;
-            // console.log(
-            //   `[deviceController] Reading full range of ${count} registers from address ${startAddress} using FC${range.fc}`
-            // );
-
-            switch (range.fc) {
-              case 1:
-                result = await client.readCoils(startAddress, count);
-                break;
-              case 2:
-                result = await client.readDiscreteInputs(startAddress, count);
-                break;
-              case 3:
-                console.log(`[deviceController] Reading holding registers...`);
-                result = await client.readHoldingRegisters(startAddress, count);
-                console.log(`[deviceController] Read result:`, JSON.stringify(result));
-                break;
-              case 4:
-                result = await client.readInputRegisters(startAddress, count);
-                break;
-              default:
-                console.log(`[deviceController] Unknown function code ${range.fc}, defaulting to readHoldingRegisters`);
-                result = await client.readHoldingRegisters(startAddress, count);
-            }
-
-            console.log(
-              `[deviceController] Successfully read ${count} registers from address ${startAddress} using FC${range.fc}`
-            );
-
-            // Log raw registers in hex format
-            if (result.data && Array.isArray(result.data)) {
-              console.log('[HEX] All raw registers:');
-              for (let i = 0; i < result.data.length; i++) {
-                const value = result.data[i];
-                if (typeof value === 'number') {
-                  const hex = value.toString(16).padStart(4, '0').toUpperCase();
-                  console.log(`[HEX]   Register ${startAddress + i}: 0x${hex} (${value})`);
-                } else {
-                  console.log(`[HEX]   Register ${startAddress + i}: INVALID`);
-                }
-              }
-            }
-
-            // Process the result based on parser configuration
-            if (parser && parser.parameters) {
-              console.log(
-                `[deviceController] Processing ${parser.parameters.length} parameters`
-              );
-
-              // Check if result has data
-              if (!result.data || !Array.isArray(result.data)) {
-                console.error(
-                  `[deviceController] Invalid result data:`,
-                  result
-                );
-                throw new Error('Invalid result data');
-              }
-
-              console.log(`[deviceController] Raw register data:`, JSON.stringify(result.data));
-
-              for (const param of parser.parameters) {
-                try {
-                  console.log(
-                    `[deviceController] Processing parameter "${param.name}", registerIndex=${param.registerIndex}, dataType=${param.dataType}, byteOrder=${param.byteOrder}`
-                  );
-
-                  // Determine register index to use (template uses indexes relative to the range start)
-                  const relativeIndex = param.registerIndex;
-                  
-                  console.log(
-                    `[deviceController] Parameter ${param.name} using relative index ${relativeIndex}`
-                  );
-
-                  // Check if the register index is valid
-                  if (relativeIndex < 0 || relativeIndex >= count) {
-                    console.log(
-                      `[deviceController] Parameter ${param.name} index out of range: ${relativeIndex} not in [0-${count - 1}]`
-                    );
-                    continue; // Skip if out of range
-                  }
-
-                  let value: any = null;
-
-                  // Handle different data types
-                  if (param.dataType === 'FLOAT32' && param.wordCount === 2) {
-                    // For FLOAT32, we need to read two consecutive registers
-                    if (relativeIndex + 1 < count) {
-                      // Check if data exists and is valid
-                      if (result.data.length <= relativeIndex + 1) {
-                        console.log(
-                          `[deviceController] Not enough data for FLOAT32 at index ${relativeIndex}`
-                        );
-                        value = null;
-                      } else {
-                        const reg1 = result.data[relativeIndex];
-                        const reg2 = result.data[relativeIndex + 1];
-
-                        // Log the registers in hex format
-                        logRegistersInHex(param.name, reg1, reg2, param.byteOrder);
-
-                        console.log(
-                          `[deviceController] Processing FLOAT32: reg1=${reg1}, reg2=${reg2}, byte Order=${param.byteOrder}`
-                        );
-
-                        // Validate registers are numbers
-                        if (typeof reg1 !== 'number' || typeof reg2 !== 'number') {
-                          console.log(
-                            `[deviceController] Invalid register values for parameter ${param.name}: reg1=${reg1}, reg2=${reg2}`
-                          );
-                          
-                          // Use fallback values if needed
-                          const validReg1 = typeof reg1 === 'number' ? reg1 : 0;
-                          const validReg2 = typeof reg2 === 'number' ? reg2 : 0;
-                          
-                          try {
-                            // Create buffer to store the values
-                            const buffer = Buffer.alloc(4);
-                            
-                            // Apply byte ordering based on the parameter specification
-                            switch (param.byteOrder) {
-                              case 'ABCD':
-                                buffer.writeUInt16BE(validReg1, 0);
-                                buffer.writeUInt16BE(validReg2, 2);
-                                break;
-                              case 'CDAB':
-                                buffer.writeUInt16BE(validReg2, 0);
-                                buffer.writeUInt16BE(validReg1, 2);
-                                break;
-                              case 'BADC':
-                                buffer.writeUInt16LE(validReg1, 0);
-                                buffer.writeUInt16LE(validReg2, 2);
-                                break;
-                              case 'DCBA':
-                                buffer.writeUInt16LE(validReg2, 0);
-                                buffer.writeUInt16LE(validReg1, 2);
-                                break;
-                              default:
-                                console.log(`[deviceController] Unknown byte order ${param.byteOrder}, defaulting to ABCD`);
-                                buffer.writeUInt16BE(validReg1, 0);
-                                buffer.writeUInt16BE(validReg2, 2);
-                            }
-                            
-                            // Convert buffer to float
-                            value = buffer.readFloatBE(0);
-                            
-                            console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
-                            
-                            // Check for NaN or Infinity
-                            if (!isFinite(value)) {
-                              console.log(`[deviceController] Invalid FLOAT32 value: ${value}`);
-                              value = null;
-                            }
-                          } catch (bufferError) {
-                            console.error(`[deviceController] Error processing FLOAT32:`, bufferError);
-                            value = null;
-                          }
-                        } else {
-                          // Both registers are valid numbers, proceed normally
-                          try {
-                            // Create buffer to store the values
-                            const buffer = Buffer.alloc(4);
-                            
-                            // Apply byte ordering based on the parameter specification
-                            switch (param.byteOrder) {
-                              case 'ABCD':
-                                buffer.writeUInt16BE(reg1, 0);
-                                buffer.writeUInt16BE(reg2, 2);
-                                break;
-                              case 'CDAB':
-                                buffer.writeUInt16BE(reg2, 0);
-                                buffer.writeUInt16BE(reg1, 2);
-                                break;
-                              case 'BADC':
-                                buffer.writeUInt16LE(reg1, 0);
-                                buffer.writeUInt16LE(reg2, 2);
-                                break;
-                              case 'DCBA':
-                                buffer.writeUInt16LE(reg2, 0);
-                                buffer.writeUInt16LE(reg1, 2);
-                                break;
-                              default:
-                                console.log(`[deviceController] Unknown byte order ${param.byteOrder}, defaulting to ABCD`);
-                                buffer.writeUInt16BE(reg1, 0);
-                                buffer.writeUInt16BE(reg2, 2);
-                            }
-                            
-                            // Convert buffer to float
-                            value = buffer.readFloatBE(0);
-                            
-                            console.log(`[deviceController] Converted FLOAT32 value: ${value}`);
-                            
-                            // Check for NaN or Infinity
-                            if (!isFinite(value)) {
-                              console.log(`[deviceController] Invalid FLOAT32 value: ${value}`);
-                              value = null;
-                            }
-                          } catch (bufferError) {
-                            console.error(`[deviceController] Error processing FLOAT32:`, bufferError);
-                            value = null;
-                          }
-                        }
-                      }
-                    } else {
-                      console.log(
-                        `[deviceController] Not enough registers available for FLOAT32 at index ${relativeIndex}`
-                      );
-                      value = null;
-                    }
-                  } else if (param.dataType === 'UINT16') {
-                    // Standard single register processing for UINT16
-                    if (result.data.length <= relativeIndex) {
-                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
-                      value = null;
-                    } else {
-                      const reg = result.data[relativeIndex];
-                      // Log the register in hex format
-                      logRegistersInHex(param.name, reg);
-                      
-                      value = reg;
-                      console.log(`[deviceController] Read UINT16 value: ${value}`);
-                    }
-                  } else if (param.dataType === 'INT16') {
-                    // Convert UINT16 to INT16 (two's complement)
-                    if (result.data.length <= relativeIndex) {
-                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
-                      value = null;
-                    } else {
-                      const raw = result.data[relativeIndex];
-                      // Log the register in hex format
-                      logRegistersInHex(param.name, raw);
-                      
-                      // Make sure raw is a number before comparing
-                      if (typeof raw === 'number') {
-                        // Convert to signed 16-bit integer
-                        value = raw > 32767 ? raw - 65536 : raw;
-                        console.log(`[deviceController] Converted INT16 value: ${value} (from raw ${raw})`);
-                      } else {
-                        console.log(`[deviceController] Invalid INT16 value: ${raw}`);
-                        value = null;
-                      }
-                    }
-                  } else if (param.dataType === 'BOOL') {
-                    // Boolean value processing
-                    if (result.data.length <= relativeIndex) {
-                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
-                      value = null;
-                    } else {
-                      const reg = result.data[relativeIndex];
-                      // Log the register in hex format
-                      logRegistersInHex(param.name, reg);
-                      
-                      value = !!reg;
-                      console.log(`[deviceController] Converted BOOL value: ${value}`);
-                    }
-                  } else {
-                    // Default to raw value for other data types
-                    if (result.data.length <= relativeIndex) {
-                      console.log(`[deviceController] Data not available at index ${relativeIndex}`);
-                      value = null;
-                    } else {
-                      const reg = result.data[relativeIndex];
-                      // Log the register in hex format
-                      logRegistersInHex(param.name, reg);
-                      
-                      value = reg;
-                      console.log(`[deviceController] Read raw value: ${value}`);
-                    }
-                  }
-
-                  // Apply scaling and formatting if value is not null
-                  if (value !== null) {
-                    // Make sure value is a number before applying scaling
-                    if (typeof value !== 'number') {
-                      console.log(
-                        `[deviceController] Warning: Value for ${param.name} is not a number: ${typeof value}`
-                      );
-                      const numericValue = Number(value);
-                      if (!isNaN(numericValue)) {
-                        value = numericValue;
-                      } else {
-                        value = null;
-                      }
-                    }
-
-                    // Apply scaling factor if defined
-                    if (param.scalingFactor && param.scalingFactor !== 1 && typeof value === 'number') {
-                      const originalValue = value;
-                      value = value * param.scalingFactor;
-                      console.log(
-                        `[deviceController] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`
-                      );
-                    }
-
-                    // Apply scaling equation if defined
-                    if (param.scalingEquation && typeof value === 'number') {
-                      try {
-                        const x = value;
-                        const originalValue = value;
-                        value = new Function('x', `return ${param.scalingEquation}`)(x);
-                        console.log(
-                          `[deviceController] Applied equation: ${param.scalingEquation} with x=${originalValue} = ${value}`
-                        );
-                      } catch (equationError) {
-                        console.error(`[deviceController] Equation error:`, equationError);
-                      }
-                    }
-
-                    // Format decimal places if defined
-                    if (param.decimalPoint !== undefined && param.decimalPoint >= 0 && typeof value === 'number') {
-                      if (Math.abs(value) < Math.pow(10, -param.decimalPoint)) {
-                        console.log(`[deviceController] Value too small for formatting, preserving original`);
-                      } else {
-                        const originalValue = value;
-                        value = parseFloat(value.toFixed(param.decimalPoint));
-                        console.log(
-                          `[deviceController] Formatted to ${param.decimalPoint} decimal places: ${originalValue} -> ${value}`
-                        );
-                      }
-                    }
-
-                    // Apply min/max constraints if defined
-                    if (typeof value === 'number') {
-                      if (param.maxValue !== undefined && value > param.maxValue) {
-                        value = param.maxValue;
-                        console.log(`[deviceController] Clamped to max value: ${param.maxValue}`);
-                      }
-                      if (param.minValue !== undefined && value < param.minValue) {
-                        value = param.minValue;
-                        console.log(`[deviceController] Clamped to min value: ${param.minValue}`);
-                      }
-                    }
-                  }
-
-                  // Add the processed value to readings
-                  console.log(
-                    `[deviceController] Final value for ${param.name}: ${value}${param.unit ? ' ' + param.unit : ''}`
-                  );
-
-                  readings.push({
-                    name: param.name,
-                    registerIndex: range.startAddress + param.registerIndex, // Absolute register address
-                    address: range.startAddress + param.registerIndex, // For frontend compatibility
-                    value: value,
-                    unit: param.unit || '',
-                    dataType: param.dataType,
-                    description: param.description || '',
-                    byteOrder: param.byteOrder || 'ABCD',
-                    rawRegisters: param.dataType === 'FLOAT32' ? 
-                      [result.data[relativeIndex], result.data[relativeIndex + 1]] : 
-                      [result.data[relativeIndex]]
-                  });
-                } catch (paramError: any) { // Type as 'any' to fix TS18046 error
-                  console.error(`[deviceController] Error processing parameter ${param.name}:`, paramError);
-                  readings.push({
-                    name: param.name,
-                    registerIndex: range.startAddress + param.registerIndex,
-                    value: null,
-                    unit: param.unit || '',
-                    error: paramError.message || 'Unknown error',
-                  });
-                }
-              }
-            }
-          } catch (rangeError: any) { // Type as 'any' to fix TS18046 error
-            console.error(
-              `[deviceController] Error reading range (${dataPoint.range.startAddress}-${dataPoint.range.startAddress + dataPoint.range.count - 1}):`,
-              rangeError
-            );
-          }
-        }
-      }
-      // LEGACY STRUCTURE: Read each configured register
-      else if (hasLegacyConfig && device.registers) {
-        console.log(`[deviceController] Using legacy register configuration`);
-        
-        for (const register of device.registers) {
-          try {
-            console.log(
-              `[deviceController] Reading legacy register ${register.address} with length ${register.length}`
-            );
-            
-            const result = await client.readHoldingRegisters(register.address, register.length);
-
-            // Log raw register in hex format
-            if (result.data && result.data.length > 0) {
-              const reg = result.data[0];
-              logRegistersInHex(register.name, reg);
-            }
-
-            // Process the result based on register configuration
-            let value = result.data[0];
-
-            // Apply scale factor if defined
-            if (register.scaleFactor && register.scaleFactor !== 1) {
-              const originalValue = value;
-              value = value / register.scaleFactor;
-              console.log(
-                `[deviceController] Applied legacy scale factor: ${originalValue} / ${register.scaleFactor} = ${value}`
-              );
-            }
-
-            // Format decimal places if defined
-            if (register.decimalPoint && register.decimalPoint > 0) {
-              const originalValue = value;
-              value = parseFloat(value.toFixed(register.decimalPoint));
-              console.log(
-                `[deviceController] Formatted legacy decimal places: ${originalValue} -> ${value}`
-              );
-            }
-
-            readings.push({
-              name: register.name,
-              address: register.address,
-              value: value,
-              unit: register.unit || '',
-            });
-          } catch (registerError: any) { // Type as 'any' to fix TS18046 error
-            console.error(`[deviceController] Error reading legacy register:`, registerError);
-            
-            readings.push({
-              name: register.name,
-              address: register.address,
-              value: null,
-              unit: register.unit || '',
-              error: registerError.message || 'Unknown error',
-            });
-          }
-        }
-      }
-
-      // Update device lastSeen timestamp
-      device.lastSeen = new Date();
-      await device.save();
-
-      console.log(`[deviceController] Completed reading with ${readings.length} values`);
+      // Use the device service to read registers
+      // This will handle database connection, device finding, and reading registers
+      const result = await deviceService.readDeviceRegisters(deviceId, req);
       
-      // Return the result
-      res.json({
-        deviceId: device._id,
-        deviceName: device.name,
-        timestamp: new Date(),
-        readings,
+      console.log(`[deviceController] Successfully read registers for device ${deviceId}`);
+      
+      // Return the response in the same format as before
+      return res.json({
+        success: true,
+        deviceId: result.deviceId,
+        deviceName: result.deviceName,
+        timestamp: result.timestamp,
+        readings: result.readings
       });
-    } catch (modbusError: any) { // Type as 'any' to fix TS18046 error
-      console.error('[deviceController] Modbus error:', modbusError);
-      res.status(400).json({
-        message: `Failed to read from device: ${modbusError.message || 'Unknown error'}`,
-      });
-    } finally {
-      // Safely close the connection
-      await safeCloseModbusClient(client);
+    } catch (error: any) {
+      // Handle specific errors
+      if (error.message === 'Device not found') {
+        return res.status(404).json({ message: 'Device not found' });
+      } else if (error.message === 'Device is disabled') {
+        return res.status(400).json({ message: 'Device is disabled' });
+      } else if (error.message.includes('connection')) {
+        return res.status(400).json({ message: error.message });
+      } else if (error.message.includes('No data points')) {
+        return res.status(400).json({ 
+          message: 'No data points or registers configured for this device' 
+        });
+      } else {
+        // Log the full error for debugging
+        console.error('[deviceController] Error reading device registers:', error);
+        return res.status(500).json({ 
+          message: 'Failed to read device registers', 
+          error: error.message 
+        });
+      }
     }
-  } catch (error: any) { // Type as 'any' to fix TS18046 error
-    console.error('[deviceController] General error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message || 'Unknown error' });
+  } catch (error: any) {
+    console.error('Error in readDeviceRegisters controller:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
   }
 };
 
-
-// export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
-//   try {
-//     console.log('[deviceRegisterController] Starting device register read');
+// @desc    Start polling for a device
+// @route   POST /api/devices/:id/polling/start
+// @access  Private
+export const startDevicePolling = async (req: AuthRequest, res: Response) => {
+  try {
+    console.log(chalk.bgYellow.white('[deviceController] Starting device polling'));
     
-//     const deviceId = req.params.id;
-//     if (!deviceId) {
-//       return res.status(400).json({ message: 'Device ID is required' });
-//     }
+    const deviceId = req.params.id;
     
-//     try {
-//       // Use the device service to read registers
-//       const result = await deviceService.readDeviceRegisters(deviceId, req);
-
-
-//       console.log(chalk.bgBlueBright.white("this is result" , result));
+    if (!deviceId) {
+      return res.status(400).json({ message: 'Device ID is required' });
+    }
+    
+    // Check if deviceId is in the correct format
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid device ID format'
+      });
+    }
+    
+    // Get polling interval from request or use default
+    const intervalMs = req.body.intervalMs || 3000; // Default to 3 seconds
+    
+    try {
+      // First verify that the device exists
+      const DeviceModel = await deviceService.getDeviceModel(req);
+      const device = await DeviceModel.findById(deviceId);
       
-//       // Return the result
-//       res.json(result);
-//     } catch (error: any) {
-//       // Handle specific error types
-//       if (error.message.includes('not found')) {
-//         return res.status(404).json({ message: 'Device not found' });
-//       } else if (error.message.includes('disabled')) {
-//         return res.status(400).json({ message: 'Device is disabled' });
-//       } else if (error.message.includes('No data points or registers configured')) {
-//         return res.status(400).json({ message: 'No data points or registers configured for this device' });
-//       } else if (error.message.includes('Invalid connection configuration')) {
-//         return res.status(400).json({ message: 'Invalid device connection configuration' });
-//       } else if (error.message.includes('database')) {
-//         return res.status(500).json({ 
-//           message: 'Database connection error',
-//           error: error.message
-//         });
-//       } else {
-//         // For Modbus communication errors
-//         console.error('Modbus reading error:', error);
-//         return res.status(400).json({
-//           message: `Failed to read from device: ${error.message}`,
-//         });
-//       }
-//     }
-//   } catch (error: any) {
-//     console.error('Read registers error:', error);
-//     res.status(500).json({ message: 'Server error', error: error.message });
-//   }
-// };
+      if (!device) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Device not found' 
+        });
+      }
+      
+      if (!device.enabled) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Cannot start polling for disabled device' 
+        });
+      }
+      
+      // Check if the device is properly registered in the communication module
+      // If not, register it first
+      let isRegistered;
+      try {
+        isRegistered = modbusAdapter.createDeviceFromData(device);
+      } catch (registerError) {
+        console.error(`[deviceController] Error registering device: ${registerError}`);
+        isRegistered = false;
+      }
+      
+      console.log(`[deviceController] Device registration status: ${isRegistered ? 'Registered' : 'Failed'}`);
+      
+      // Start polling
+      const pollingStarted = modbusAdapter.startDevicePolling(deviceId, intervalMs);
+      
+      if (pollingStarted) {
+        console.log(chalk.green(`[deviceController] Successfully started polling for device ${deviceId} at ${intervalMs}ms interval`));
+        return res.json({
+          success: true,
+          message: `Started polling device ${device.name} at ${intervalMs}ms interval`,
+          deviceId,
+          intervalMs
+        });
+      } else {
+        console.error(chalk.red(`[deviceController] Failed to start polling for device ${deviceId}`));
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to start device polling',
+          deviceId
+        });
+      }
+    } catch (error: any) {
+      console.error('[deviceController] Error starting device polling:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to start device polling', 
+        error: error.message 
+      });
+    }
+  } catch (error: any) {
+    console.error('Error in startDevicePolling controller:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
 
-
-
+// @desc    Stop polling for a device
+// @route   POST /api/devices/:id/polling/stop
+// @access  Private
+export const stopDevicePolling = async (req: AuthRequest, res: Response) => {
+  try {
+    console.log(chalk.bgYellow.white('[deviceController] Stopping device polling'));
+    
+    const deviceId = req.params.id;
+    
+    if (!deviceId) {
+      return res.status(400).json({ message: 'Device ID is required' });
+    }
+    
+    // Check if deviceId is in the correct format
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid device ID format'
+      });
+    }
+    
+    try {
+      // First verify that the device exists
+      const DeviceModel = await deviceService.getDeviceModel(req);
+      const device = await DeviceModel.findById(deviceId);
+      
+      if (!device) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Device not found' 
+        });
+      }
+      
+      // Stop polling
+      const pollingStopped = modbusAdapter.stopDevicePolling(deviceId);
+      
+      if (pollingStopped) {
+        console.log(chalk.green(`[deviceController] Successfully stopped polling for device ${deviceId}`));
+        return res.json({
+          success: true,
+          message: `Stopped polling device ${device.name}`,
+          deviceId
+        });
+      } else {
+        console.error(chalk.red(`[deviceController] Failed to stop polling for device ${deviceId}`));
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to stop device polling',
+          deviceId
+        });
+      }
+    } catch (error: any) {
+      console.error('[deviceController] Error stopping device polling:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to stop device polling', 
+        error: error.message 
+      });
+    }
+  } catch (error: any) {
+    console.error('Error in stopDevicePolling controller:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
 
 // @desc    Get devices by device driver ID
 // @route   GET /api/devices/by-driver/:driverId
 // @access  Private
-
-
 
 export const getDevicesByDriverId = async (req: AuthRequest, res: Response) => {
   try {

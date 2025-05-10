@@ -1,5 +1,6 @@
 import * as deviceController from '../controllers/deviceController';
 import * as deviceRegisterController from '../controllers/deviceRegisterController';
+import * as deviceDataController from '../controllers/polling.controller';
 // import { checkPermission, protect } from '../../middleware/authMiddleware';
 import { Router } from 'express';
 import express from 'express';
@@ -39,9 +40,18 @@ router
 // Add device connection testing endpoint
 router.post('/:id/test', deviceController.testDeviceConnection as express.RequestHandler);
 
-
-// Add device register reading endpoint
+// Add device register reading endpoint (legacy approach - prefer polling API)
 // router.get('/:id/read', deviceRegisterController.readDeviceRegisters as express.RequestHandler);
 router.get('/:id/read', deviceController.readDeviceRegisters as express.RequestHandler);
+
+// ----- Polling API Routes -----
+
+// Device polling control routes
+router.post('/:id/polling/start', deviceController.startDevicePolling as express.RequestHandler);
+router.post('/:id/polling/stop', deviceController.stopDevicePolling as express.RequestHandler);
+
+// Device data retrieval routes
+router.get('/:id/data/current', deviceDataController.getCurrentDeviceData as express.RequestHandler);
+router.get('/:id/data/history', deviceDataController.getDeviceHistoricalData as express.RequestHandler);
 
 export default router;

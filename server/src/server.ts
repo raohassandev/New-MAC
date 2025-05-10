@@ -14,6 +14,8 @@ import { initializeDevicePolling } from './client/services/deviceInitializer';
 import { apiLogger } from './utils/logger';
 // Import the device controller for explicit route registration
 import * as deviceController from './client/controllers/deviceController';
+// Import debug middleware
+import { debugRequestMiddleware } from './middleware/debugMiddleware';
 
 // Load environment variables
 dotenv.config();
@@ -91,6 +93,9 @@ app.use(express.json());
 // Add Morgan logger
 app.use(morgan('combined', { stream: accessLogStream })); // Log to file
 app.use(morgan('dev')); // Also log to console with concise format
+
+// Add debug middleware
+app.use(debugRequestMiddleware);
 
 // Apply rate limiting to all requests
 app.use(apiLimiter);
@@ -195,20 +200,8 @@ const startServer = async () => {
         `- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`,
       );
 
-      // Initialize device polling
-      try {
-        const isDevelopment = process.env.NODE_ENV === 'development';
-        const developerMode = isDevelopment && process.env.ENABLE_DEVELOPER_MODE === 'true';
-        await initializeDevicePolling(30000, developerMode);
-
-        if (developerMode) {
-          console.log(
-            'Developer mode enabled: Some physical devices may be skipped to prevent errors',
-          );
-        }
-      } catch (err) {
-        console.error('Failed to initialize device polling:', err);
-      }
+      // Auto-polling has been disabled - polling is only enabled when frontend triggers it
+      console.log('Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend.');
     });
 
     return server;

@@ -47,3 +47,4 @@ export { Tooltip, TooltipProvider } from './Tooltip';
 // Add other UI components as they are created
 export { default as XmlViewer } from './XmlViewer';
 export { default as ConnectionErrorDisplay } from './ConnectionErrorDisplay';
+export { default as DeviceValidator } from './DeviceValidator';
