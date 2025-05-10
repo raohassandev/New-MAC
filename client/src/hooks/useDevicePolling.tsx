@@ -80,10 +80,33 @@ export function useDevicePolling(
   const refreshData = useCallback(async (forceRefresh = false): Promise<DeviceData | null> => {
     if (!deviceIdRef.current) return null;
     
+    // Skip refresh if polling has been stopped (unless forced)
+    if (!forceRefresh && !isPollingRef.current) {
+      console.log(`[useDevicePolling] Skipping refresh because polling is inactive`);
+      return deviceData; // Return current data instead of fetching new
+    }
+    
+    // Rate limiting for non-forced refreshes to avoid too many simultaneous calls
+    if (!forceRefresh) {
+      const now = Date.now();
+      const lastRefreshTime = parseInt(localStorage.getItem(`last_actual_refresh_${deviceIdRef.current}`) || '0');
+      const timeSinceLastRefresh = now - lastRefreshTime;
+      
+      // If less than 1 second since last refresh and this isn't forced, skip this refresh
+      if (timeSinceLastRefresh < 1000) {
+        console.log(`[useDevicePolling] Skipping refresh, last refresh was ${timeSinceLastRefresh}ms ago`);
+        return deviceData; // Return current data instead of fetching new
+      }
+      
+      // Update last refresh time
+      localStorage.setItem(`last_actual_refresh_${deviceIdRef.current}`, now.toString());
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
+      console.log(`[useDevicePolling] Refreshing data for device ${deviceIdRef.current}${forceRefresh ? ' (forced)' : ''}`);
       const response = await deviceDataApi.getCurrentData(deviceIdRef.current, forceRefresh);
       
       const responseData = response.data;
@@ -122,7 +145,7 @@ export function useDevicePolling(
     } finally {
       setLoading(false);
     }
-  }, [onDataReceived, onError]);
+  }, [onDataReceived, onError, deviceData]);
   
   // Update refreshDataRef when refreshData changes
   useEffect(() => {
@@ -132,8 +155,35 @@ export function useDevicePolling(
   /**
    * Start server-side polling for the device
    */
+  // Create a ref to track the current polling state
+  const isPollingRef = useRef<boolean>(false);
+  
+  // Track when we started polling to prevent double calls
+  const lastPollingStartTimeRef = useRef<number>(0);
+  
+  // Update the ref when the state changes
+  useEffect(() => {
+    isPollingRef.current = isPolling;
+  }, [isPolling]);
+  
   const startPolling = useCallback(async (intervalMs = refreshInterval): Promise<boolean> => {
     if (!deviceIdRef.current) return false;
+    
+    // Prevent rapid start/stop cycles by checking the last polling start time
+    const now = Date.now();
+    if (now - lastPollingStartTimeRef.current < 2000) {
+      console.log(`[useDevicePolling] Debouncing startPolling call - last call was ${now - lastPollingStartTimeRef.current}ms ago`);
+      return true; // Pretend success to prevent more calls
+    }
+    
+    // Update the last polling start time
+    lastPollingStartTimeRef.current = now;
+    
+    // If already polling, don't start again
+    if (isPollingRef.current) {
+      console.log(`[useDevicePolling] Already polling, skipping redundant start`);
+      return true;
+    }
     
     setPollingStatus('starting');
     
@@ -152,94 +202,86 @@ export function useDevicePolling(
         return false;
       }
       
-      // Try to validate the device ID with the server
-      try {
-        console.log(`[useDevicePolling] Validating device ID: ${deviceIdRef.current}`);
+      // Simplified validation - just make sure deviceId is a valid format
+      if (!deviceIdRef.current.match(/^[a-f0-9]{24}$/i)) {
+        console.error(`[useDevicePolling] Device ID has invalid format: ${deviceIdRef.current}`);
+        setPollingStatus('error');
+        const errorObj = new Error(`Invalid device ID format`);
+        setError(errorObj);
         
-        // First try the device-utils path
-        try {
-          const validateResponse = await fetch(`/client/api/device-utils/validate/${deviceIdRef.current}`);
-          if (validateResponse.ok) {
-            const validateData = await validateResponse.json();
-            
-            if (!validateData.isValid) {
-              console.error(`[useDevicePolling] Invalid device ID: ${deviceIdRef.current}`, validateData);
-              setPollingStatus('error');
-              const errorObj = new Error(`Invalid device ID: ${validateData.reason || 'Device not found'}`);
-              setError(errorObj);
-              
-              if (onError && typeof onError === 'function') {
-                onError(errorObj);
-              }
-              
-              return false;
-            }
-            
-            console.log(`[useDevicePolling] Device ID validated: ${deviceIdRef.current}`);
-          } else {
-            // If the endpoint doesn't exist or returns an error, try an alternative approach
-            console.warn(`[useDevicePolling] Validation endpoint not available, trying direct device check`);
-            
-            // Try to get the device directly as a fallback
-            const deviceResponse = await fetch(`/client/api/devices/${deviceIdRef.current}`);
-            if (!deviceResponse.ok) {
-              console.error(`[useDevicePolling] Device not found or inaccessible: ${deviceIdRef.current}`);
-              setPollingStatus('error');
-              const errorObj = new Error(`Device not found or inaccessible: ${deviceIdRef.current}`);
-              setError(errorObj);
-              
-              if (onError && typeof onError === 'function') {
-                onError(errorObj);
-              }
-              
-              return false;
-            }
-            
-            // If we made it here, the device exists
-            console.log(`[useDevicePolling] Device exists (alternative check): ${deviceIdRef.current}`);
-          }
-        } catch (err) {
-          // If both validation attempts fail, log and continue
-          console.warn(`[useDevicePolling] Device validation failed, proceeding anyway:`, err);
+        if (onError && typeof onError === 'function') {
+          onError(errorObj);
         }
-      } catch (validateErr) {
-        // If validation completely fails, log and continue
-        console.warn(`[useDevicePolling] Device validation failed, proceeding anyway:`, validateErr);
+        
+        return false;
       }
       
-      // Start polling
+      // Start polling with simplified approach
       console.log(`[useDevicePolling] Starting polling for device: ${deviceIdRef.current}`);
       const response = await deviceDataApi.startPolling(deviceIdRef.current, intervalMs);
       
-      if (response.data.success) {
+      console.log(`[useDevicePolling] Start polling response:`, response.data);
+      
+      if (response && response.data && response.data.success) {
+        // Update both the state and the ref
         setIsPolling(true);
+        isPollingRef.current = true;
         setPollingStatus('active');
         
         // Get initial data
         await refreshDataRef.current(true);
         
-        // Set up client-side refresh interval
+        // Clear any existing interval first
+        if (refreshIntervalIdRef.current) {
+          clearInterval(refreshIntervalIdRef.current);
+          refreshIntervalIdRef.current = null;
+        }
+        
+        // Set up client-side refresh interval - less frequent to avoid multiple calls
         const intervalId = setInterval(() => {
-          refreshDataRef.current(false).catch(() => {
-            // Silent catch - errors are handled in refreshData
-          });
-        }, Math.max(1000, intervalMs / 2));  // Client refresh at half the server polling rate
+          // Use the ref to get the current polling state
+          if (!isPollingRef.current) {
+            console.log(`[useDevicePolling] Polling was stopped, skipping refresh and clearing interval`);
+            
+            // Clear the interval if still running but polling is stopped
+            if (refreshIntervalIdRef.current) {
+              clearInterval(refreshIntervalIdRef.current);
+              refreshIntervalIdRef.current = null;
+            }
+            
+            return;
+          }
+          
+          // If we have multiple calls in a short time, skip this one
+          const now = Date.now();
+          const lastCallTimeStr = localStorage.getItem(`last_refresh_call_${deviceIdRef.current}`);
+          const lastCallTime = lastCallTimeStr ? parseInt(lastCallTimeStr) : 0;
+          
+          if (now - lastCallTime > Math.max(1000, intervalMs - 500)) {
+            localStorage.setItem(`last_refresh_call_${deviceIdRef.current}`, now.toString());
+            console.log(`[useDevicePolling] Client-side refresh at ${new Date().toISOString()}`);
+            
+            refreshDataRef.current(false).catch(() => {
+              // Silent catch - errors are handled in refreshData
+            });
+          } else {
+            console.log(`[useDevicePolling] Skipping redundant refresh, last call was ${now - lastCallTime}ms ago`);
+          }
+        }, Math.max(2000, intervalMs));  // Client refresh at same rate as server but with minimum 2s interval
+        
+        // Store the interval ID in our ref so we can clear it later
+        refreshIntervalIdRef.current = intervalId;
         
         console.log(`[useDevicePolling] Polling started successfully for device: ${deviceIdRef.current}`);
         
-        // Clean up on unmount
-        return () => {
-          clearInterval(intervalId);
-          // Don't stop server polling on unmount - that needs to be explicit
-        };
+        // Return true to indicate success
+        return true;
       } else {
-        console.error(`[useDevicePolling] Failed to start polling:`, response.data);
+        console.error(`[useDevicePolling] Failed to start polling:`, response?.data || 'No response data');
         setPollingStatus('error');
-        setError(new Error(response.data.message || 'Failed to start polling'));
+        setError(new Error(response?.data?.message || 'Failed to start polling'));
         return false;
       }
-      
-      return true;
     } catch (err: any) {
       console.error(`[useDevicePolling] Error starting polling:`, err);
       setPollingStatus('error');
@@ -255,16 +297,55 @@ export function useDevicePolling(
     }
   }, [refreshInterval, onError]);
 
+  // Keep track of the interval ID
+  const refreshIntervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  
   /**
    * Stop server-side polling for the device
    */
+  // Track when we stopped polling to prevent double calls
+  const lastPollingStopTimeRef = useRef<number>(0);
+  
   const stopPolling = useCallback(async (): Promise<boolean> => {
     if (!deviceIdRef.current) return false;
     
+    // Prevent rapid start/stop cycles by checking the last polling stop time
+    const now = Date.now();
+    if (now - lastPollingStopTimeRef.current < 2000) {
+      console.log(`[useDevicePolling] Debouncing stopPolling call - last call was ${now - lastPollingStopTimeRef.current}ms ago`);
+      return true; // Pretend success to prevent more calls
+    }
+    
+    // Update the last polling stop time
+    lastPollingStopTimeRef.current = now;
+    
+    // If already stopped, don't stop again
+    if (!isPollingRef.current) {
+      console.log(`[useDevicePolling] Already stopped, skipping redundant stop`);
+      return true;
+    }
+    
     try {
-      const response = await deviceDataApi.stopPolling(deviceIdRef.current);
+      // First update both the state and ref to prevent any pending refreshes
       setIsPolling(false);
+      isPollingRef.current = false;
       setPollingStatus('stopped');
+      
+      // Clear the client-side polling interval immediately
+      if (refreshIntervalIdRef.current) {
+        clearInterval(refreshIntervalIdRef.current);
+        refreshIntervalIdRef.current = null;
+        console.log(`[useDevicePolling] Cleared client-side polling interval`);
+      }
+      
+      // Make API request to stop server-side polling
+      const response = await deviceDataApi.stopPolling(deviceIdRef.current);
+      console.log(`[useDevicePolling] Stop polling response:`, response.data);
+      
+      // Clear the localStorage entry to reset the throttling
+      localStorage.removeItem(`last_refresh_call_${deviceIdRef.current}`);
+      localStorage.removeItem(`last_actual_refresh_${deviceIdRef.current}`);
+      
       return response.data.success || false;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to stop polling';
@@ -279,19 +360,59 @@ export function useDevicePolling(
     }
   }, [onError]);
 
+  // Track component mounting to prevent cleanup issues
+  const isMounted = useRef(false);
+  
   // Auto-start polling if enabled
   useEffect(() => {
-    if (autoStart && deviceId) {
-      startPolling(refreshInterval).catch(console.error);
-    }
+    isMounted.current = true;
     
-    // Clean up when the component unmounts or deviceId changes
+    if (autoStart && deviceId) {
+      // Use a slight delay to avoid race conditions on initial mount
+      const timer = setTimeout(() => {
+        if (isMounted.current) {
+          startPolling(refreshInterval).catch(console.error);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [deviceId, autoStart, refreshInterval, startPolling]);
+  
+  // Handle cleanup on unmount or deviceId change
+  useEffect(() => {
+    // Only run cleanup on unmount, not on every deviceId change
     return () => {
-      if (isPolling && deviceId) {
-        stopPolling().catch(console.error);
+      // Mark component as unmounted to prevent further operations
+      isMounted.current = false;
+      
+      // Always clean up the interval and state on unmount, regardless of isPolling state
+      // This ensures we don't leave any dangling intervals
+      if (refreshIntervalIdRef.current) {
+        clearInterval(refreshIntervalIdRef.current);
+        refreshIntervalIdRef.current = null;
+        console.log(`[useDevicePolling] Cleanup: Cleared interval on unmount`);
       }
+      
+      // If we're polling, also stop the server-side polling
+      if (isPollingRef.current && deviceIdRef.current) {
+        console.log(`[useDevicePolling] Cleanup: Stopping server-side polling on unmount`);
+        
+        // We don't need to use the stopPolling function with its debouncing for cleanup
+        // Instead, make a direct API call
+        try {
+          deviceDataApi.stopPolling(deviceIdRef.current).catch(err => {
+            console.error(`[useDevicePolling] Error in direct API call during cleanup:`, err);
+          });
+        } catch (err) {
+          console.error(`[useDevicePolling] Error stopping polling during cleanup:`, err);
+        }
+      }
+      
+      // Reset state refs for safety
+      isPollingRef.current = false;
     };
-  }, [deviceId, autoStart, refreshInterval]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     deviceData,

@@ -265,7 +265,7 @@ router.get('/logs', (req, res) => {
 
 // Serve the log viewer HTML
 router.get('/logs-viewer', (req, res) => {
-  const viewerPath = path.join(__dirname, '../../../logs-viewer.html');
+  const viewerPath = path.join(__dirname, '../../../dist/views/logs-viewer.html');
   
   if (fs.existsSync(viewerPath)) {
     res.sendFile(viewerPath);
@@ -278,7 +278,7 @@ router.get('/logs-viewer', (req, res) => {
 router.get('/', (req, res) => {
   // Handle both development and production paths
   const developmentPath = path.join(__dirname, 'monitoringDashboard.html');
-  const productionPath = path.join(__dirname, '../../../dist/client/routes/monitoringDashboard.html');
+  const productionPath = path.join(__dirname, '../../../dist/views/monitoringDashboard.html');
   
   // Check if dashboard file exists in development path
   if (fs.existsSync(developmentPath)) {

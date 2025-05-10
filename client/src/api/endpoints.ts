@@ -110,36 +110,28 @@ export const deviceApi = {
 // Device polling and data endpoints
 export const deviceDataApi = {
   // Start polling a device
-  startPolling: (id: string, interval?: number) => {
-    console.log(`[endpoints.ts] Starting polling for device ${id} with interval ${interval || 'default'}`);
-    // Try both the device routes and devices routes paths
-    return api.post(`/client/api/devices/${id}/polling/start`, { interval })
-      .catch(error => {
-        console.log(`[endpoints.ts] Falling back to alternate path for polling start`);
-        return api.post(`/client/api/devices/${id}/polling/start`, { interval });
-      });
+  startPolling: (id: string, intervalMs?: number) => {
+    console.log(`[endpoints.ts] Starting polling for device ${id} with interval ${intervalMs || 'default'}`);
+    // The server code uses 'interval' in polling.controller.ts and 'intervalMs' in device.controller.ts
+    // Send both parameters to ensure compatibility with both controller implementations
+    return api.post(`/client/api/devices/${id}/polling/start`, { 
+      intervalMs, 
+      interval: intervalMs 
+    });
   },
   
   // Stop polling a device
   stopPolling: (id: string) => {
     console.log(`[endpoints.ts] Stopping polling for device ${id}`);
-    // Try both the device routes and devices routes paths
-    return api.post(`/client/api/devices/${id}/polling/stop`)
-      .catch(error => {
-        console.log(`[endpoints.ts] Falling back to alternate path for polling stop`);
-        return api.post(`/client/api/devices/${id}/polling/stop`);
-      });
+    // Use a single, consistent path
+    return api.post(`/client/api/devices/${id}/polling/stop`);
   },
   
   // Get current data for a device from cache (or trigger a fresh read if forceRefresh=true)
   getCurrentData: (id: string, forceRefresh: boolean = false) => {
     console.log(`[endpoints.ts] Getting current data for device ${id}${forceRefresh ? ' (force refresh)' : ''}`);
-    // Try both the device routes and devices routes paths
-    return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`)
-      .catch(error => {
-        console.log(`[endpoints.ts] Falling back to alternate path for current data`);
-        return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`);
-      });
+    // Use a single, consistent path for data retrieval
+    return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`);
   },
   
   // Get historical data for a device

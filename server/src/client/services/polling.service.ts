@@ -8,7 +8,7 @@ import {
   safeCloseModbusClient,
   readHoldingRegistersWithTimeout,
   readInputRegistersWithTimeout,
-} from '../controllers/modbusHelper';
+} from '../utils/modbusHelper';
 
 // Import the specific types from modbus-serial
 import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU';

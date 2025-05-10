@@ -10,10 +10,9 @@ import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes';
 import { amxRouter } from './amx/routes';
 import monitoringRouter from './client/routes/monitoringRoutes';
-import { initializeDevicePolling } from './client/services/deviceInitializer';
 import { apiLogger } from './utils/logger';
 // Import the device controller for explicit route registration
-import * as deviceController from './client/controllers/deviceController';
+import * as deviceController from './client/controllers/device.controller';
 // Import debug middleware
 import { debugRequestMiddleware } from './middleware/debugMiddleware';
 

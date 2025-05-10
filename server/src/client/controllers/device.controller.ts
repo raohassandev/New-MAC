@@ -4,10 +4,8 @@ import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
 
 import * as deviceService from '../services/device.service';
-import * as modbusAdapter from './modbusAdapter';
 import { Device, createDeviceModel, IDevice, clientModels } from '../models';
 import { getClientDbConnection } from '../models/index';
-import { createModbusRTUClient, safeCloseModbusClient } from './modbusHelper';
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {
@@ -1216,173 +1214,9 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Start polling for a device
-// @route   POST /api/devices/:id/polling/start
-// @access  Private
-export const startDevicePolling = async (req: AuthRequest, res: Response) => {
-  try {
-    console.log(chalk.bgYellow.white('[deviceController] Starting device polling'));
-    
-    const deviceId = req.params.id;
-    
-    if (!deviceId) {
-      return res.status(400).json({ message: 'Device ID is required' });
-    }
-    
-    // Check if deviceId is in the correct format
-    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
-      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid device ID format'
-      });
-    }
-    
-    // Get polling interval from request or use default
-    const intervalMs = req.body.intervalMs || 3000; // Default to 3 seconds
-    
-    try {
-      // First verify that the device exists
-      const DeviceModel = await deviceService.getDeviceModel(req);
-      const device = await DeviceModel.findById(deviceId);
-      
-      if (!device) {
-        return res.status(404).json({ 
-          success: false,
-          message: 'Device not found' 
-        });
-      }
-      
-      if (!device.enabled) {
-        return res.status(400).json({ 
-          success: false,
-          message: 'Cannot start polling for disabled device' 
-        });
-      }
-      
-      // Check if the device is properly registered in the communication module
-      // If not, register it first
-      let isRegistered;
-      try {
-        isRegistered = modbusAdapter.createDeviceFromData(device);
-      } catch (registerError) {
-        console.error(`[deviceController] Error registering device: ${registerError}`);
-        isRegistered = false;
-      }
-      
-      console.log(`[deviceController] Device registration status: ${isRegistered ? 'Registered' : 'Failed'}`);
-      
-      // Start polling
-      const pollingStarted = modbusAdapter.startDevicePolling(deviceId, intervalMs);
-      
-      if (pollingStarted) {
-        console.log(chalk.green(`[deviceController] Successfully started polling for device ${deviceId} at ${intervalMs}ms interval`));
-        return res.json({
-          success: true,
-          message: `Started polling device ${device.name} at ${intervalMs}ms interval`,
-          deviceId,
-          intervalMs
-        });
-      } else {
-        console.error(chalk.red(`[deviceController] Failed to start polling for device ${deviceId}`));
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to start device polling',
-          deviceId
-        });
-      }
-    } catch (error: any) {
-      console.error('[deviceController] Error starting device polling:', error);
-      return res.status(500).json({ 
-        success: false,
-        message: 'Failed to start device polling', 
-        error: error.message 
-      });
-    }
-  } catch (error: any) {
-    console.error('Error in startDevicePolling controller:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Stop polling for a device
-// @route   POST /api/devices/:id/polling/stop
-// @access  Private
-export const stopDevicePolling = async (req: AuthRequest, res: Response) => {
-  try {
-    console.log(chalk.bgYellow.white('[deviceController] Stopping device polling'));
-    
-    const deviceId = req.params.id;
-    
-    if (!deviceId) {
-      return res.status(400).json({ message: 'Device ID is required' });
-    }
-    
-    // Check if deviceId is in the correct format
-    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
-      console.error(`[deviceController] Invalid device ID format: ${deviceId}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid device ID format'
-      });
-    }
-    
-    try {
-      // First verify that the device exists
-      const DeviceModel = await deviceService.getDeviceModel(req);
-      const device = await DeviceModel.findById(deviceId);
-      
-      if (!device) {
-        return res.status(404).json({ 
-          success: false,
-          message: 'Device not found' 
-        });
-      }
-      
-      // Stop polling
-      const pollingStopped = modbusAdapter.stopDevicePolling(deviceId);
-      
-      if (pollingStopped) {
-        console.log(chalk.green(`[deviceController] Successfully stopped polling for device ${deviceId}`));
-        return res.json({
-          success: true,
-          message: `Stopped polling device ${device.name}`,
-          deviceId
-        });
-      } else {
-        console.error(chalk.red(`[deviceController] Failed to stop polling for device ${deviceId}`));
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to stop device polling',
-          deviceId
-        });
-      }
-    } catch (error: any) {
-      console.error('[deviceController] Error stopping device polling:', error);
-      return res.status(500).json({ 
-        success: false,
-        message: 'Failed to stop device polling', 
-        error: error.message 
-      });
-    }
-  } catch (error: any) {
-    console.error('Error in stopDevicePolling controller:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message,
-    });
-  }
-};
-
 // @desc    Get devices by device driver ID
 // @route   GET /api/devices/by-driver/:driverId
 // @access  Private
-
 export const getDevicesByDriverId = async (req: AuthRequest, res: Response) => {
   try {
     console.log(
@@ -1637,3 +1471,4 @@ export const getDevicesByUsage = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+    

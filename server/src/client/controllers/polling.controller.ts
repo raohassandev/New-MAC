@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import HistoricalData from '../models/HistoricalData';
 import * as dataPollingService from '../services/polling.service';
 import mongoose from 'mongoose';
-import { checkDatabaseAndDevices } from '../../utils/diagnostic/dbCheck';
 import { getDeviceModel } from '../services/device.service';
 
 

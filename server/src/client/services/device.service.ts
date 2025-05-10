@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
 import { IDevice } from '../models/Device';
-import { safeCloseModbusClient } from '../controllers/modbusHelper';
+import { safeCloseModbusClient } from '../utils/modbusHelper';
 import { Device } from '../models';
 import { ensureClientDeviceModel } from '../utils/dbHelper';
 
@@ -1060,7 +1060,7 @@ export const testConnection = async (
         await safeCloseModbusClient(client); // Close the standard client first
         
         // Import function dynamically to avoid circular dependency
-        const { createModbusRTUClient } = await import('../controllers/modbusHelper');
+        const { createModbusRTUClient } = await import('../utils/modbusHelper');
         
         client = await createModbusRTUClient(serialPort, {
           baudRate: baudRate || 9600,

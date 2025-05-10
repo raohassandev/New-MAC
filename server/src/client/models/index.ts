@@ -1,12 +1,10 @@
-import Alert from './Alert';
 import Device, { createDeviceModel } from './Device';
-import Profile from './Profile';
 import User from './User';
 import HistoricalData from './HistoricalData';
 import mongoose from 'mongoose';
 
 // Export models
-export { User, Device, Profile, Alert, HistoricalData, createDeviceModel };
+export { User, Device, HistoricalData, createDeviceModel };
 
 // Store the connection reference to ensure it's maintained
 let clientDbConnection: mongoose.Connection | null = null;
@@ -98,6 +96,4 @@ export type {
   IRtuSettings,
   IConnectionSetting,
 } from './Device';
-export type { IProfile, ISchedule, IScheduleTime } from './Profile';
-export type { IAlert } from './Alert';
 export type { IHistoricalData } from './HistoricalData';
