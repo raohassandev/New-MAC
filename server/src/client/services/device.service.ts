@@ -486,51 +486,79 @@ export const processValidRegistersAsFloat = (
 ): number | null => {
   try {
     // Log the input values
-    console.log(`[processValidRegistersAsFloat] Processing registers: reg1=${reg1} (0x${reg1.toString(16)}), reg2=${reg2} (0x${reg2.toString(16)}), byteOrder=${byteOrder}`);
+    console.log(`[processValidRegistersAsFloat] Processing registers: reg1=${reg1} (0x${reg1.toString(16).padStart(4, '0')}), reg2=${reg2} (0x${reg2.toString(16).padStart(4, '0')}), byteOrder=${byteOrder}`);
+    
+    // Ensure the registers are valid numbers between 0-65535 (16-bit values)
+    const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+    const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+    
+    // Report if we had to adjust the register values
+    if (validReg1 !== reg1 || validReg2 !== reg2) {
+      console.log(`[processValidRegistersAsFloat] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
+    }
     
     // Create buffer to store the values
     const buffer = Buffer.alloc(4);
     
-    // Map byteOrder string to ByteOrder enum
+    // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
-    switch (byteOrder.toUpperCase()) {
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
       case 'ABCD': mappedByteOrder = 'ABCD'; break;
       case 'CDAB': mappedByteOrder = 'CDAB'; break;
       case 'BADC': mappedByteOrder = 'BADC'; break;
       case 'DCBA': mappedByteOrder = 'DCBA'; break;
-      default: mappedByteOrder = 'ABCD';
+      default: 
+        console.log(`[processValidRegistersAsFloat] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
     }
     
     console.log(`[processValidRegistersAsFloat] Using byte order: ${mappedByteOrder}`);
     
     // Write the registers to buffer based on byte order
+    // We use explicit logic for each byte ordering pattern to ensure correctness
     if (mappedByteOrder === 'ABCD') {
-      buffer.writeUInt16BE(reg1, 0);
-      buffer.writeUInt16BE(reg2, 2);
-      console.log(`[processValidRegistersAsFloat] ABCD: Written reg1(${reg1}) at bytes 0-1, reg2(${reg2}) at bytes 2-3`);
+      // ABCD: High word first, high byte first (Big-endian)
+      // Reg1: bytes 0-1, Reg2: bytes 2-3
+      buffer.writeUInt16BE(validReg1, 0);
+      buffer.writeUInt16BE(validReg2, 2);
+      console.log(`[processValidRegistersAsFloat] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'CDAB') {
-      buffer.writeUInt16BE(reg2, 0);
-      buffer.writeUInt16BE(reg1, 2);
-      console.log(`[processValidRegistersAsFloat] CDAB: Written reg2(${reg2}) at bytes 0-1, reg1(${reg1}) at bytes 2-3`);
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      // Reg2: bytes 0-1, Reg1: bytes 2-3
+      buffer.writeUInt16BE(validReg2, 0);
+      buffer.writeUInt16BE(validReg1, 2);
+      console.log(`[processValidRegistersAsFloat] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'BADC') {
-      buffer.writeUInt16LE(reg1, 0);
-      buffer.writeUInt16LE(reg2, 2);
-      console.log(`[processValidRegistersAsFloat] BADC: Written reg1(${reg1}) reversed at bytes 0-1, reg2(${reg2}) reversed at bytes 2-3`);
+      // BADC: High word first, low byte first (Mixed-endian)
+      // Reg1 with bytes swapped: bytes 0-1, Reg2 with bytes swapped: bytes 2-3
+      buffer.writeUInt16LE(validReg1, 0);
+      buffer.writeUInt16LE(validReg2, 2);
+      console.log(`[processValidRegistersAsFloat] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     } else if (mappedByteOrder === 'DCBA') {
-      buffer.writeUInt16LE(reg2, 0);
-      buffer.writeUInt16LE(reg1, 2);
-      console.log(`[processValidRegistersAsFloat] DCBA: Written reg2(${reg2}) reversed at bytes 0-1, reg1(${reg1}) reversed at bytes 2-3`);
+      // DCBA: Low word first, low byte first (Little-endian)
+      // Reg2 with bytes swapped: bytes 0-1, Reg1 with bytes swapped: bytes 2-3
+      buffer.writeUInt16LE(validReg2, 0);
+      buffer.writeUInt16LE(validReg1, 2);
+      console.log(`[processValidRegistersAsFloat] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     }
     
     // Log the buffer content in hexadecimal
     console.log(`[processValidRegistersAsFloat] Buffer hex: ${buffer.toString('hex')}`);
     
-    // Reading the float should be consistent with how we wrote the bytes
+    // Reading the float depends on the overall endianness pattern
     let value: number;
+    
+    // For ABCD and CDAB, the bytes within each 16-bit word are in big-endian order,
+    // so we should read the entire 32-bits as big-endian
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readFloatBE(0);
       console.log(`[processValidRegistersAsFloat] Reading as BigEndian float: ${value}`);
-    } else {
+    } 
+    // For BADC and DCBA, the bytes within each 16-bit word are in little-endian order,
+    // so we should read the entire 32-bits as little-endian
+    else {
       value = buffer.readFloatLE(0);
       console.log(`[processValidRegistersAsFloat] Reading as LittleEndian float: ${value}`);
     }
@@ -567,39 +595,75 @@ export const processValidRegistersAsInt32 = (
   byteOrder: string
 ): number | null => {
   try {
+    // Log the input values
+    console.log(`[processValidRegistersAsInt32] Processing registers: reg1=${reg1} (0x${reg1.toString(16).padStart(4, '0')}), reg2=${reg2} (0x${reg2.toString(16).padStart(4, '0')}), byteOrder=${byteOrder}`);
+    
+    // Ensure the registers are valid numbers between 0-65535 (16-bit values)
+    const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+    const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+    
+    // Report if we had to adjust the register values
+    if (validReg1 !== reg1 || validReg2 !== reg2) {
+      console.log(`[processValidRegistersAsInt32] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
+    }
+    
     const buffer = Buffer.alloc(4);
     
-    // Map byteOrder string to ByteOrder enum
+    // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
-    switch (byteOrder.toUpperCase()) {
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
       case 'ABCD': mappedByteOrder = 'ABCD'; break;
       case 'CDAB': mappedByteOrder = 'CDAB'; break;
       case 'BADC': mappedByteOrder = 'BADC'; break;
       case 'DCBA': mappedByteOrder = 'DCBA'; break;
-      default: mappedByteOrder = 'ABCD';
+      default: 
+        console.log(`[processValidRegistersAsInt32] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
     }
+    
+    console.log(`[processValidRegistersAsInt32] Using byte order: ${mappedByteOrder}`);
     
     // Write the registers to buffer based on byte order
+    // We use explicit logic for each byte ordering pattern to ensure correctness
     if (mappedByteOrder === 'ABCD') {
-      buffer.writeUInt16BE(reg1, 0);
-      buffer.writeUInt16BE(reg2, 2);
+      // ABCD: High word first, high byte first (Big-endian)
+      buffer.writeUInt16BE(validReg1, 0);
+      buffer.writeUInt16BE(validReg2, 2);
+      console.log(`[processValidRegistersAsInt32] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'CDAB') {
-      buffer.writeUInt16BE(reg2, 0);
-      buffer.writeUInt16BE(reg1, 2);
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      buffer.writeUInt16BE(validReg2, 0);
+      buffer.writeUInt16BE(validReg1, 2);
+      console.log(`[processValidRegistersAsInt32] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'BADC') {
-      buffer.writeUInt16LE(reg1, 0);
-      buffer.writeUInt16LE(reg2, 2);
+      // BADC: High word first, low byte first (Mixed-endian)
+      buffer.writeUInt16LE(validReg1, 0);
+      buffer.writeUInt16LE(validReg2, 2);
+      console.log(`[processValidRegistersAsInt32] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     } else if (mappedByteOrder === 'DCBA') {
-      buffer.writeUInt16LE(reg2, 0);
-      buffer.writeUInt16LE(reg1, 2);
+      // DCBA: Low word first, low byte first (Little-endian)
+      buffer.writeUInt16LE(validReg2, 0);
+      buffer.writeUInt16LE(validReg1, 2);
+      console.log(`[processValidRegistersAsInt32] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     }
     
-    // Reading the int32 should be consistent with how we wrote the bytes
+    // Log the buffer content in hexadecimal
+    console.log(`[processValidRegistersAsInt32] Buffer hex: ${buffer.toString('hex')}`);
+    
+    // Reading the int32 depends on the overall endianness pattern
     let value: number;
+    
+    // For ABCD and CDAB, read as big-endian
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readInt32BE(0);
-    } else {
+      console.log(`[processValidRegistersAsInt32] Reading as BigEndian Int32: ${value}`);
+    } 
+    // For BADC and DCBA, read as little-endian
+    else {
       value = buffer.readInt32LE(0);
+      console.log(`[processValidRegistersAsInt32] Reading as LittleEndian Int32: ${value}`);
     }
     
     return value;
@@ -618,39 +682,75 @@ export const processValidRegistersAsUInt32 = (
   byteOrder: string
 ): number | null => {
   try {
+    // Log the input values
+    console.log(`[processValidRegistersAsUInt32] Processing registers: reg1=${reg1} (0x${reg1.toString(16).padStart(4, '0')}), reg2=${reg2} (0x${reg2.toString(16).padStart(4, '0')}), byteOrder=${byteOrder}`);
+    
+    // Ensure the registers are valid numbers between 0-65535 (16-bit values)
+    const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+    const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
+      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+    
+    // Report if we had to adjust the register values
+    if (validReg1 !== reg1 || validReg2 !== reg2) {
+      console.log(`[processValidRegistersAsUInt32] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
+    }
+    
     const buffer = Buffer.alloc(4);
     
-    // Map byteOrder string to ByteOrder enum
+    // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
-    switch (byteOrder.toUpperCase()) {
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
       case 'ABCD': mappedByteOrder = 'ABCD'; break;
       case 'CDAB': mappedByteOrder = 'CDAB'; break;
       case 'BADC': mappedByteOrder = 'BADC'; break;
       case 'DCBA': mappedByteOrder = 'DCBA'; break;
-      default: mappedByteOrder = 'ABCD';
+      default: 
+        console.log(`[processValidRegistersAsUInt32] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
     }
+    
+    console.log(`[processValidRegistersAsUInt32] Using byte order: ${mappedByteOrder}`);
     
     // Write the registers to buffer based on byte order
+    // We use explicit logic for each byte ordering pattern to ensure correctness
     if (mappedByteOrder === 'ABCD') {
-      buffer.writeUInt16BE(reg1, 0);
-      buffer.writeUInt16BE(reg2, 2);
+      // ABCD: High word first, high byte first (Big-endian)
+      buffer.writeUInt16BE(validReg1, 0);
+      buffer.writeUInt16BE(validReg2, 2);
+      console.log(`[processValidRegistersAsUInt32] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'CDAB') {
-      buffer.writeUInt16BE(reg2, 0);
-      buffer.writeUInt16BE(reg1, 2);
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      buffer.writeUInt16BE(validReg2, 0);
+      buffer.writeUInt16BE(validReg1, 2);
+      console.log(`[processValidRegistersAsUInt32] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
     } else if (mappedByteOrder === 'BADC') {
-      buffer.writeUInt16LE(reg1, 0);
-      buffer.writeUInt16LE(reg2, 2);
+      // BADC: High word first, low byte first (Mixed-endian)
+      buffer.writeUInt16LE(validReg1, 0);
+      buffer.writeUInt16LE(validReg2, 2);
+      console.log(`[processValidRegistersAsUInt32] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     } else if (mappedByteOrder === 'DCBA') {
-      buffer.writeUInt16LE(reg2, 0);
-      buffer.writeUInt16LE(reg1, 2);
+      // DCBA: Low word first, low byte first (Little-endian)
+      buffer.writeUInt16LE(validReg2, 0);
+      buffer.writeUInt16LE(validReg1, 2);
+      console.log(`[processValidRegistersAsUInt32] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
     }
     
-    // Reading the uint32 should be consistent with how we wrote the bytes
+    // Log the buffer content in hexadecimal
+    console.log(`[processValidRegistersAsUInt32] Buffer hex: ${buffer.toString('hex')}`);
+    
+    // Reading the uint32 depends on the overall endianness pattern
     let value: number;
+    
+    // For ABCD and CDAB, read as big-endian
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readUInt32BE(0);
-    } else {
+      console.log(`[processValidRegistersAsUInt32] Reading as BigEndian UInt32: ${value}`);
+    } 
+    // For BADC and DCBA, read as little-endian
+    else {
       value = buffer.readUInt32LE(0);
+      console.log(`[processValidRegistersAsUInt32] Reading as LittleEndian UInt32: ${value}`);
     }
     
     return value;
@@ -668,101 +768,147 @@ export const processAndFormatValue = (
   param: any
 ): any => {
   if (value === null || value === undefined) {
-    //console.log(`[deviceService] Skipping scaling/formatting because value is ${value}`);
+    console.log(`[deviceService] Skipping scaling/formatting for "${param.name}" because value is ${value}`);
     return value;
   }
   
   // Make sure value is a number before applying scaling
   if (typeof value !== 'number') {
-    //console.log(
-    //  `[deviceService] Warning: Value is not a number (${typeof value}: ${value}), attempting to convert`
-    //);
+    console.log(
+      `[deviceService] Warning: Value for "${param.name}" is not a number (${typeof value}: ${value}), attempting to convert`
+    );
     const numericValue = Number(value);
     if (!isNaN(numericValue)) {
       value = numericValue;
-      //console.log(`[deviceService] Successfully converted value to number: ${value}`);
+      console.log(`[deviceService] Successfully converted value for "${param.name}" to number: ${value}`);
     } else {
-      //console.log(`[deviceService] Could not convert value to number, setting to null`);
+      console.log(`[deviceService] Could not convert value for "${param.name}" to number, setting to null`);
       return null;
     }
   }
   
+  // Check for invalid values early
+  if (!isFinite(value)) {
+    console.log(`[deviceService] Value for "${param.name}" is not finite (${value}), returning null`);
+    return null;
+  }
+  
+  let originalValue = value;
+  let appliedOperations = [];
+  
   // Apply scaling factor if defined
-  if (param.scalingFactor && param.scalingFactor !== 1) {
+  if (param.scalingFactor !== undefined && param.scalingFactor !== 1 && isFinite(param.scalingFactor)) {
     try {
-      const originalValue = value;
-      value = value * param.scalingFactor;
-      //console.log(
-      //  `[deviceService] Applied scaling factor: ${originalValue} * ${param.scalingFactor} = ${value}`
-      //);
+      originalValue = value;
+      const scalingFactor = Number(param.scalingFactor);
       
-      // Check for invalid results
-      if (!isFinite(value)) {
-        //console.log(`[deviceService] Warning: Scaling resulted in ${value}, reverting to original value`);
-        value = originalValue;
+      if (!isNaN(scalingFactor) && isFinite(scalingFactor) && scalingFactor !== 0) {
+        value = value * scalingFactor;
+        console.log(`[deviceService] Applied scaling factor for "${param.name}": ${originalValue} * ${scalingFactor} = ${value}`);
+        appliedOperations.push('scaling factor');
+        
+        // Check for invalid results
+        if (!isFinite(value)) {
+          console.log(`[deviceService] Warning: Scaling factor for "${param.name}" resulted in ${value}, reverting to original value`);
+          value = originalValue;
+          appliedOperations.pop(); // Remove the last operation
+        }
+      } else {
+        console.log(`[deviceService] Warning: Invalid scaling factor for "${param.name}": ${param.scalingFactor}, skipping`);
       }
     } catch (error) {
-      console.error(`[deviceService] Error applying scaling factor:`, error);
+      console.error(`[deviceService] Error applying scaling factor for "${param.name}":`, error);
+      value = originalValue; // Revert to original value on error
     }
   }
   
   // Apply scaling equation if defined
-  if (param.scalingEquation) {
+  if (param.scalingEquation && typeof param.scalingEquation === 'string' && param.scalingEquation.trim() !== '') {
     try {
+      originalValue = value;
+      
       // Simple equation evaluation (x is the value)
       const x = value;
-      const originalValue = value;
       
-      // Use Function constructor to safely evaluate the equation
-      value = new Function('x', `return ${param.scalingEquation}`)(x);
-      //console.log(
-      //  `[deviceService] Applied scaling equation: ${param.scalingEquation} with x=${originalValue}, result=${value}`
-      //);
-      
-      // Check for invalid results
-      if (!isFinite(value)) {
-        //console.log(`[deviceService] Warning: Equation resulted in ${value}, reverting to original value`);
-        value = originalValue;
+      // Verify this looks like a mathematical equation
+      const equationPattern = /^[0-9x\s\+\-\*\/\(\)\.\,\^\%\&\|]+$/;
+      if (equationPattern.test(param.scalingEquation)) {
+        // Use Function constructor to safely evaluate the equation
+        value = new Function('x', `return ${param.scalingEquation}`)(x);
+        console.log(`[deviceService] Applied scaling equation for "${param.name}": ${param.scalingEquation} with x=${originalValue}, result=${value}`);
+        appliedOperations.push('scaling equation');
+        
+        // Check for invalid results
+        if (!isFinite(value)) {
+          console.log(`[deviceService] Warning: Equation for "${param.name}" resulted in ${value}, reverting to original value`);
+          value = originalValue;
+          appliedOperations.pop(); // Remove the last operation
+        }
+      } else {
+        console.log(`[deviceService] Warning: Scaling equation for "${param.name}" contains disallowed characters, skipping: ${param.scalingEquation}`);
       }
     } catch (error) {
-      console.error(`[deviceService] Scaling equation error:`, error);
-      // Keep the original value if the equation fails
+      console.error(`[deviceService] Scaling equation error for "${param.name}":`, error);
+      value = originalValue; // Keep the original value if the equation fails
     }
   }
   
   // Format decimal places if defined
-  if (param.decimalPoint !== undefined && param.decimalPoint >= 0) {
+  if (param.decimalPoint !== undefined && isFinite(param.decimalPoint)) {
     try {
-      const originalValue = value;
+      originalValue = value;
+      const decimalPoints = Number(param.decimalPoint);
       
-      // Check if value is extremely small before formatting
-      if (Math.abs(value) < Math.pow(10, -param.decimalPoint)) {
-        // For very small values, preserve scientific notation or original value
-        //console.log(
-        //  `[deviceService] Value ${value} is too small for ${param.decimalPoint} decimal places, preserving original`
-        //);
+      if (!isNaN(decimalPoints) && isFinite(decimalPoints) && decimalPoints >= 0) {
+        // Check if value is extremely small before formatting
+        if (Math.abs(value) < Math.pow(10, -decimalPoints)) {
+          // For very small values, preserve scientific notation or original value
+          console.log(`[deviceService] Value ${value} for "${param.name}" is too small for ${decimalPoints} decimal places, preserving original`);
+        } else {
+          // For normal values, format decimal places - use Number to avoid trailing zeros
+          value = Number(value.toFixed(decimalPoints));
+          console.log(`[deviceService] Formatted decimal places for "${param.name}": ${originalValue} to ${decimalPoints} places = ${value}`);
+          appliedOperations.push('decimal formatting');
+        }
       } else {
-        // For normal values, format decimal places
-        value = parseFloat(value.toFixed(param.decimalPoint));
-        //console.log(
-        //  `[deviceService] Formatted decimal places: ${originalValue} to ${param.decimalPoint} places = ${value}`
-        //);
+        console.log(`[deviceService] Warning: Invalid decimalPoint for "${param.name}": ${param.decimalPoint}, skipping`);
       }
     } catch (error) {
-      console.error(`[deviceService] Error formatting decimal places:`, error);
+      console.error(`[deviceService] Error formatting decimal places for "${param.name}":`, error);
+      value = originalValue; // Revert to original on error
     }
   }
   
   // Apply min/max constraints if defined
   if (typeof value === 'number') {
-    if (param.maxValue !== undefined && value > param.maxValue) {
-      //console.log(`[deviceService] Value ${value} exceeds maxValue ${param.maxValue}, clamping`);
-      value = param.maxValue;
+    originalValue = value;
+    
+    // Apply maximum constraint if defined and valid
+    if (param.maxValue !== undefined && isFinite(param.maxValue)) {
+      const maxValue = Number(param.maxValue);
+      if (!isNaN(maxValue) && isFinite(maxValue) && value > maxValue) {
+        console.log(`[deviceService] Value ${value} for "${param.name}" exceeds maxValue ${maxValue}, clamping`);
+        value = maxValue;
+        appliedOperations.push('max constraint');
+      }
     }
-    if (param.minValue !== undefined && value < param.minValue) {
-      //console.log(`[deviceService] Value ${value} below minValue ${param.minValue}, clamping`);
-      value = param.minValue;
+    
+    // Apply minimum constraint if defined and valid
+    if (param.minValue !== undefined && isFinite(param.minValue)) {
+      const minValue = Number(param.minValue);
+      if (!isNaN(minValue) && isFinite(minValue) && value < minValue) {
+        console.log(`[deviceService] Value ${value} for "${param.name}" below minValue ${minValue}, clamping`);
+        value = minValue;
+        appliedOperations.push('min constraint');
+      }
     }
+  }
+  
+  // Log a summary of all operations applied
+  if (appliedOperations.length > 0) {
+    console.log(`[deviceService] Summary for "${param.name}": Applied ${appliedOperations.join(', ')} - Final value: ${value}`);
+  } else {
+    console.log(`[deviceService] No scaling or formatting operations applied for "${param.name}" - Value unchanged: ${value}`);
   }
   
   return value;
@@ -780,74 +926,124 @@ export const processParameter = async (
   let value: any;
   
   try {
+    // Enhanced logging for debugging
+    console.log(`[deviceService] Processing parameter "${param.name}" of type ${param.dataType || 'Unknown'} at relative index ${relativeIndex}`);
+    
+    // Check if result is valid
+    if (!result || !result.data || !Array.isArray(result.data)) {
+      console.error(`[deviceService] Invalid result data for parameter "${param.name}": `, result);
+      return null;
+    }
+    
+    // Log available data for debugging
+    console.log(`[deviceService] Available data length: ${result.data.length}, needed index: ${relativeIndex}`);
+    
     // Handle data types that span multiple registers
     if ((param.dataType === 'FLOAT32' || 
          param.dataType === 'INT32' || 
          param.dataType === 'UINT32') && 
         (param.wordCount === 2 || !param.wordCount)) { // Make wordCount optional (default to 2 for these types)
+      
       // For multi-word data types, we need to read two consecutive registers
-      // First check if result data array exists and has enough elements
-      if (
-        !result.data ||
-        !Array.isArray(result.data) ||
-        result.data.length <= relativeIndex ||
-        result.data.length <= relativeIndex + 1
-      ) {
-        console.log(
-          `[deviceService] Cannot read ${param.dataType} - result data is invalid or too short. Need index ${relativeIndex} and ${relativeIndex + 1}, but data length is ${result.data?.length || 0}. Actual data:`,
-          result.data
+      // Check if we have enough data
+      if (result.data.length <= relativeIndex || result.data.length <= relativeIndex + 1) {
+        console.error(
+          `[deviceService] Cannot read ${param.dataType} for "${param.name}" - data too short. Need indices ${relativeIndex} and ${relativeIndex + 1}, but data length is ${result.data.length}`
         );
-        value = null;
-      } else {
-        // We have valid data with enough registers
-        const byteOrder = getByteOrder(param, device);
-        
-        const reg1 = result.data[relativeIndex];
-        const reg2 = result.data[relativeIndex + 1];
-        
-        console.log(`[deviceService] Raw registers for ${param.dataType}: reg1=${reg1}, reg2=${reg2}, byteOrder=${byteOrder}`);
-        
-        // Process based on data type
+        return null;
+      }
+      
+      // Get the byte order for this parameter based on device make
+      const byteOrder = getByteOrder(param, device);
+      
+      // Get the two registers needed for multi-register data types
+      const reg1 = result.data[relativeIndex];
+      const reg2 = result.data[relativeIndex + 1];
+      
+      console.log(`[deviceService] Processing ${param.dataType} value from registers: [${reg1} (0x${reg1.toString(16).padStart(4, '0')}), ${reg2} (0x${reg2.toString(16).padStart(4, '0')})] with byte order ${byteOrder}`);
+      
+      // Make sure the registers are valid numbers
+      if (typeof reg1 !== 'number' || typeof reg2 !== 'number' || !isFinite(reg1) || !isFinite(reg2)) {
+        console.error(`[deviceService] Invalid register values for "${param.name}": reg1=${reg1}, reg2=${reg2}`);
+        return null;
+      }
+      
+      // Process based on data type with improved error handling
+      try {
         if (param.dataType === 'FLOAT32') {
           value = processFloat32(reg1, reg2, byteOrder);
+          
+          // Additional validation for FLOAT32 values
+          if (value !== null && (!isFinite(value) || Math.abs(value) > 3.4e38)) {
+            console.error(`[deviceService] Invalid FLOAT32 value for "${param.name}": ${value} (out of range)`);
+            value = null;
+          }
         } else if (param.dataType === 'INT32') {
           value = processInt32(reg1, reg2, byteOrder);
+          
+          // Additional validation for INT32 values
+          if (value !== null && (!Number.isInteger(value) || value < -2147483648 || value > 2147483647)) {
+            console.error(`[deviceService] Invalid INT32 value for "${param.name}": ${value} (out of range)`);
+            value = null;
+          }
         } else if (param.dataType === 'UINT32') {
           value = processUInt32(reg1, reg2, byteOrder);
+          
+          // Additional validation for UINT32 values
+          if (value !== null && (!Number.isInteger(value) || value < 0 || value > 4294967295)) {
+            console.error(`[deviceService] Invalid UINT32 value for "${param.name}": ${value} (out of range)`);
+            value = null;
+          }
         }
         
-        console.log(`[deviceService] Processed ${param.dataType} value: ${value}`);
+        if (value !== null) {
+          console.log(`[deviceService] Successfully processed ${param.dataType} value for "${param.name}": ${value}`);
+        } else {
+          console.error(`[deviceService] Failed to process ${param.dataType} value for "${param.name}"`);
+        }
+      } catch (processingError) {
+        console.error(`[deviceService] Error processing ${param.dataType} for "${param.name}":`, processingError);
+        value = null;
       }
     } else {
-      // Standard single register processing
-      if (
-        !result.data ||
-        !Array.isArray(result.data) ||
-        result.data.length <= relativeIndex
-      ) {
-        console.log(
-          `[deviceService] Cannot read register at index ${relativeIndex} - result data is invalid.`
+      // Standard single register processing for UINT16, INT16, etc.
+      if (result.data.length <= relativeIndex) {
+        console.error(
+          `[deviceService] Cannot read register for "${param.name}" at index ${relativeIndex} - data too short.`
         );
-        value = null;
+        return null;
+      }
+      
+      // Get the raw register value
+      value = result.data[relativeIndex];
+      
+      // Validate the register value
+      if (typeof value !== 'number' || !isFinite(value)) {
+        console.error(`[deviceService] Invalid register value for "${param.name}": ${value}`);
+        return null;
+      }
+      
+      // Process single register values based on data type
+      if (param.dataType === 'INT16') {
+        // Convert from unsigned 16-bit to signed 16-bit
+        if (value > 32767) {
+          value = value - 65536;
+        }
+        console.log(`[deviceService] Converted UINT16 (${result.data[relativeIndex]}) to INT16: ${value}`);
       } else {
-        value = result.data[relativeIndex];
-        console.log(`[deviceService] Read single register value: ${value}`);
+        console.log(`[deviceService] Using raw register value for "${param.name}": ${value}`);
       }
     }
     
-    //console.log(`[deviceService] Raw value at index ${relativeIndex}: ${value}`);
-    
-    // Process and format the value
-    value = processAndFormatValue(value, param);
-    
-    // Log the final processed value
-    //console.log(
-    //  `[deviceService] Final processed value for parameter "${param.name}": ${value}${param.unit ? ' ' + param.unit : ''}`
-    //);
+    // Apply additional processing (scaling, equations, etc.)
+    if (value !== null) {
+      value = processAndFormatValue(value, param);
+      console.log(`[deviceService] Final value for "${param.name}" after formatting: ${value}${param.unit ? ' ' + param.unit : ''}`);
+    }
     
     return value;
   } catch (error) {
-    console.error(`[deviceService] Error processing parameter ${param.name}:`, error);
+    console.error(`[deviceService] Unhandled error processing parameter "${param.name}":`, error);
     return null;
   }
 };

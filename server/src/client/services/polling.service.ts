@@ -1131,6 +1131,8 @@ export function startPollingDevice(deviceId: string, intervalMs = 10000): NodeJS
  * @returns boolean indicating if polling was stopped
  */
 export function stopPollingDevice(deviceId: string): boolean {
+  console.log(chalk.bgYellow.black(`🛑 API: stopPollingDevice called for device ${deviceId}`));
+  
   const interval = pollingIntervals.get(deviceId);
   if (interval) {
     try {
@@ -1159,6 +1161,8 @@ export function stopPollingDevice(deviceId: string): boolean {
  * @returns boolean indicating if polling was successfully configured
  */
 export function setDevicePolling(deviceId: string, intervalMs = 10000): boolean {
+  console.log(chalk.bgBlue.white(`💡 API: setDevicePolling called for device ${deviceId} with interval ${intervalMs}ms`));
+  
   if (!deviceId) {
     console.error(chalk.red('❌ Cannot start polling: Invalid device ID'));
     return false;

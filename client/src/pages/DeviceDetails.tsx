@@ -83,7 +83,7 @@ const DeviceDetails: React.FC = () => {
     pollingStatus,
     lastUpdated,
   } = useDevicePolling(deviceId || '', {
-    autoStart: true,
+    autoStart: false, // Changed from true to false to prevent auto-starting
     refreshInterval: 5000,
     onDataReceived: (data) => {
       // Update readings when new data arrives
@@ -2293,6 +2293,9 @@ const PollingControlsWrapper = () => {
       const { deviceId } = useParams<{ deviceId: string }>();
       const [pollingInterval, setPollingInterval] = useState(5000); // Default to 5 seconds
       
+      // Manage checkbox state independently from the hook
+      const [checkboxState, setCheckboxState] = useState(false);
+      
       // Use the polling hook instead of manual setup
       const { 
         isPolling: autoPolling, 
@@ -2317,6 +2320,12 @@ const PollingControlsWrapper = () => {
         }
       });
       
+      // Sync the checkbox with the actual polling state when it changes
+      useEffect(() => {
+        console.log(`[PollingControl] Polling state changed to: ${autoPolling}, updating checkbox to match`);
+        setCheckboxState(autoPolling);
+      }, [autoPolling]);
+      
       // Handle interval changes
       useEffect(() => {
         if (autoPolling && deviceId) {
@@ -2329,35 +2338,65 @@ const PollingControlsWrapper = () => {
             console.error('[PollingControl] Error updating interval:', err);
           });
         }
-      }, [pollingInterval]); // Only run when polling interval changes
+      }, [pollingInterval, autoPolling, deviceId, stopPolling, startPolling]); // Included all dependencies
       
       // Handle toggling auto-polling
       const handleTogglePolling = async (enable: boolean) => {
         try {
+          console.log(`[PollingControl] Polling state BEFORE toggle: ${autoPolling}, trying to set to: ${enable}`);
+          console.log(`[PollingControl] Checkbox state is: ${checkboxState}`);
+          
           if (enable) {
+            // If we're enabling, try up to 3 times to start polling
             console.log(`[PollingControl] Starting server-side polling every ${pollingInterval}ms`);
-            const success = await startPolling(pollingInterval);
-            console.log(`[PollingControl] Start polling result: ${success ? 'success' : 'failed'}`);
+            console.log(`[PollingControl] Current deviceId: ${deviceId}`);
+            
+            // First attempt
+            let success = await startPolling(pollingInterval);
+            console.log(`[PollingControl] First attempt to start polling: ${success ? 'success' : 'failed'}`);
+            
+            // Retry up to two more times if needed
+            if (!success) {
+              console.log(`[PollingControl] Retrying start polling...`);
+              success = await startPolling(pollingInterval);
+              console.log(`[PollingControl] Second attempt to start polling: ${success ? 'success' : 'failed'}`);
+            }
+            
+            if (!success) {
+              console.log(`[PollingControl] Final retry for start polling...`);
+              success = await startPolling(pollingInterval);
+              console.log(`[PollingControl] Third attempt to start polling: ${success ? 'success' : 'failed'}`);
+            }
+            
+            if (!success) {
+              console.error(`[PollingControl] Failed to start polling after 3 attempts`);
+              // If it still failed after all retries, update checkbox state
+              setCheckboxState(false);
+            }
+            
+            // Verify the polling state after the API call
+            console.log(`[PollingControl] Polling state AFTER start API calls: ${autoPolling}`);
           } else {
+            // If we're disabling, try to stop polling
             console.log('[PollingControl] Stopping server-side polling');
             const success = await stopPolling();
             console.log(`[PollingControl] Stop polling result: ${success ? 'success' : 'failed'}`);
             
-            // Force an additional stop call if needed - this is a safeguard
-            if (!success) {
-              console.log('[PollingControl] First stop attempt may have failed, trying again...');
-              setTimeout(async () => {
-                try {
-                  await stopPolling();
-                  console.log('[PollingControl] Second stop attempt completed');
-                } catch (retryErr) {
-                  console.error('[PollingControl] Error in second stop attempt:', retryErr);
-                }
-              }, 500);
-            }
+            // Even if stopping failed, we want to update the UI to match user intent
+            setCheckboxState(false);
+            
+            // Verify the polling state after the API call
+            console.log(`[PollingControl] Polling state AFTER stop API call: ${autoPolling}`);
           }
         } catch (err) {
           console.error('[PollingControl] Error toggling polling:', err);
+          // On error, reset checkbox to match the actual polling state
+          setCheckboxState(autoPolling);
+        } finally {
+          // Log the final states
+          setTimeout(() => {
+            console.log(`[PollingControl] FINAL states - Polling: ${autoPolling}, Checkbox: ${checkboxState}`);
+          }, 100);
         }
       };
       
@@ -2387,13 +2426,39 @@ const PollingControlsWrapper = () => {
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={autoPolling}
-                  onChange={e => handleTogglePolling(e.target.checked)}
+                  checked={checkboxState}
+                  onChange={e => {
+                    console.log(`[PollingControl] Checkbox clicked, current state=${checkboxState}, changing to ${e.target.checked}`);
+                    // Set checkbox state immediately to make UI responsive
+                    setCheckboxState(e.target.checked);
+                    // Actually start/stop polling (which will update autoPolling state)
+                    handleTogglePolling(e.target.checked);
+                  }}
                   className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-sm font-medium text-gray-700">
-                  {autoPolling ? 'Polling Active' : 'Start Polling'}
+                  {checkboxState ? 'Polling Active' : 'Start Polling'}
                 </span>
+                <span className="ml-2 text-xs text-gray-400">
+                  (Actual: {autoPolling ? 'On' : 'Off'})
+                </span>
+                <button 
+                  onClick={() => {
+                    // Direct API call to test endpoint
+                    fetch(`/client/api/devices/${deviceId}/polling/start`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ interval: pollingInterval })
+                    })
+                    .then(res => res.json())
+                    .then(data => console.log('[DIRECT API] Start polling response:', data))
+                    .catch(err => console.error('[DIRECT API] Error:', err));
+                  }}
+                  className="ml-2 text-xs text-blue-500 underline"
+                  title="Force direct API call to test endpoint"
+                >
+                  Test API
+                </button>
               </label>
               
               <button
@@ -2406,8 +2471,8 @@ const PollingControlsWrapper = () => {
               <select
                 value={pollingInterval}
                 onChange={e => setPollingInterval(Number(e.target.value))}
-                className="rounded border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-                disabled={!autoPolling}
+                className="rounded border border-gray-300 p-1 text-sm focus:border-blue-500 focus:ring-blue-500"
+                disabled={!checkboxState}
               >
                 <option value="1000">1 second</option>
                 <option value="2000">2 seconds</option>

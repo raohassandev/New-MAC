@@ -98,7 +98,15 @@ export const startDevicePolling = async (req: Request, res: Response) => {
         const alternativeDevice = await DeviceModel.findById(deviceId);
         if (alternativeDevice) {
           console.log(`[deviceDataController] Found device using app.locals.clientModels: ${alternativeDevice.name}`);
-          // Use this device instead
+          
+          // Check if device has a specific polling interval setting and use it if available
+          if (alternativeDevice.pollingInterval && !req.body.interval) {
+            console.log(`[deviceDataController] Using device-specific polling interval: ${alternativeDevice.pollingInterval}ms`);
+            // Use device's polling interval instead of the default or requested interval
+            return processDevice(alternativeDevice, alternativeDevice.pollingInterval, userId, res);
+          }
+          
+          // Use this device with requested interval
           return processDevice(alternativeDevice, interval, userId, res);
         }
       } catch (err) {
@@ -151,7 +159,14 @@ export const startDevicePolling = async (req: Request, res: Response) => {
     
     console.log(`[deviceDataController] Found device: ${device.name} (${deviceId})`);
     
-    // Process the device using our helper function
+    // Check if device has a specific polling interval setting and use it if available
+    if (device.pollingInterval && !req.body.interval) {
+      console.log(`[deviceDataController] Using device-specific polling interval: ${device.pollingInterval}ms`);
+      // Use device's polling interval instead of the default or requested interval
+      return processDevice(device, device.pollingInterval, userId, res);
+    }
+    
+    // Process the device using our helper function with requested interval
     return processDevice(device, interval, userId, res);
   } catch (error: any) {
     console.error('Start device polling error:', error);
@@ -286,6 +301,12 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
     if (readOnly) {
       console.log(`[deviceDataController] READ-ONLY MODE: Using only cached data for device ${deviceId}`);
       // Just continue to the return statement - no polling will be done
+      
+      // Add note about polling interval if device is found
+      if (device && device.pollingInterval) {
+        console.log(`[deviceDataController] Device ${deviceId} has polling interval of ${device.pollingInterval}ms`);
+        // Note: The actual polling interval respecting logic is handled in the /:id/data/current/readonly endpoint
+      }
     }
     else {
       const isCachedDataRecent = realtimeData && 
@@ -422,6 +443,14 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
       });
     }
     
+    // Get the device's polling interval (if available)
+    const pollingInterval = device?.pollingInterval || 30000; // Default to 30 seconds if not specified
+    
+    // Calculate how long ago the cache was updated
+    const cachedTime = new Date(realtimeData.timestamp).getTime();
+    const currentTime = new Date().getTime();
+    const timeSinceLastPoll = currentTime - cachedTime;
+    
     // Return formatted response with valid data
     res.json({
       success: true,
@@ -430,7 +459,16 @@ export const getCurrentDeviceData = async (req: Request, res: Response) => {
       deviceName: device?.name || deviceName, // Use deviceName fallback if device is null
       hasData: true,
       timestamp: realtimeData.timestamp,
-      readings: realtimeData.readings || []
+      readings: realtimeData.readings || [],
+      // Add polling interval information
+      cacheAge: timeSinceLastPoll,
+      pollingInterval: pollingInterval,
+      nextPollIn: readOnly ? Math.max(0, pollingInterval - timeSinceLastPoll) : 0, // Only relevant in readOnly mode
+      pollingSettings: {
+        deviceSpecificInterval: !!device?.pollingInterval,
+        intervalMs: pollingInterval,
+        lastPolled: new Date(realtimeData.timestamp).toISOString()
+      }
     });
   } catch (error: any) {
     console.error('Get current device data error:', error);

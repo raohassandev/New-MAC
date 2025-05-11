@@ -59,7 +59,9 @@ export function useDevicePolling(
   } = options;
 
   const [deviceData, setDeviceData] = useState<DeviceData | null>(null);
+  // State for tracking whether polling is active
   const [isPolling, setIsPolling] = useState<boolean>(false);
+  console.log(`[useDevicePolling] Hook initialized with isPolling=${isPolling}`);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [pollingStatus, setPollingStatus] = useState<'stopped' | 'starting' | 'active' | 'error'>('stopped');
@@ -282,9 +284,12 @@ export function useDevicePolling(
       console.log(`[useDevicePolling] Start polling response:`, response.data);
       
       if (response && response.data && response.data.success) {
-        // Update both the state and the ref
-        setIsPolling(true);
+        console.log(`[useDevicePolling] API call successful, about to update state to polling=true`);
+        // First update the ref, then the state to ensure consistency
         isPollingRef.current = true;
+        // Use a direct state update that doesn't depend on previous state
+        setIsPolling(true);
+        console.log(`[useDevicePolling] State updates requested. isPollingRef=${isPollingRef.current}`);
         setPollingStatus('active');
         
         // Get initial data
@@ -388,9 +393,12 @@ export function useDevicePolling(
     }
     
     try {
-      // First update both the state and ref to prevent any pending refreshes
+      console.log(`[useDevicePolling] Stop polling initiated, about to update state to polling=false`);
+      // First update the ref to prevent any pending refreshes, then the state
+      isPollingRef.current = false; 
+      // Use a direct state update that doesn't depend on previous state
       setIsPolling(false);
-      isPollingRef.current = false;
+      console.log(`[useDevicePolling] State updates requested for stop. isPollingRef=${isPollingRef.current}`);
       setPollingStatus('stopped');
       
       // Clear the client-side polling interval immediately

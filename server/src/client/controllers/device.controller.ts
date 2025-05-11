@@ -1088,26 +1088,38 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
     }
     
     try {
+      // Add more detailed logging for debugging
+      console.log(chalk.cyan(`[deviceController] Testing connection for device ID: ${deviceId}`));
       
       // Use the device service to test the connection
       // This will handle database connection, device finding, and testing Modbus connection
       const result = await deviceService.testConnection(deviceId, req);
-      
-      // Since we want to maintain exact consistency of the response format,
-      // we could make minor adjustments to the service response if needed
       
       // Log the result
       if (result.success) {
         console.log(chalk.green(`[deviceController] Successfully connected to device ${deviceId}`));
       } else {
         console.log(chalk.yellow(`[deviceController] Connection failed for device ${deviceId}: ${result.message}`));
+        
+        // More detailed error logging for debugging
+        if (result.errorType) {
+          console.log(chalk.yellow(`[deviceController] Error type: ${result.errorType}`));
+        }
+        if (result.error) {
+          console.log(chalk.yellow(`[deviceController] Error details: ${result.error}`));
+        }
       }
       
-      // Return the response in the same format as before - which should match the service response exactly
+      // Return the response in the same format as before
       return res.status(200).json(result);
     } catch (error: any) {
       // This shouldn't happen often since the service handles its own errors
       console.error(chalk.bgRed.white('[deviceController] Unhandled error in test connection:'), error);
+      
+      // Enhanced error logging for debugging
+      if (error.stack) {
+        console.error(chalk.red(`[deviceController] Error stack: ${error.stack}`));
+      }
       
       // Structure server errors consistently with other responses
       const serverErrorResponse = {
@@ -1128,6 +1140,11 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     // This is a catch-all for errors that escape the inner try/catch
     console.error(chalk.bgRed.white('[deviceController] Critical error in test connection:'), error);
+    
+    // Enhanced error logging
+    if (error.stack) {
+      console.error(chalk.red(`[deviceController] Error stack: ${error.stack}`));
+    }
     
     const serverErrorResponse = {
       success: false,
@@ -1151,7 +1168,7 @@ export const testDeviceConnection = async (req: AuthRequest, res: Response) => {
 
 export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
   try {
-    console.log('[deviceController] Starting device register read using service');
+    console.log(chalk.bgBlue.white('[deviceController] Starting device register read using service'));
     
     const deviceId = req.params.id;
     
@@ -1169,11 +1186,26 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
     }
     
     try {
+      // Add more detailed logging for debugging
+      console.log(chalk.cyan(`[deviceController] Reading registers for device ID: ${deviceId}`));
+      
       // Use the device service to read registers
       // This will handle database connection, device finding, and reading registers
       const result = await deviceService.readDeviceRegisters(deviceId, req);
       
-      console.log(`[deviceController] Successfully read registers for device ${deviceId}`);
+      if (result && result.readings && result.readings.length > 0) {
+        // Log the successful read with register count
+        console.log(chalk.green(`[deviceController] Successfully read ${result.readings.length} registers for device ${deviceId}`));
+        
+        // Optionally log the first few readings for debugging
+        const sampleReadings = result.readings.slice(0, 3).map(r => 
+          `${r.name}: ${r.value}${r.unit ? ' ' + r.unit : ''}`
+        ).join(', ');
+        
+        console.log(chalk.cyan(`[deviceController] Sample readings: ${sampleReadings}${result.readings.length > 3 ? ', ...' : ''}`));
+      } else {
+        console.log(chalk.yellow(`[deviceController] No readings returned for device ${deviceId}`));
+      }
       
       // Return the response in the same format as before
       return res.json({
@@ -1186,18 +1218,28 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
       // Handle specific errors
       if (error.message === 'Device not found') {
+        console.log(chalk.yellow(`[deviceController] Device ${deviceId} not found`));
         return res.status(404).json({ message: 'Device not found' });
       } else if (error.message === 'Device is disabled') {
+        console.log(chalk.yellow(`[deviceController] Device ${deviceId} is disabled`));
         return res.status(400).json({ message: 'Device is disabled' });
       } else if (error.message.includes('connection')) {
+        console.log(chalk.yellow(`[deviceController] Connection error for device ${deviceId}: ${error.message}`));
         return res.status(400).json({ message: error.message });
       } else if (error.message.includes('No data points')) {
+        console.log(chalk.yellow(`[deviceController] No data points configured for device ${deviceId}`));
         return res.status(400).json({ 
           message: 'No data points or registers configured for this device' 
         });
       } else {
         // Log the full error for debugging
-        console.error('[deviceController] Error reading device registers:', error);
+        console.error(chalk.red(`[deviceController] Error reading device ${deviceId} registers:`), error);
+        
+        // Log the stack trace for more detailed debugging
+        if (error.stack) {
+          console.error(chalk.red(`[deviceController] Error stack: ${error.stack}`));
+        }
+        
         return res.status(500).json({ 
           message: 'Failed to read device registers', 
           error: error.message 
@@ -1205,7 +1247,13 @@ export const readDeviceRegisters = async (req: AuthRequest, res: Response) => {
       }
     }
   } catch (error: any) {
-    console.error('Error in readDeviceRegisters controller:', error);
+    console.error(chalk.bgRed.white('[deviceController] Critical error in readDeviceRegisters:'), error);
+    
+    // Enhanced error logging
+    if (error.stack) {
+      console.error(chalk.red(`[deviceController] Error stack: ${error.stack}`));
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Server error',

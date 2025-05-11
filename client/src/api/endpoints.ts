@@ -130,8 +130,8 @@ export const deviceDataApi = {
   // Get current data for a device from cache (or trigger a fresh read if forceRefresh=true)
   getCurrentData: (id: string, forceRefresh: boolean = false) => {
     console.log(`[endpoints.ts] Getting current data for device ${id}${forceRefresh ? ' (force refresh)' : ''}`);
-    // Use a single, consistent path for data retrieval
-    return api.get(`/client/api/devices/${id}/data/current${forceRefresh ? '?forceRefresh=true' : ''}`);
+    // Use the readonly endpoint which respects device polling interval settings
+    return api.get(`/client/api/devices/${id}/data/current/readonly${forceRefresh ? '?forceRefresh=true' : ''}`);
   },
   
   // Get historical data for a device
