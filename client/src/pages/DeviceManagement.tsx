@@ -457,7 +457,7 @@ const DeviceManagement: React.FC = () => {
 
     return { total, online, offline, warning };
   };
-
+  
   const onNewDeviceFormSubmit = (value: any) => {
     handleAddDevice(value);
   };

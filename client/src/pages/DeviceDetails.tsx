@@ -2327,18 +2327,20 @@ const PollingControlsWrapper = () => {
       }, [autoPolling]);
       
       // Handle interval changes
+      const previousIntervalRef = useRef(pollingInterval);
+      
       useEffect(() => {
-        if (autoPolling && deviceId) {
-          console.log(`[PollingControl] Updating polling interval to ${pollingInterval}ms`);
+        // Only restart polling if the interval has changed and polling is active
+        if (autoPolling && deviceId && pollingInterval !== previousIntervalRef.current) {
+          console.log(`[PollingControl] Updating polling interval from ${previousIntervalRef.current}ms to ${pollingInterval}ms`);
+          previousIntervalRef.current = pollingInterval;
           
-          // Stop and restart polling with new interval
-          stopPolling().then(() => {
-            startPolling(pollingInterval);
-          }).catch(err => {
+          // Just start polling with the new interval - the hook internally stops previous polling
+          startPolling(pollingInterval).catch(err => {
             console.error('[PollingControl] Error updating interval:', err);
           });
         }
-      }, [pollingInterval, autoPolling, deviceId, stopPolling, startPolling]); // Included all dependencies
+      }, [pollingInterval, autoPolling, deviceId, startPolling]); // Removed stopPolling from dependencies
       
       // Handle toggling auto-polling
       const handleTogglePolling = async (enable: boolean) => {
@@ -2444,15 +2446,31 @@ const PollingControlsWrapper = () => {
                 </span>
                 <button 
                   onClick={() => {
+                    // Get the correct API URL from the environment
+                    const apiUrl = 'http://localhost:3333'; // Server URL
+                    console.log(`[DIRECT API] Making direct call to ${apiUrl}/client/api/devices/${deviceId}/polling/start`);
+                    
                     // Direct API call to test endpoint
-                    fetch(`/client/api/devices/${deviceId}/polling/start`, {
+                    fetch(`${apiUrl}/client/api/devices/${deviceId}/polling/start`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token') || ''}` // Add auth token
+                      },
                       body: JSON.stringify({ interval: pollingInterval })
                     })
-                    .then(res => res.json())
-                    .then(data => console.log('[DIRECT API] Start polling response:', data))
-                    .catch(err => console.error('[DIRECT API] Error:', err));
+                    .then(res => {
+                      console.log(`[DIRECT API] Response status: ${res.status}`);
+                      return res.json();
+                    })
+                    .then(data => {
+                      console.log('[DIRECT API] Start polling response:', data);
+                      alert(`API Response: ${JSON.stringify(data)}`);
+                    })
+                    .catch(err => {
+                      console.error('[DIRECT API] Error:', err);
+                      alert(`API Error: ${err.message}`);
+                    });
                   }}
                   className="ml-2 text-xs text-blue-500 underline"
                   title="Force direct API call to test endpoint"
