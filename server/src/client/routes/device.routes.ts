@@ -1,4 +1,5 @@
 import * as deviceController from '../controllers/device.controller';
+import * as deviceControlController from '../controllers/deviceControl.controller';
 import { Router } from 'express';
 import express from 'express';
 
@@ -29,6 +30,8 @@ router.post('/:id/test', deviceController.testDeviceConnection as express.Reques
 
 router.get('/:id/read', deviceController.readDeviceRegisters as express.RequestHandler);
 
+// Device control route
+router.post('/:id/control', deviceControlController.controlDevice as express.RequestHandler);
 
 
 export default router;

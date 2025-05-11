@@ -1705,3 +1705,569 @@ export const testConnection = async (
     }
   }
 };
+
+/**
+ * Interface for control parameters sent to the device
+ */
+export interface ControlParameter {
+  name: string;          // Parameter name
+  value: any;            // Value to set
+  registerIndex: number; // Register address to write to
+  dataType: string;      // Data type (UINT16, INT16, FLOAT32, etc.)
+  byteOrder?: string;    // Byte order override (if not using device default)
+  functionCode?: number; // Function code override (default based on dataType)
+}
+
+/**
+ * Interface for control operation results
+ */
+export interface ControlResult {
+  success: boolean;
+  parameter: string;
+  value: any;
+  registerIndex: number;
+  message?: string;
+  error?: string;
+  verification?: {
+    success: boolean;
+    readValue: any;
+    message?: string;
+  };
+}
+
+/**
+ * Write a single register to a Modbus device
+ */
+export const writeSingleRegister = async (
+  client: ModbusRTU,
+  address: number,
+  value: number
+): Promise<boolean> => {
+  try {
+    console.log(chalk.yellow(`[deviceService] Writing single register at address ${address} with value ${value}`));
+    
+    // Validate value range for single register (0-65535)
+    if (value < 0 || value > 65535 || !Number.isInteger(value)) {
+      throw new Error(`Invalid value ${value} for single register write. Must be integer between 0-65535.`);
+    }
+    
+    // Write the register
+    await client.writeRegister(address, value);
+    console.log(chalk.green(`[deviceService] Successfully wrote value ${value} to register ${address}`));
+    
+    return true;
+  } catch (error: any) {
+    console.error(chalk.red(`[deviceService] Error writing to register ${address}:`), error);
+    throw error;
+  }
+};
+
+/**
+ * Write multiple registers to a Modbus device
+ */
+export const writeMultipleRegisters = async (
+  client: ModbusRTU,
+  address: number,
+  values: number[]
+): Promise<boolean> => {
+  try {
+    console.log(chalk.yellow(`[deviceService] Writing ${values.length} registers starting at address ${address}`));
+    
+    // Validate values
+    for (let i = 0; i < values.length; i++) {
+      const val = values[i];
+      if (val < 0 || val > 65535 || !Number.isInteger(val)) {
+        throw new Error(`Invalid value ${val} at index ${i}. All values must be integers between 0-65535.`);
+      }
+    }
+    
+    // Write the registers
+    await client.writeRegisters(address, values);
+    console.log(chalk.green(`[deviceService] Successfully wrote ${values.length} registers starting at ${address}`));
+    
+    return true;
+  } catch (error: any) {
+    console.error(chalk.red(`[deviceService] Error writing multiple registers starting at ${address}:`), error);
+    throw error;
+  }
+};
+
+/**
+ * Write a single coil to a Modbus device
+ */
+export const writeCoil = async (
+  client: ModbusRTU,
+  address: number,
+  value: boolean
+): Promise<boolean> => {
+  try {
+    console.log(chalk.yellow(`[deviceService] Writing coil at address ${address} with value ${value}`));
+    
+    // Write the coil
+    await client.writeCoil(address, value);
+    console.log(chalk.green(`[deviceService] Successfully wrote value ${value} to coil ${address}`));
+    
+    return true;
+  } catch (error: any) {
+    console.error(chalk.red(`[deviceService] Error writing to coil ${address}:`), error);
+    throw error;
+  }
+};
+
+/**
+ * Write multiple coils to a Modbus device
+ */
+export const writeMultipleCoils = async (
+  client: ModbusRTU,
+  address: number,
+  values: boolean[]
+): Promise<boolean> => {
+  try {
+    console.log(chalk.yellow(`[deviceService] Writing ${values.length} coils starting at address ${address}`));
+    
+    // Write the coils
+    await client.writeCoils(address, values);
+    console.log(chalk.green(`[deviceService] Successfully wrote ${values.length} coils starting at ${address}`));
+    
+    return true;
+  } catch (error: any) {
+    console.error(chalk.red(`[deviceService] Error writing multiple coils starting at ${address}:`), error);
+    throw error;
+  }
+};
+
+/**
+ * Convert a FLOAT32 value to two registers based on byte order
+ */
+export const convertFloat32ToRegisters = (
+  value: number,
+  byteOrder: string
+): number[] => {
+  try {
+    console.log(`[deviceService] Converting float value ${value} to registers with byte order ${byteOrder}`);
+    
+    // Create a buffer for the float value
+    const buffer = Buffer.alloc(4);
+    
+    // Write the float value to the buffer
+    buffer.writeFloatBE(value, 0);
+    
+    // Extract the registers based on byte order
+    let reg1: number, reg2: number;
+    
+    // Normalize byte order to uppercase and ensure valid value
+    let mappedByteOrder: string;
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
+      case 'ABCD': mappedByteOrder = 'ABCD'; break;
+      case 'CDAB': mappedByteOrder = 'CDAB'; break;
+      case 'BADC': mappedByteOrder = 'BADC'; break;
+      case 'DCBA': mappedByteOrder = 'DCBA'; break;
+      default: 
+        console.log(`[deviceService] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
+    }
+    
+    // Extract registers based on byte order
+    if (mappedByteOrder === 'ABCD') {
+      // ABCD: High word first, high byte first (Big-endian)
+      reg1 = buffer.readUInt16BE(0);
+      reg2 = buffer.readUInt16BE(2);
+    } else if (mappedByteOrder === 'CDAB') {
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      reg1 = buffer.readUInt16BE(2);
+      reg2 = buffer.readUInt16BE(0);
+    } else if (mappedByteOrder === 'BADC') {
+      // BADC: High word first, low byte first (Mixed-endian)
+      reg1 = buffer.readUInt16LE(0);
+      reg2 = buffer.readUInt16LE(2);
+    } else if (mappedByteOrder === 'DCBA') {
+      // DCBA: Low word first, low byte first (Little-endian)
+      reg1 = buffer.readUInt16LE(2);
+      reg2 = buffer.readUInt16LE(0);
+    } else {
+      throw new Error(`Unsupported byte order: ${byteOrder}`);
+    }
+    
+    console.log(`[deviceService] Converted float ${value} to registers: [${reg1}, ${reg2}]`);
+    return [reg1, reg2];
+  } catch (error) {
+    console.error(`[deviceService] Error converting float to registers:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Convert an INT32 value to two registers based on byte order
+ */
+export const convertInt32ToRegisters = (
+  value: number,
+  byteOrder: string
+): number[] => {
+  try {
+    console.log(`[deviceService] Converting INT32 value ${value} to registers with byte order ${byteOrder}`);
+    
+    // Create a buffer for the INT32 value
+    const buffer = Buffer.alloc(4);
+    
+    // Write the INT32 value to the buffer
+    buffer.writeInt32BE(value, 0);
+    
+    // Extract the registers based on byte order
+    let reg1: number, reg2: number;
+    
+    // Normalize byte order to uppercase and ensure valid value
+    let mappedByteOrder: string;
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
+      case 'ABCD': mappedByteOrder = 'ABCD'; break;
+      case 'CDAB': mappedByteOrder = 'CDAB'; break;
+      case 'BADC': mappedByteOrder = 'BADC'; break;
+      case 'DCBA': mappedByteOrder = 'DCBA'; break;
+      default: 
+        console.log(`[deviceService] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
+    }
+    
+    // Extract registers based on byte order
+    if (mappedByteOrder === 'ABCD') {
+      // ABCD: High word first, high byte first (Big-endian)
+      reg1 = buffer.readUInt16BE(0);
+      reg2 = buffer.readUInt16BE(2);
+    } else if (mappedByteOrder === 'CDAB') {
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      reg1 = buffer.readUInt16BE(2);
+      reg2 = buffer.readUInt16BE(0);
+    } else if (mappedByteOrder === 'BADC') {
+      // BADC: High word first, low byte first (Mixed-endian)
+      reg1 = buffer.readUInt16LE(0);
+      reg2 = buffer.readUInt16LE(2);
+    } else if (mappedByteOrder === 'DCBA') {
+      // DCBA: Low word first, low byte first (Little-endian)
+      reg1 = buffer.readUInt16LE(2);
+      reg2 = buffer.readUInt16LE(0);
+    } else {
+      throw new Error(`Unsupported byte order: ${byteOrder}`);
+    }
+    
+    console.log(`[deviceService] Converted INT32 ${value} to registers: [${reg1}, ${reg2}]`);
+    return [reg1, reg2];
+  } catch (error) {
+    console.error(`[deviceService] Error converting INT32 to registers:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Convert a UINT32 value to two registers based on byte order
+ */
+export const convertUInt32ToRegisters = (
+  value: number,
+  byteOrder: string
+): number[] => {
+  try {
+    console.log(`[deviceService] Converting UINT32 value ${value} to registers with byte order ${byteOrder}`);
+    
+    // Create a buffer for the UINT32 value
+    const buffer = Buffer.alloc(4);
+    
+    // Write the UINT32 value to the buffer
+    buffer.writeUInt32BE(value, 0);
+    
+    // Extract the registers based on byte order
+    let reg1: number, reg2: number;
+    
+    // Normalize byte order to uppercase and ensure valid value
+    let mappedByteOrder: string;
+    switch ((byteOrder || 'ABCD').toUpperCase()) {
+      case 'ABCD': mappedByteOrder = 'ABCD'; break;
+      case 'CDAB': mappedByteOrder = 'CDAB'; break;
+      case 'BADC': mappedByteOrder = 'BADC'; break;
+      case 'DCBA': mappedByteOrder = 'DCBA'; break;
+      default: 
+        console.log(`[deviceService] Unknown byte order '${byteOrder}', using default ABCD`);
+        mappedByteOrder = 'ABCD';
+    }
+    
+    // Extract registers based on byte order
+    if (mappedByteOrder === 'ABCD') {
+      // ABCD: High word first, high byte first (Big-endian)
+      reg1 = buffer.readUInt16BE(0);
+      reg2 = buffer.readUInt16BE(2);
+    } else if (mappedByteOrder === 'CDAB') {
+      // CDAB: Low word first, high byte first (Mixed-endian)
+      reg1 = buffer.readUInt16BE(2);
+      reg2 = buffer.readUInt16BE(0);
+    } else if (mappedByteOrder === 'BADC') {
+      // BADC: High word first, low byte first (Mixed-endian)
+      reg1 = buffer.readUInt16LE(0);
+      reg2 = buffer.readUInt16LE(2);
+    } else if (mappedByteOrder === 'DCBA') {
+      // DCBA: Low word first, low byte first (Little-endian)
+      reg1 = buffer.readUInt16LE(2);
+      reg2 = buffer.readUInt16LE(0);
+    } else {
+      throw new Error(`Unsupported byte order: ${byteOrder}`);
+    }
+    
+    console.log(`[deviceService] Converted UINT32 ${value} to registers: [${reg1}, ${reg2}]`);
+    return [reg1, reg2];
+  } catch (error) {
+    console.error(`[deviceService] Error converting UINT32 to registers:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Write a parameter value to a device
+ */
+export const writeParameterValue = async (
+  client: ModbusRTU,
+  parameter: ControlParameter
+): Promise<ControlResult> => {
+  try {
+    console.log(chalk.yellow(`[deviceService] Writing parameter "${parameter.name}" with value ${parameter.value} to register ${parameter.registerIndex}`));
+    
+    // Default result structure
+    const result: ControlResult = {
+      success: false,
+      parameter: parameter.name,
+      value: parameter.value,
+      registerIndex: parameter.registerIndex,
+    };
+
+    // Handle different data types
+    switch (parameter.dataType.toUpperCase()) {
+      case 'UINT16': {
+        // Validate value for UINT16
+        if (parameter.value < 0 || parameter.value > 65535 || !Number.isInteger(parameter.value)) {
+          throw new Error(`Invalid value ${parameter.value} for UINT16. Must be integer between 0-65535.`);
+        }
+        
+        // Write the value using Function Code 6 (write single register)
+        await writeSingleRegister(client, parameter.registerIndex, parameter.value);
+        result.success = true;
+        break;
+      }
+      
+      case 'INT16': {
+        // Validate value for INT16
+        if (parameter.value < -32768 || parameter.value > 32767 || !Number.isInteger(parameter.value)) {
+          throw new Error(`Invalid value ${parameter.value} for INT16. Must be integer between -32768 and 32767.`);
+        }
+        
+        // Convert signed to unsigned for transport if negative
+        let registerValue = parameter.value;
+        if (registerValue < 0) {
+          registerValue = 65536 + registerValue; // Two's complement conversion
+        }
+        
+        // Write the value using Function Code 6 (write single register)
+        await writeSingleRegister(client, parameter.registerIndex, registerValue);
+        result.success = true;
+        break;
+      }
+      
+      case 'FLOAT32': {
+        // Validate value for FLOAT32
+        if (typeof parameter.value !== 'number' || !isFinite(parameter.value)) {
+          throw new Error(`Invalid value ${parameter.value} for FLOAT32. Must be a finite number.`);
+        }
+        
+        // Get byte order
+        const byteOrder = parameter.byteOrder || 'ABCD';
+        
+        // Convert float to two registers
+        const registers = convertFloat32ToRegisters(parameter.value, byteOrder);
+        
+        // Write the value using Function Code 16 (write multiple registers)
+        await writeMultipleRegisters(client, parameter.registerIndex, registers);
+        result.success = true;
+        break;
+      }
+      
+      case 'INT32': {
+        // Validate value for INT32
+        if (!Number.isInteger(parameter.value) || parameter.value < -2147483648 || parameter.value > 2147483647) {
+          throw new Error(`Invalid value ${parameter.value} for INT32. Must be integer between -2147483648 and 2147483647.`);
+        }
+        
+        // Get byte order
+        const byteOrder = parameter.byteOrder || 'ABCD';
+        
+        // Convert INT32 to two registers
+        const registers = convertInt32ToRegisters(parameter.value, byteOrder);
+        
+        // Write the value using Function Code 16 (write multiple registers)
+        await writeMultipleRegisters(client, parameter.registerIndex, registers);
+        result.success = true;
+        break;
+      }
+      
+      case 'UINT32': {
+        // Validate value for UINT32
+        if (!Number.isInteger(parameter.value) || parameter.value < 0 || parameter.value > 4294967295) {
+          throw new Error(`Invalid value ${parameter.value} for UINT32. Must be integer between 0 and 4294967295.`);
+        }
+        
+        // Get byte order
+        const byteOrder = parameter.byteOrder || 'ABCD';
+        
+        // Convert UINT32 to two registers
+        const registers = convertUInt32ToRegisters(parameter.value, byteOrder);
+        
+        // Write the value using Function Code 16 (write multiple registers)
+        await writeMultipleRegisters(client, parameter.registerIndex, registers);
+        result.success = true;
+        break;
+      }
+      
+      case 'BOOL': {
+        // Validate value for BOOL
+        if (typeof parameter.value !== 'boolean' && ![0, 1].includes(parameter.value)) {
+          throw new Error(`Invalid value ${parameter.value} for BOOL. Must be boolean or 0/1.`);
+        }
+        
+        // Convert to boolean
+        const boolValue = parameter.value === 1 || parameter.value === true;
+        
+        // Check if we're writing to a coil or a register
+        if (parameter.functionCode === 5) {
+          // Function Code 5 (write single coil)
+          await writeCoil(client, parameter.registerIndex, boolValue);
+        } else {
+          // Default to Function Code 6 (write single register)
+          await writeSingleRegister(client, parameter.registerIndex, boolValue ? 1 : 0);
+        }
+        result.success = true;
+        break;
+      }
+      
+      default:
+        throw new Error(`Unsupported data type: ${parameter.dataType}`);
+    }
+    
+    result.message = `Successfully wrote value ${parameter.value} to ${parameter.name} at register ${parameter.registerIndex}`;
+    return result;
+  } catch (error: any) {
+    console.error(chalk.red(`[deviceService] Error writing parameter "${parameter.name}":`), error);
+    return {
+      success: false,
+      parameter: parameter.name,
+      value: parameter.value,
+      registerIndex: parameter.registerIndex,
+      error: error.message,
+      message: `Failed to write value ${parameter.value} to ${parameter.name}: ${error.message}`,
+    };
+  }
+};
+
+/**
+ * Control a device by setting parameter values
+ */
+export const controlDevice = async (
+  deviceId: string,
+  parameters: ControlParameter[],
+  reqContext: any
+): Promise<{
+  success: boolean;
+  deviceId: string;
+  deviceName: string;
+  timestamp: Date;
+  results: ControlResult[];
+}> => {
+  let device: IDevice | null = null;
+  let client: ModbusRTU | null = null;
+  
+  try {
+    console.log(chalk.bgYellow.black(`[deviceService] Starting device control operation for device ID: ${deviceId}`));
+    
+    // Validate parameters
+    if (!parameters || !Array.isArray(parameters) || parameters.length === 0) {
+      throw new Error('No control parameters provided');
+    }
+    
+    // Get the device model
+    const DeviceModel = await getDeviceModel(reqContext);
+    
+    // Find the device
+    device = await DeviceModel.findById(deviceId);
+    
+    if (!device) {
+      throw new Error('Device not found');
+    }
+    
+    if (!device.enabled) {
+      throw new Error('Device is disabled');
+    }
+    
+    // Check if the device has writable registers/control parameters defined
+    // This check can be expanded based on your device schema
+    if (!device.writableRegisters && !device.controlParameters) {
+      console.warn(`[deviceService] Device ${deviceId} does not have writable registers defined`);
+      // For now, proceed anyway but log a warning
+    }
+    
+    // Connect to the device
+    const connection = await connectToModbusDevice(device);
+    client = connection.client;
+    
+    // Process each parameter
+    const results: ControlResult[] = [];
+    
+    for (const parameter of parameters) {
+      try {
+        // Apply any device-specific transformations
+        // For example, use device's default byte order if not specified in the parameter
+        if (!parameter.byteOrder && ['FLOAT32', 'INT32', 'UINT32'].includes(parameter.dataType.toUpperCase())) {
+          parameter.byteOrder = getByteOrder(parameter, device);
+        }
+        
+        // Write the parameter value
+        const result = await writeParameterValue(client, parameter);
+        
+        // Add to results
+        results.push(result);
+      } catch (paramError: any) {
+        console.error(`[deviceService] Error processing parameter ${parameter.name}:`, paramError);
+        results.push({
+          success: false,
+          parameter: parameter.name,
+          value: parameter.value,
+          registerIndex: parameter.registerIndex,
+          error: paramError.message,
+          message: `Failed to process parameter ${parameter.name}: ${paramError.message}`,
+        });
+      }
+    }
+    
+    // Update device lastControlledAt timestamp
+    device.lastControlledAt = new Date();
+    await device.save();
+    
+    // Return the results
+    return {
+      success: results.some(r => r.success), // At least one successful operation
+      deviceId: device._id.toString(),
+      deviceName: device.name,
+      timestamp: new Date(),
+      results,
+    };
+  } catch (error: any) {
+    console.error(chalk.bgRed.white('[deviceService] Device control error:'), error);
+    
+    const errorResponse = {
+      success: false,
+      deviceId: deviceId,
+      deviceName: device?.name || 'Unknown device',
+      timestamp: new Date(),
+      results: [],
+      error: error.message,
+    };
+    
+    throw error;
+  } finally {
+    // Always close the client
+    if (client) {
+      await safeCloseModbusClient(client);
+    }
+  }
+};

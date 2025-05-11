@@ -74,6 +74,31 @@ export interface IRegister {
   unit?: string;
 }
 
+// Control parameter for write operations
+export interface IControlParameter {
+  name: string;
+  description?: string;
+  registerIndex: number; // The register address to write to
+  dataType: string;      // UINT16, INT16, FLOAT32, etc.
+  byteOrder?: string;    // Byte order for multi-register values
+  functionCode?: number; // Function code override
+  unit?: string;         // Unit of measurement
+  minValue?: number;     // Minimum allowed value
+  maxValue?: number;     // Maximum allowed value
+  defaultValue?: any;    // Default value
+  options?: { label: string; value: any }[]; // Preset options (e.g., for mode selection)
+  requireConfirmation?: boolean; // Whether this parameter requires additional confirmation
+  permissionLevel?: string; // Required permission level to modify this parameter
+}
+
+// Writable register range definition
+export interface IWritableRange {
+  startAddress: number;
+  count: number;
+  description?: string;
+  writePermission?: string; // Required permission level to write to this range
+}
+
 export interface IDevice extends Omit<Document, 'model'> {
   name: string;
   make?: string;
@@ -85,6 +110,11 @@ export interface IDevice extends Omit<Document, 'model'> {
   // New structure
   connectionSetting?: IConnectionSetting;
   dataPoints?: IDataPoint[];
+  
+  // Device control capabilities
+  writableRegisters?: IWritableRange[];
+  controlParameters?: IControlParameter[];
+  lastControlledAt?: Date; // Timestamp of last control operation
 
   // Device driver linkage
   deviceDriverId?: string | any; // Can be a string ID or populated object
@@ -274,6 +304,38 @@ export const ConnectionSettingSchema = new Schema<IConnectionSetting>({
   rtu: { type: RtuSettingsSchema },
 });
 
+// Schemas for control parameters and writable registers
+export const WritableRangeSchema = new Schema<IWritableRange>({
+  startAddress: { type: Number, required: true },
+  count: { type: Number, required: true },
+  description: { type: String },
+  writePermission: { type: String, enum: ['admin', 'engineer', 'operator', 'user'] },
+});
+
+export const ParameterOptionSchema = new Schema(
+  {
+    label: { type: String, required: true },
+    value: { type: Schema.Types.Mixed, required: true },
+  },
+  { _id: false }
+);
+
+export const ControlParameterSchema = new Schema<IControlParameter>({
+  name: { type: String, required: true },
+  description: { type: String },
+  registerIndex: { type: Number, required: true },
+  dataType: { type: String, required: true },
+  byteOrder: { type: String },
+  functionCode: { type: Number },
+  unit: { type: String },
+  minValue: { type: Number },
+  maxValue: { type: Number },
+  defaultValue: { type: Schema.Types.Mixed },
+  options: [ParameterOptionSchema],
+  requireConfirmation: { type: Boolean, default: false },
+  permissionLevel: { type: String, enum: ['admin', 'engineer', 'operator', 'user'] },
+});
+
 // Legacy schema
 export const RegisterSchema = new Schema<IRegister>({
   name: { type: String, required: true },
@@ -296,6 +358,11 @@ export const DeviceSchema = new Schema<IDevice>({
   // New structure
   connectionSetting: { type: ConnectionSettingSchema, required: false },
   dataPoints: [DataPointSchema],
+  
+  // Device control capabilities
+  writableRegisters: [WritableRangeSchema],
+  controlParameters: [ControlParameterSchema],
+  lastControlledAt: { type: Date },
 
   // Device driver linkage
   deviceDriverId: { type: String, ref: 'DeviceDriver' },
