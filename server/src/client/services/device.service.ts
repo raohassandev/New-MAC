@@ -229,11 +229,11 @@ export const readModbusRegisters = async (
     console.log(`[deviceService] Using retry setting from advanced settings: ${maxRetries}`);
   }
 
-  let retryDelay = 500; // Default retry delay in ms
+  let retryDelay = 1000; // Default retry delay in ms
   if (device?.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
     retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
     if (isNaN(retryDelay) || retryDelay < 0) {
-      retryDelay = 500;
+      retryDelay = 1000;
     }
     console.log(`[deviceService] Using retry delay from advanced settings: ${retryDelay}ms`);
   }
@@ -248,32 +248,84 @@ export const readModbusRegisters = async (
         let result;
         switch (fc) {
           case 1:
+            // FC1 - Read Coils (returns boolean values)
+            console.log(chalk.blue(`=== Reading Coils (attempt ${attempts + 1}/${maxRetries + 1}) ===`));
             result = await client.readCoils(startAddress, count);
             break;
           case 2:
+            // FC2 - Read Discrete Inputs (returns boolean values)
+            console.log(chalk.blue(`=== Reading Discrete Inputs (attempt ${attempts + 1}/${maxRetries + 1}) ===`));
             result = await client.readDiscreteInputs(startAddress, count);
             break;
           case 3:
+            // FC3 - Read Holding Registers (returns 16-bit register values)
             console.log(chalk.blue(`=== Reading Holding Registers (attempt ${attempts + 1}/${maxRetries + 1}) ===`));
             result = await client.readHoldingRegisters(startAddress, count);
             break;
           case 4:
+            // FC4 - Read Input Registers (returns 16-bit register values)
+            console.log(chalk.blue(`=== Reading Input Registers (attempt ${attempts + 1}/${maxRetries + 1}) ===`));
             result = await client.readInputRegisters(startAddress, count);
             break;
+          case 5:
+            // FC5 - Write Single Coil (we shouldn't be reading with this, but include for completeness)
+            console.log(chalk.yellow(`Warning: Function code ${fc} (Write Single Coil) used for reading. Using FC1 instead.`));
+            result = await client.readCoils(startAddress, count);
+            break;
+          case 6:
+            // FC6 - Write Single Register (we shouldn't be reading with this, but include for completeness)
+            console.log(chalk.yellow(`Warning: Function code ${fc} (Write Single Register) used for reading. Using FC3 instead.`));
+            result = await client.readHoldingRegisters(startAddress, count);
+            break;
           default:
+            // Default to FC3 (Read Holding Registers) for unknown function codes
+            console.log(chalk.yellow(`Warning: Unknown function code ${fc}. Defaulting to FC3 (Read Holding Registers).`));
             result = await client.readHoldingRegisters(startAddress, count);
         }
         
         // Log success and return the result
-        if (result && Array.isArray(result.data)) {
-          console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
-          console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
+        if (result) {
+          // Store the function code in the result for easier access later
+          // Use type assertion to avoid TypeScript errors
+          (result as any).fc = fc;
           
-          if (result.buffer) {
-            console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
+          if (Array.isArray(result.data)) {
+            console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
+            
+            // Format output based on function code
+            if (fc === 1 || fc === 2) {
+              // For boolean values (coils, discrete inputs)
+              console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
+            } else {
+              // For numeric values (holding registers, input registers)
+              console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
+            }
+            
+            if (result.buffer) {
+              console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
+            }
+          } else {
+            console.log(chalk.yellow(`[deviceService] Warning: Result data is not an array. Format: ${typeof result.data}`));
+            console.log(chalk.yellow(`[deviceService] Full result: ${JSON.stringify(result)}`));
+            
+            // Normalize the result to ensure it has a data property that's an array
+            if (!result.data) {
+              result.data = [];
+            } else if (!Array.isArray(result.data)) {
+              // Try to convert to array if possible
+              try {
+                result.data = [result.data];
+                console.log(chalk.yellow(`[deviceService] Converted non-array result to array: [${result.data}]`));
+              } catch (conversionError) {
+                console.error(chalk.red(`[deviceService] Could not convert result to array: ${conversionError}`));
+                result.data = [];
+              }
+            }
           }
         } else {
-          console.log(chalk.red(`[deviceService] Unexpected result format: ${JSON.stringify(result)}`));
+          console.log(chalk.red(`[deviceService] Unexpected empty result from Modbus read`));
+          // Create a default empty result with type assertion
+          result = { data: [], fc } as any;
         }
         
         return result;
@@ -569,11 +621,9 @@ export const processValidRegistersAsFloat = (
       return 0; // Return 0 instead of null for invalid values
     }
     
-    // Handle extremely small values that are likely precision errors
-    if (Math.abs(value) < 1e-30) {
-      console.log(`[processValidRegistersAsFloat] Value is too small (${value}), returning 0`);
-      return 0;
-    }
+    // We're not checking for small values anymore - the problem was with the threshold
+    // being too aggressive (1e-30), which caused normal readings to be incorrectly
+    // converted to 0. Let's trust the register values as they are.
     
     // Round to 6 decimal places to avoid potential JSON serialization issues
     // For most industrial sensors, 6 decimal places is more than enough precision
@@ -1017,9 +1067,37 @@ export const processParameter = async (
       // Get the raw register value
       value = result.data[relativeIndex];
       
-      // Validate the register value
-      if (typeof value !== 'number' || !isFinite(value)) {
-        console.error(`[deviceService] Invalid register value for "${param.name}": ${value}`);
+      // Get the function code from the result metadata if available
+      // Use type assertion to avoid TypeScript errors
+      const functionCode = (result as any).fc || ((result as any).meta ? (result as any).meta.fc : null);
+      
+      // Special handling based on data type and function code
+      if (param.dataType === 'BOOLEAN' || functionCode === 1 || functionCode === 2) {
+        // For FC1 (Read Coils) and FC2 (Read Discrete Inputs), values should be boolean
+        // Also handle BOOLEAN data type for any function code
+        
+        // If value is already a boolean, use it directly
+        if (typeof value === 'boolean') {
+          console.log(`[deviceService] Using boolean value for "${param.name}": ${value}`);
+          return value;
+        } 
+        // If value is a number, convert to boolean (0 = false, anything else = true)
+        else if (typeof value === 'number') {
+          const boolValue = value !== 0;
+          console.log(`[deviceService] Converted numeric value ${value} to boolean: ${boolValue} for "${param.name}"`);
+          return boolValue;
+        }
+        // For other types, try to convert to boolean if possible
+        else if (value !== null && value !== undefined) {
+          const boolValue = Boolean(value);
+          console.log(`[deviceService] Converted ${typeof value} value to boolean: ${boolValue} for "${param.name}"`);
+          return boolValue;
+        }
+      }
+      // For numeric data types with FC3 or FC4, ensure we have valid numbers
+      else if (typeof value !== 'number' || !isFinite(value)) {
+        // Log and skip invalid numeric values
+        console.error(`[deviceService] Invalid register value for "${param.name}": ${value} (type: ${typeof value})`);
         return null;
       }
       
@@ -1088,13 +1166,13 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
             //console.log(`[deviceService] Processing parser with ${parser.parameters.length} parameters`);
             
             for (const param of parser.parameters) {
+              // Calculate relative index outside try/catch so it's accessible in both blocks
+              const relativeIndex = calculateRelativeIndex(param, range);
+              
               try {
                 //console.log(
                 //  `[deviceService] Processing parameter: ${param.name}, registerIndex: ${param.registerIndex}, dataType: ${param.dataType}`
                 //);
-                
-                // Calculate relative index
-                const relativeIndex = calculateRelativeIndex(param, range);
                 
                 if (relativeIndex < 0 || relativeIndex >= count) {
                   //console.log(
@@ -1109,8 +1187,8 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
                 // Add to readings
                 readings.push({
                   name: param.name,
-                  registerIndex: param.registerIndex,
-                  address: param.registerIndex, // Added for frontend compatibility
+                  registerIndex: param.registerIndex || 0,
+                  address: range.startAddress + relativeIndex, // Calculate actual Modbus address
                   value: value,
                   unit: param.unit || '',
                   dataType: param.dataType,
@@ -1120,8 +1198,8 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
                 console.error(`[deviceService] Error processing parameter ${param.name}:`, paramError);
                 readings.push({
                   name: param.name,
-                  registerIndex: param.registerIndex,
-                  address: param.registerIndex,
+                  registerIndex: param.registerIndex || 0,
+                  address: range.startAddress + (relativeIndex >= 0 ? relativeIndex : 0),
                   value: null,
                   unit: param.unit || '',
                   error: paramError.message,
@@ -1178,10 +1256,10 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
     }
     
     // Log the final readings array
-    //console.log(
+    // console.log(
     //  `[deviceService] Final readings results (${readings.length} values):`,
     //  JSON.stringify(readings, null, 1)
-    //);
+    // );
     
     return readings;
   } finally {
@@ -1555,7 +1633,7 @@ export const testConnection = async (
     
     // Get retry settings from advanced settings
     let retries = 0;
-    let retryDelay = 500; // default 500ms between retries
+    let retryDelay = 1000; // default 1000ms between retries
     
     if (device.advancedSettings?.connectionOptions?.retries !== undefined) {
       retries = Number(device.advancedSettings.connectionOptions.retries);
@@ -1568,7 +1646,7 @@ export const testConnection = async (
     if (device.advancedSettings?.connectionOptions?.retryInterval !== undefined) {
       retryDelay = Number(device.advancedSettings.connectionOptions.retryInterval);
       if (isNaN(retryDelay) || retryDelay < 0) {
-        retryDelay = 500;
+        retryDelay = 1000;
       }
       console.log(chalk.cyan(`[deviceService] Using retry delay from advanced settings: ${retryDelay}ms`));
     }
@@ -2194,6 +2272,8 @@ export const controlDevice = async (
     if (!device) {
       throw new Error('Device not found');
     }
+
+    console.log(device)
     
     if (!device.enabled) {
       throw new Error('Device is disabled');

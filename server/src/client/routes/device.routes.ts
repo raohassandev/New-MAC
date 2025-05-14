@@ -30,8 +30,10 @@ router.post('/:id/test', deviceController.testDeviceConnection as express.Reques
 
 router.get('/:id/read', deviceController.readDeviceRegisters as express.RequestHandler);
 
-// Device control route
+// Device control routes
 router.post('/:id/control', deviceControlController.controlDevice as express.RequestHandler);
+router.put('/:id/setpoint/:parameter', deviceController.setDeviceParameter as express.RequestHandler);
+router.post('/batch-control', deviceController.batchControlDevices as express.RequestHandler);
 
 
 export default router;

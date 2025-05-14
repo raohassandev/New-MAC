@@ -6,12 +6,13 @@ import monitoringRouter from './monitoring.routes';
 import pollingRoutes from './polling.routes';
 import autoPollingRoutes from './autoPolling.routes';
 import realtimeDataRoutes from './realtimeData.routes';
+import historicalDataRoutes from './historicalData.routes';
 
 export const clientRouter: Router = express.Router();
 
 // Mount routes
 clientRouter.use('/auth', authRoutes);
-clientRouter.use('/devices', deviceRoutes, pollingRoutes, realtimeDataRoutes);
+clientRouter.use('/devices', deviceRoutes, pollingRoutes, realtimeDataRoutes, historicalDataRoutes);
 clientRouter.use('/monitoring', monitoringRouter);
 clientRouter.use('', autoPollingRoutes); // Mount at root level for system-wide routes
 

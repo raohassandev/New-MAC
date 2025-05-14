@@ -64,7 +64,7 @@ export const debugRequestMiddleware = (req: Request, res: Response, next: NextFu
     console.log(`[DEBUG] Response status: ${res.statusCode}`);
     try {
       const data = JSON.parse(body);
-      console.log(`[DEBUG] Response data:`, data);
+      // console.log(`[DEBUG] Response data:`, data);
     } catch (e) {
       console.log(`[DEBUG] Response body (not JSON):`, body);
     }

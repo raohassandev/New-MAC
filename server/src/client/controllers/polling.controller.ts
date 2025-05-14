@@ -74,7 +74,7 @@ export const startDevicePolling = async (req: Request, res: Response) => {
     const userId = (req as any).user?.id || 'anonymous';
     
     // Get polling interval from request or use default (10 seconds)
-    const interval = req.body.interval ? parseInt(req.body.interval) : 10000;
+    const interval = req.body.interval ? parseInt(req.body.interval) : 80000;
 
     // Check if deviceId is in valid format
     if (!mongoose.Types.ObjectId.isValid(deviceId)) {

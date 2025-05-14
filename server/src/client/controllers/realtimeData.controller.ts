@@ -59,40 +59,38 @@ export const updateRealtimeData = async (req: Request, res: Response) => {
       }
     }
     
-    // Find if there is an existing realtime data entry for this device
+    // Get the appropriate RealtimeData model
     let RealtimeDataModel = RealtimeData;
     if (req.app.locals.clientModels && req.app.locals.clientModels.RealtimeData) {
       RealtimeDataModel = req.app.locals.clientModels.RealtimeData;
     }
     
-    const existingRealtimeData = await RealtimeDataModel.findOne({ deviceId });
+    // Use findOneAndUpdate with upsert to handle both creation and updates atomically
+    // This avoids version conflicts that can occur with findOne + save approach
+    console.log(`[realtimeDataController] Upserting realtime data for device ${deviceId}`);
     
-    let result;
-    if (existingRealtimeData) {
-      // Update existing entry
-      console.log(`[realtimeDataController] Updating existing realtime data for device ${deviceId}`);
-      
-      existingRealtimeData.readings = realtimeData.readings;
-      existingRealtimeData.timestamp = realtimeData.timestamp;
-      existingRealtimeData.lastUpdated = new Date();
-      
-      result = await existingRealtimeData.save();
-    } else {
-      // Create new entry
-      console.log(`[realtimeDataController] Creating new realtime data entry for device ${deviceId}`);
-      
-      result = await RealtimeDataModel.create({
-        deviceId,
-        deviceName,
-        readings: realtimeData.readings,
-        timestamp: realtimeData.timestamp,
-        lastUpdated: new Date(),
-      });
-    }
+    const result = await RealtimeDataModel.findOneAndUpdate(
+      { deviceId },
+      { 
+        $set: {
+          deviceName,
+          readings: realtimeData.readings,
+          timestamp: realtimeData.timestamp,
+          lastUpdated: new Date()
+        }
+      },
+      { 
+        upsert: true, // Create document if it doesn't exist
+        new: true,    // Return the updated document
+        runValidators: true // Ensure data meets schema validation
+      }
+    );
+    
+    const isNewRecord = !result._id || result.isNew;
     
     return res.json({
       success: true,
-      message: existingRealtimeData ? 'Realtime data updated' : 'Realtime data created',
+      message: isNewRecord ? 'Realtime data created' : 'Realtime data updated',
       deviceId,
       deviceName,
       realtimeData: result,

@@ -205,7 +205,7 @@ const startServer = async () => {
         const { startAutoPollingService } = require('./client/services/autoPolling.service');
         
         // Start the auto-polling service
-        await startAutoPollingService();
+        // await startAutoPollingService();
         console.log('✅ Auto-polling service started - all enabled devices will be polled automatically');
       } catch (pollingError) {
         console.warn('⚠️ Failed to start auto-polling service:', pollingError);

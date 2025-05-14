@@ -929,26 +929,28 @@ export async function storeRealtimeData(deviceId: string, data: DeviceReading): 
         return; // Skip database storage instead of throwing an error
       }
       
-      // Find existing entry or create new one
-      const existingEntry = await RealtimeDataModel.findOne({ deviceId });
+      // Use findOneAndUpdate with upsert instead of findOne + save to avoid version conflicts
+      const updateResult = await RealtimeDataModel.findOneAndUpdate(
+        { deviceId },
+        { 
+          $set: {
+            readings: data.readings,
+            timestamp: data.timestamp,
+            lastUpdated: new Date(),
+            deviceName: data.deviceName // Ensure deviceName is always set
+          }
+        },
+        { 
+          upsert: true, // Create document if it doesn't exist
+          new: true,    // Return the updated document
+          runValidators: true // Ensure data meets schema validation
+        }
+      );
       
-      if (existingEntry) {
-        // Update existing entry
-        existingEntry.readings = data.readings;
-        existingEntry.timestamp = data.timestamp;
-        existingEntry.lastUpdated = new Date();
-        await existingEntry.save();
-        console.log(chalk.green(`✅ Updated existing realtime database entry for device ${data.deviceName}`));
+      if (updateResult) {
+        console.log(chalk.green(`✅ Updated realtime database entry for device ${data.deviceName}`));
       } else {
-        // Create new entry
-        await RealtimeDataModel.create({
-          deviceId,
-          deviceName: data.deviceName,
-          readings: data.readings,
-          timestamp: data.timestamp,
-          lastUpdated: new Date(),
-        });
-        console.log(chalk.green(`✅ Created new realtime database entry for device ${data.deviceName}`));
+        console.log(chalk.yellow(`⚠️ Could not update realtime database entry for device ${data.deviceName}`));
       }
     } catch (error) {
       // Log error but don't throw - we still want the in-memory cache to be updated

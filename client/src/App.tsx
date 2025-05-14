@@ -23,8 +23,8 @@ function App() {
       <DeviceProvider>
         <Routes>
           {/* Login/Register routes (redirect to dashboard in dev mode) */}
-          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/register" element={<Navigate to="/dashboard" replace />} />
+          {/* <Route path="/login" element={<Navigate to="/dashboard" replace />} /> */}
+          {/* <Route path="/register" element={<Navigate to="/dashboard" replace />} /> */}
 
           {/* Main app routes - all accessible without authentication in dev mode */}
           <Route path="/" element={<MainLayout />}>

@@ -69,16 +69,20 @@ export const loginUser = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Check for user email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({email:email});
 
+    console.log(user);
+    
     if (!user) {
+      console.log("USER not found");
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Check password using the model's comparePassword method
+    const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
+      console.log("Password mismatch");
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
