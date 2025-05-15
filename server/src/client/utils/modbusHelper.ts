@@ -463,3 +463,164 @@ export const readInputRegistersWithTimeout = async (
     }
   }
 };
+
+/**
+ * Read coil registers with timeout
+ * @param client Modbus client
+ * @param address Register address to read from
+ * @param length Number of coils to read
+ * @param timeout Timeout in ms (default 5000)
+ * @returns Coil register data (array of booleans)
+ */
+export const readCoilsWithTimeout = async (
+  client: ModbusRTU,
+  address: number,
+  length: number,
+  timeout = 5000,
+): Promise<ModbusResponse> => {
+  // Create timeout token to cancel timeout
+  let timeoutId: NodeJS.Timeout | undefined = undefined;
+
+  const readPromise = client.readCoils(address, length);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Coil read timed out after ${timeout}ms`);
+      error.name = 'ReadTimeoutError';
+      reject(error);
+    }, timeout);
+  });
+
+  try {
+    // Race the promises
+    const result = (await Promise.race([readPromise, timeoutPromise])) as ModbusResponse;
+
+    // Validate the result
+    if (!result || !result.data === undefined) {
+      throw new Error(`Invalid response when reading coils at address ${address}`);
+    }
+
+    return result;
+  } catch (error) {
+    // Convert to standard Error if needed
+    if (!(error instanceof Error)) {
+      const newError = new Error(String(error));
+      newError.name = 'ModbusReadError';
+      throw newError;
+    }
+    throw error;
+  } finally {
+    // Always clear the timeout to prevent memory leaks
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+/**
+ * Write a single coil with timeout
+ * @param client Modbus client
+ * @param address Coil address to write to
+ * @param value Boolean value to write (true = ON, false = OFF)
+ * @param timeout Timeout in ms (default 5000)
+ * @returns Success status
+ */
+export const writeCoilWithTimeout = async (
+  client: ModbusRTU,
+  address: number,
+  value: boolean,
+  timeout = 5000,
+): Promise<boolean> => {
+  // Create timeout token to cancel timeout
+  let timeoutId: NodeJS.Timeout | undefined = undefined;
+
+  const writePromise = client.writeCoil(address, value);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Coil write timed out after ${timeout}ms`);
+      error.name = 'WriteTimeoutError';
+      reject(error);
+    }, timeout);
+  });
+
+  try {
+    console.log(chalk.cyan(`🖊️ Writing coil value ${value} to address ${address}`));
+    
+    // Race the promises
+    await Promise.race([writePromise, timeoutPromise]);
+    
+    console.log(chalk.green(`✅ Successfully wrote coil value ${value} to address ${address}`));
+    return true;
+  } catch (error) {
+    // Log the error
+    console.error(chalk.red(`❌ Error writing coil: ${error instanceof Error ? error.message : String(error)}`));
+    
+    // Convert to standard Error if needed
+    if (!(error instanceof Error)) {
+      const newError = new Error(String(error));
+      newError.name = 'ModbusWriteError';
+      throw newError;
+    }
+    throw error;
+  } finally {
+    // Always clear the timeout to prevent memory leaks
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+/**
+ * Write multiple coils with timeout
+ * @param client Modbus client
+ * @param address Starting coil address to write to
+ * @param values Array of boolean values to write
+ * @param timeout Timeout in ms (default 5000)
+ * @returns Success status
+ */
+export const writeMultipleCoilsWithTimeout = async (
+  client: ModbusRTU,
+  address: number,
+  values: boolean[],
+  timeout = 5000,
+): Promise<boolean> => {
+  // Create timeout token to cancel timeout
+  let timeoutId: NodeJS.Timeout | undefined = undefined;
+
+  const writePromise = client.writeCoils(address, values);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Multiple coils write timed out after ${timeout}ms`);
+      error.name = 'WriteTimeoutError';
+      reject(error);
+    }, timeout);
+  });
+
+  try {
+    console.log(chalk.cyan(`🖊️ Writing ${values.length} coil values starting at address ${address}`));
+    
+    // Race the promises
+    await Promise.race([writePromise, timeoutPromise]);
+    
+    console.log(chalk.green(`✅ Successfully wrote ${values.length} coil values starting at address ${address}`));
+    return true;
+  } catch (error) {
+    // Log the error
+    console.error(chalk.red(`❌ Error writing multiple coils: ${error instanceof Error ? error.message : String(error)}`));
+    
+    // Convert to standard Error if needed
+    if (!(error instanceof Error)) {
+      const newError = new Error(String(error));
+      newError.name = 'ModbusWriteError';
+      throw newError;
+    }
+    throw error;
+  } finally {
+    // Always clear the timeout to prevent memory leaks
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};

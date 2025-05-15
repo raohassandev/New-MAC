@@ -12,6 +12,7 @@ MACSYS is a comprehensive solution for managing and monitoring industrial device
 - Fixed byte ordering issues for different device manufacturers
 - Added detailed logging for easier troubleshooting
 - Improved type safety and error handling throughout the codebase
+- Added coil register control capabilities
 
 ## Documentation
 
@@ -19,6 +20,28 @@ See the following files for detailed documentation:
 
 - `server/src/client/utils/modbus-parsing-guide.md` - Guide to Modbus value parsing
 - `server/src/client/utils/test-modbus-parser.ts` - Test script for Modbus parsing functions
+
+## API Endpoints
+
+The system provides several API endpoints for device management and control:
+
+### Main API Categories
+- **Authentication** - User registration, login, and management
+- **Device Management** - CRUD operations for devices
+- **Device Control** - Register write operations and parameter control
+- **Coil Control** - Read and write operations for coil registers (new)
+- **Data Services**
+  - Polling - Start/stop device data collection
+  - Realtime Data - Current device values
+  - Historical Data
+    - `/api/devices/:id/data/historical` - Get device historical data
+    - `/api/devices/:id/data/historical/parameters` - Get available parameters
+    - `/api/devices/:id/data/historical/timerange` - Get data time ranges
+    - `/api/devices/:id/data/historical` (DELETE) - Remove historical data
+- **System-wide Auto-polling** - Manage automatic polling across all devices
+- **System Monitoring** - Performance metrics and logs
+
+For detailed API documentation, see the server README or run the API with the `/api-docs` endpoint enabled.
 
 ## Project Structure
 

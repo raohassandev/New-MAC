@@ -57,6 +57,611 @@ The application uses two MongoDB databases:
 
 The API is organized around two main namespaces. Below we detail the request/response formats for key endpoints.
 
+### API Routes Overview
+
+The server exposes the following client API routes:
+
+#### Authentication Routes
+- `POST /client/api/auth/register` - Register a new user
+- `POST /client/api/auth/login` - Login user
+- `GET /client/api/auth/me` - Get user data
+
+#### Device Management Routes
+- `GET /client/api/devices` - Get all devices
+- `POST /client/api/devices` - Create a new device
+- `GET /client/api/devices/by-driver/:driverId` - Get devices by driver ID
+- `GET /client/api/devices/by-usage/:usage` - Get devices by usage type
+- `GET /client/api/devices/:id` - Get a specific device
+- `PUT /client/api/devices/:id` - Update a specific device
+- `DELETE /client/api/devices/:id` - Delete a specific device
+- `POST /client/api/devices/:id/test` - Test connection to a device
+- `GET /client/api/devices/:id/read` - Read device registers
+
+#### Device Control Routes
+- `POST /client/api/devices/:id/control` - Control a device
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "parameter": "setpoint",
+      "value": 42,
+      "dataType": "INT16"
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "parameter": "setpoint",
+      "value": 42,
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "message": "Successfully set parameter"
+    }
+    ```
+
+- `PUT /client/api/devices/:id/setpoint/:parameter` - Set a device parameter
+  - **URL Parameters**: 
+    - `id` - Device ID
+    - `parameter` - Parameter name
+  - **Request Body**:
+    ```json
+    {
+      "value": 42,
+      "dataType": "INT16"
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "parameter": "setpoint",
+      "value": 42,
+      "timestamp": "2025-05-08T13:44:12.907Z"
+    }
+    ```
+
+- `POST /client/api/devices/batch-control` - Control multiple devices
+  - **Request Body**:
+    ```json
+    {
+      "devices": [
+        {
+          "deviceId": "681c989bb4d2ff4a937b3835",
+          "parameter": "setpoint",
+          "value": 42
+        },
+        {
+          "deviceId": "681c989bb4d2ff4a937b3836",
+          "parameter": "mode",
+          "value": 1
+        }
+      ]
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "results": [
+        {
+          "deviceId": "681c989bb4d2ff4a937b3835",
+          "deviceName": "Haiwell Device",
+          "parameter": "setpoint",
+          "value": 42,
+          "success": true
+        },
+        {
+          "deviceId": "681c989bb4d2ff4a937b3836",
+          "deviceName": "Schneider Device",
+          "parameter": "mode",
+          "value": 1,
+          "success": true
+        }
+      ],
+      "timestamp": "2025-05-08T13:44:12.907Z"
+    }
+    ```
+
+#### Coil Control Routes
+- `POST /client/api/devices/:id/coil-control` - Control a single coil register
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "coilAddress": 100,
+      "value": true,
+      "type": "control"
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "coilAddress": 100,
+      "value": true,
+      "coilType": "control",
+      "message": "Successfully set control coil at address 100 to true"
+    }
+    ```
+
+- `POST /client/api/devices/:id/coil-batch-control` - Control multiple coil registers
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "coils": [
+        {
+          "address": 100,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 101,
+          "value": false,
+          "type": "status"
+        }
+      ]
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "allSuccess": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "results": [
+        {
+          "success": true,
+          "coilType": "control",
+          "coilAddress": 100,
+          "value": true,
+          "message": "Successfully set control coil at address 100 to true"
+        },
+        {
+          "success": true,
+          "coilType": "status",
+          "coilAddress": 101,
+          "value": false,
+          "message": "Successfully set status coil at address 101 to false"
+        }
+      ]
+    }
+    ```
+
+- `GET /client/api/devices/:id/coil-read` - Read coil registers
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Query Parameters**:
+    - `startAddress` - Starting coil address (default: 0)
+    - `count` - Number of coils to read (default: 10)
+    - `type` - Type of coil registers to read (control, schedule, status) (default: control)
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "coilType": "control",
+      "startAddress": 0,
+      "count": 5,
+      "coils": [
+        {
+          "address": 0,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 1,
+          "value": false,
+          "type": "control"
+        },
+        {
+          "address": 2,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 3,
+          "value": false,
+          "type": "control"
+        },
+        {
+          "address": 4,
+          "value": true,
+          "type": "control"
+        }
+      ],
+      "message": "Successfully read 5 control coils starting at address 0"
+    }
+    ```
+
+#### Polling Routes
+- `POST /client/api/devices/:id/polling/start` - Start polling a device
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "interval": 5000,
+      "enabled": true
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "message": "Device polling started",
+      "pollingStatus": {
+        "enabled": true,
+        "interval": 5000,
+        "lastPolled": "2025-05-08T13:44:12.907Z",
+        "nextPollIn": 5000
+      }
+    }
+    ```
+
+- `POST /client/api/devices/:id/polling/stop` - Stop polling a device
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "message": "Device polling stopped",
+      "pollingStatus": {
+        "enabled": false,
+        "interval": 5000,
+        "lastPolled": "2025-05-08T13:44:12.907Z"
+      }
+    }
+    ```
+
+- `GET /client/api/devices/:id/data/current` - Get current device data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Query Parameters**:
+    - `readOnly` - If true, returns cached data if available (default: false)
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Device data retrieved",
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "hasData": true,
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "readings": [
+        {
+          "name": "L1",
+          "registerIndex": 0,
+          "address": 0,
+          "value": 10.5,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        },
+        {
+          "name": "L2",
+          "registerIndex": 2,
+          "address": 2,
+          "value": 11.2,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        }
+      ],
+      "fromCache": false
+    }
+    ```
+
+- `GET /client/api/devices/:id/data/current/readonly` - Get current device data (respects polling intervals)
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Device data retrieved from cache (within polling interval)",
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "hasData": true,
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "readings": [
+        {
+          "name": "L1",
+          "registerIndex": 0,
+          "address": 0,
+          "value": 10.5,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        },
+        {
+          "name": "L2",
+          "registerIndex": 2,
+          "address": 2,
+          "value": 11.2,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        }
+      ],
+      "fromCache": true,
+      "cacheAge": 2500,
+      "pollingInterval": 5000,
+      "nextPollIn": 2500,
+      "pollingSettings": {
+        "deviceSpecificInterval": true,
+        "intervalMs": 5000,
+        "lastPolled": "2025-05-08T13:44:12.907Z"
+      }
+    }
+    ```
+
+#### Realtime Data Routes
+- `POST /client/api/devices/:id/data/realtime` - Update realtime data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "readings": [
+        {
+          "name": "L1",
+          "value": 10.5,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        },
+        {
+          "name": "L2",
+          "value": 11.2,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        }
+      ],
+      "timestamp": "2025-05-08T13:44:12.907Z"
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "message": "Realtime data updated",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "readingsCount": 2
+    }
+    ```
+
+- `GET /client/api/devices/:id/data/realtime` - Get realtime data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "readings": [
+        {
+          "name": "L1",
+          "value": 10.5,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        },
+        {
+          "name": "L2",
+          "value": 11.2,
+          "unit": "A",
+          "dataType": "FLOAT32"
+        }
+      ]
+    }
+    ```
+
+- `DELETE /client/api/devices/:id/data/realtime` - Delete realtime data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "message": "Realtime data deleted"
+    }
+    ```
+
+#### Historical Data Routes
+- `GET /client/api/devices/:id/data/historical` - Get historical data
+- `GET /client/api/devices/:id/data/historical/parameters` - Get historical parameters
+- `GET /client/api/devices/:id/data/historical/timerange` - Get historical time range
+- `DELETE /client/api/devices/:id/data/historical` - Delete historical data
+
+#### System-wide Auto-polling Routes
+- `POST /client/api/system/polling/start` - Start auto-polling for all devices
+  - **Request Body**:
+    ```json
+    {
+      "interval": 60000,
+      "deviceTypes": ["energy_meter", "pump_controller"]
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "message": "System-wide auto-polling started",
+      "autoPollingStatus": {
+        "enabled": true,
+        "interval": 60000,
+        "deviceTypes": ["energy_meter", "pump_controller"],
+        "activeDevices": 12,
+        "nextPollIn": 60000,
+        "lastStarted": "2025-05-08T13:44:12.907Z"
+      }
+    }
+    ```
+
+- `POST /client/api/system/polling/stop` - Stop auto-polling for all devices
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "message": "System-wide auto-polling stopped",
+      "autoPollingStatus": {
+        "enabled": false,
+        "interval": 60000,
+        "deviceTypes": ["energy_meter", "pump_controller"],
+        "lastStarted": "2025-05-08T13:44:12.907Z",
+        "stoppedAt": "2025-05-08T14:44:12.907Z"
+      }
+    }
+    ```
+
+- `GET /client/api/system/polling/status` - Get auto-polling status
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "autoPollingStatus": {
+        "enabled": true,
+        "interval": 60000,
+        "deviceTypes": ["energy_meter", "pump_controller"],
+        "activeDevices": 12,
+        "nextPollIn": 35000,
+        "lastPollCompleted": "2025-05-08T13:44:12.907Z",
+        "devicesStatus": [
+          {
+            "deviceId": "681c989bb4d2ff4a937b3835",
+            "deviceName": "Haiwell Device",
+            "lastPolled": "2025-05-08T13:44:12.907Z",
+            "status": "success",
+            "readingsCount": 8
+          },
+          {
+            "deviceId": "681c989bb4d2ff4a937b3836",
+            "deviceName": "Schneider Device",
+            "lastPolled": "2025-05-08T13:44:22.123Z",
+            "status": "failed",
+            "error": "Connection timeout"
+          }
+        ]
+      }
+    }
+    ```
+
+- `POST /client/api/system/polling/refresh` - Force refresh of all devices
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Force refresh initiated for all devices",
+      "refreshStatus": {
+        "totalDevices": 12,
+        "refreshStarted": "2025-05-08T13:44:12.907Z",
+        "estimatedCompletionTime": "2025-05-08T13:44:42.907Z"
+      }
+    }
+    ```
+
+#### Monitoring Routes
+- `GET /client/api/monitoring/stats` - Get Modbus API statistics
+  - **Response**:
+    ```json
+    {
+      "timestamp": "2025-05-08T14:00:00.000Z",
+      "stats": {
+        "totalRequests": 1250,
+        "successRequests": 1150,
+        "failedRequests": 85,
+        "timeoutRequests": 15,
+        "requestsByDevice": {
+          "681c989bb4d2ff4a937b3835": {
+            "total": 500,
+            "success": 480,
+            "failed": 15,
+            "timeout": 5,
+            "avgResponseTime": 125.5
+          }
+        },
+        "requestsByMinute": {
+          "14:00": {
+            "total": 60,
+            "success": 58,
+            "failed": 2,
+            "timeout": 0
+          }
+        },
+        "errors": [
+          {
+            "timestamp": "2025-05-08T13:58:12.000Z",
+            "requestId": "modbus-1720527852907-123",
+            "deviceId": "681c989bb4d2ff4a937b3835",
+            "error": "Connection refused",
+            "elapsedMs": 2500
+          }
+        ],
+        "lastRequests": [
+          {
+            "timestamp": "2025-05-08T14:00:05.000Z",
+            "requestId": "modbus-1720527852907-123",
+            "deviceId": "681c989bb4d2ff4a937b3835",
+            "status": "success",
+            "elapsedMs": 135,
+            "readings": 8
+          }
+        ]
+      }
+    }
+    ```
+
+- `POST /client/api/monitoring/stats/reset` - Reset statistics
+  - **Response**:
+    ```json
+    {
+      "message": "Stats reset successfully",
+      "timestamp": "2025-05-08T14:00:00.000Z"
+    }
+    ```
+
+- `GET /client/api/monitoring/logs` - Get logs
+  - **Query Parameters**:
+    - `type` - Log type (modbus, api, access) (default: modbus)
+  - **Response**:
+    ```json
+    {
+      "timestamp": "2025-05-08T14:00:00.000Z",
+      "logType": "modbus",
+      "logPath": "/path/to/logs/modbus/modbus.log",
+      "lines": [
+        "2025-05-08T13:59:50.123Z INFO [modbus] Reading holding registers from device 681c989bb4d2ff4a937b3835",
+        "2025-05-08T13:59:50.245Z INFO [modbus] Read 8 registers successfully in 122ms",
+        "2025-05-08T13:59:55.123Z ERROR [modbus] Failed to connect to device 681c989bb4d2ff4a937b3836: Connection refused"
+      ]
+    }
+    ```
+
+- `GET /client/api/monitoring/logs-viewer` - Logs viewer UI
+  - Serves an HTML page for viewing logs
+
+- `GET /client/api/monitoring` - Monitoring dashboard
+  - Serves an HTML page with a real-time monitoring dashboard for Modbus communications
+
 ### Client API (`/client/api`)
 
 #### Device Management
@@ -285,10 +890,130 @@ The API is organized around two main namespaces. Below we detail the request/res
       ]
     }
     ```
+    
+- `POST /client/api/devices/:id/coil-control` - Write to a single coil register
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "coilAddress": 100,
+      "value": true,
+      "type": "control" 
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "coilAddress": 100,
+      "value": true,
+      "coilType": "control",
+      "message": "Successfully set control coil at address 100 to true"
+    }
+    ```
+
+- `POST /client/api/devices/:id/coil-batch-control` - Write to multiple coil registers
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Request Body**:
+    ```json
+    {
+      "coils": [
+        {
+          "address": 100,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 101,
+          "value": false,
+          "type": "status"
+        }
+      ]
+    }
+    ```
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "allSuccess": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "results": [
+        {
+          "success": true,
+          "coilType": "control",
+          "coilAddress": 100,
+          "value": true,
+          "message": "Successfully set control coil at address 100 to true"
+        },
+        {
+          "success": true,
+          "coilType": "status",
+          "coilAddress": 101,
+          "value": false,
+          "message": "Successfully set status coil at address 101 to false"
+        }
+      ]
+    }
+    ```
+
+- `GET /client/api/devices/:id/coil-read` - Read coil registers
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Query Parameters**:
+    - `startAddress` - Starting coil address (default: 0)
+    - `count` - Number of coils to read (default: 10)
+    - `type` - Type of coil registers to read (control, schedule, status) (default: control)
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "coilType": "control",
+      "startAddress": 0,
+      "count": 5,
+      "coils": [
+        {
+          "address": 0,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 1,
+          "value": false,
+          "type": "control"
+        },
+        {
+          "address": 2,
+          "value": true,
+          "type": "control"
+        },
+        {
+          "address": 3,
+          "value": false,
+          "type": "control"
+        },
+        {
+          "address": 4,
+          "value": true,
+          "type": "control"
+        }
+      ],
+      "message": "Successfully read 5 control coils starting at address 0"
+    }
+    ```
 
 #### Device Data
 
-- `GET /client/api/devices/:id/data` - Get historical data
+- `GET /client/api/devices/:id/data/historical` - Get historical data
   - **URL Parameters**: 
     - `id` - Device ID
   - **Query Parameters**:
@@ -318,6 +1043,49 @@ The API is organized around two main namespaces. Below we detail the request/res
           }
         }
       ]
+    }
+    ```
+
+- `GET /client/api/devices/:id/data/historical/parameters` - Get available historical parameters
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "parameters": ["L1", "L2", "L3", "Voltage", "Power", "Energy"]
+    }
+    ```
+
+- `GET /client/api/devices/:id/data/historical/timerange` - Get available time range for historical data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Response**:
+    ```json
+    {
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
+      "firstRecord": "2025-05-01T00:00:00.000Z",
+      "lastRecord": "2025-05-08T14:00:00.000Z",
+      "recordCount": 2304
+    }
+    ```
+
+- `DELETE /client/api/devices/:id/data/historical` - Delete historical data
+  - **URL Parameters**: 
+    - `id` - Device ID
+  - **Query Parameters**:
+    - `from` - Start timestamp (ISO format)
+    - `to` - End timestamp (ISO format)
+    - `parameters` - Comma-separated list of parameter names to delete (optional)
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "deviceId": "681c989bb4d2ff4a937b3835",
+      "message": "Successfully deleted 124 historical data records",
+      "deletedCount": 124
     }
     ```
 
@@ -439,13 +1207,26 @@ Used for serial-connected devices. Configuration includes:
 - Stop bits (1, 2)
 - Slave ID / Unit ID
 
-### Register Reading
+### Register Reading and Writing
 
-The server supports reading different types of Modbus registers:
+The server supports reading and writing different types of Modbus registers:
+
+**Reading Registers:**
 - Function code 1: Read Coils
 - Function code 2: Read Discrete Inputs
 - Function code 3: Read Holding Registers (most common)
 - Function code 4: Read Input Registers
+
+**Writing Registers:**
+- Function code 5: Write Single Coil
+- Function code 6: Write Single Register
+- Function code 15: Write Multiple Coils
+- Function code 16: Write Multiple Registers
+
+The server provides specialized endpoints for coil register operations, supporting three types of coil registers:
+- `control`: Coils used for controlling device functions
+- `schedule`: Coils used for scheduling operations
+- `status`: Coils used for status indicators
 
 ### Data Types
 

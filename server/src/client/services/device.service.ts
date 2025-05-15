@@ -2,7 +2,12 @@ import mongoose from 'mongoose';
 import ModbusRTU from 'modbus-serial';
 import chalk from 'chalk';
 import { IDevice } from '../models/device.model';
-import { safeCloseModbusClient } from '../utils/modbusHelper';
+import { 
+  safeCloseModbusClient, 
+  writeCoilWithTimeout, 
+  writeMultipleCoilsWithTimeout,
+  readCoilsWithTimeout
+} from '../utils/modbusHelper';
 import { Device } from '../models/index.model';
 import { ensureClientDeviceModel } from '../utils/dbHelper';
 
@@ -2155,8 +2160,8 @@ export const writeParameterValue = async (
         
         // Convert float to two registers
         const registers = convertFloat32ToRegisters(parameter.value, byteOrder);
-        
-        // Write the value using Function Code 16 (write multiple registers)
+        console.log(chalk.bgRed( "xxxx" , registers));
+
         await writeMultipleRegisters(client, parameter.registerIndex, registers);
         result.success = true;
         break;
@@ -2273,7 +2278,6 @@ export const controlDevice = async (
       throw new Error('Device not found');
     }
 
-    console.log(device)
     
     if (!device.enabled) {
       throw new Error('Device is disabled');
@@ -2300,6 +2304,7 @@ export const controlDevice = async (
         if (!parameter.byteOrder && ['FLOAT32', 'INT32', 'UINT32'].includes(parameter.dataType.toUpperCase())) {
           parameter.byteOrder = getByteOrder(parameter, device);
         }
+
         
         // Write the parameter value
         const result = await writeParameterValue(client, parameter);
