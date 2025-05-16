@@ -48,10 +48,97 @@ The server is organized into several major components:
 The application uses two MongoDB databases:
 
 1. **Client Database**: Stores device information, historical data, and user profiles
-   - Collections: Devices, Users, Profiles, Alerts, HistoricalData
+   - Collections: Devices, Users, Profiles, Alerts, HistoricalData, ScheduleTemplate, DeviceSchedule
 
 2. **AMX Database**: Stores device drivers, templates, and device types
    - Collections: DeviceDrivers, DeviceTypes, Templates
+
+### Schedule Management
+
+The server includes a comprehensive schedule management system for automating device setpoint changes:
+
+- **Schedule Templates**: Reusable templates with time-based rules
+- **Device Schedules**: Application of templates to specific devices
+- **Time Ranges**: Rules with start and end times
+- **Flexible Days**: Support for weekdays, weekends, specific days, or dates
+- **Default Values**: Optional return to default values after schedule ends
+- **Custom Rules**: Device-specific overrides for template rules
+
+Schedule Rules Structure:
+```json
+{
+  "startTime": "09:00",      // Start time in 24-hour format
+  "endTime": "18:00",        // End time in 24-hour format
+  "setpoint": 22,            // Value to set during this period
+  "days": ["Mon", "Tue"],    // Days when rule applies (defaults to empty array)
+  "enabled": true,           // Whether the rule is active
+  "parameter": "Temperature", // Parameter to control
+  "registerAddress": 40001,   // Modbus register address
+  "returnToDefault": true,   // Return to default after end time
+  "defaultSetpoint": 18      // Default value to return to
+}
+```
+
+**Important**: When creating or updating schedule templates, new rules will have an empty `days` array by default, requiring users to explicitly select which days the rule should apply to. This prevents new rules from unintentionally inheriting days from existing rules.
+
+### Schedule Management Workflow
+
+The schedule system works in two steps:
+
+1. **Create Schedule Templates**: Templates are reusable schedule configurations that define when setpoints should change. They are NOT linked to any specific device.
+
+2. **Apply Templates to Devices**: To actually control a device, you must apply a template to it, creating a DeviceSchedule that links the template to the device.
+
+#### Complete Workflow Example:
+
+```javascript
+// Step 1: Create a schedule template
+const template = await createScheduleTemplate({
+  "name": "Office Hours",
+  "description": "Standard office temperature schedule",
+  "type": "daily",
+  "rules": [
+    {
+      "startTime": "08:00",
+      "endTime": "18:00",
+      "setpoint": 22,
+      "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "enabled": true,
+      "parameter": "Temperature",
+      "registerAddress": 40001
+    }
+  ],
+  "isPublic": false
+});
+
+// Step 2: Apply the template to a specific device
+const schedule = await applyTemplateToDevice(deviceId, {
+  "templateId": template._id,
+  "startDate": "2024-01-15",
+  "endDate": "2024-12-31"
+});
+
+// Now the device will follow the template's schedule
+```
+
+#### Key Concepts:
+
+- **Templates** are reusable patterns that can be applied to multiple devices
+- **DeviceSchedules** are the actual instances that control specific devices
+- Multiple devices can use the same template
+- A device can have custom rules that override template rules
+
+#### Finding Template-Device Relationships:
+
+```javascript
+// Check which devices use a template
+GET /client/api/schedules/templates/:templateId/devices
+
+// Check what schedule a device is using
+GET /client/api/schedules/devices/:deviceId
+```
+
+Without applying a template to a device, the template alone won't control anything - it's just a schedule pattern waiting to be used.
 
 ## API Endpoints
 
@@ -84,21 +171,35 @@ The server exposes the following client API routes:
   - **Request Body**:
     ```json
     {
-      "parameter": "setpoint",
-      "value": 42,
-      "dataType": "INT16"
+      "parameters": [
+        {
+          "name": "Temperature",
+          "value": 26,
+          "registerIndex": 1512,
+          "dataType": "FLOAT32",
+          "byteOrder": "ABCD"
+        }
+      ]
     }
     ```
+  - **IMPORTANT**: The `registerIndex` parameter must be the actual Modbus register address you want to write to, not the array index. This is the address used in the Modbus write operation.
   - **Response**:
     ```json
     {
       "success": true,
       "deviceId": "681c989bb4d2ff4a937b3835",
       "deviceName": "Haiwell Device",
-      "parameter": "setpoint",
-      "value": 42,
       "timestamp": "2025-05-08T13:44:12.907Z",
-      "message": "Successfully set parameter"
+      "summary": "1/1 parameters set successfully",
+      "results": [
+        {
+          "success": true,
+          "parameter": "Temperature",
+          "value": 26,
+          "registerIndex": 1512,
+          "message": "Successfully wrote value 26 to Temperature at register 1512"
+        }
+      ]
     }
     ```
 
@@ -110,17 +211,23 @@ The server exposes the following client API routes:
     ```json
     {
       "value": 42,
-      "dataType": "INT16"
+      "dataType": "INT16",
+      "registerIndex": 1200,
+      "byteOrder": "ABCD"
     }
     ```
+  - **IMPORTANT**: The `registerIndex` parameter must be the actual Modbus register address you want to write to, not a relative index. This is the address used in the Modbus write operation.
   - **Response**:
     ```json
     {
       "success": true,
       "deviceId": "681c989bb4d2ff4a937b3835",
+      "deviceName": "Haiwell Device",
       "parameter": "setpoint",
       "value": 42,
-      "timestamp": "2025-05-08T13:44:12.907Z"
+      "registerIndex": 1200,
+      "timestamp": "2025-05-08T13:44:12.907Z",
+      "message": "Successfully set parameter"
     }
     ```
 
@@ -128,38 +235,71 @@ The server exposes the following client API routes:
   - **Request Body**:
     ```json
     {
-      "devices": [
+      "commands": [
         {
           "deviceId": "681c989bb4d2ff4a937b3835",
-          "parameter": "setpoint",
-          "value": 42
+          "parameters": [
+            {
+              "name": "setpoint",
+              "value": 42,
+              "registerIndex": 1200,
+              "dataType": "INT16"
+            }
+          ]
         },
         {
           "deviceId": "681c989bb4d2ff4a937b3836",
-          "parameter": "mode",
-          "value": 1
+          "parameters": [
+            {
+              "name": "mode",
+              "value": 1,
+              "registerIndex": 1500,
+              "dataType": "UINT16"
+            }
+          ]
         }
       ]
     }
     ```
+  - **IMPORTANT**: For each parameter, the `registerIndex` must be the actual Modbus register address you want to write to, not a relative index.
   - **Response**:
     ```json
     {
       "success": true,
+      "allSuccess": true,
+      "summary": {
+        "totalDevices": 2,
+        "successfulDevices": 2,
+        "failedDevices": 0
+      },
       "results": [
         {
           "deviceId": "681c989bb4d2ff4a937b3835",
           "deviceName": "Haiwell Device",
-          "parameter": "setpoint",
-          "value": 42,
-          "success": true
+          "success": true,
+          "results": [
+            {
+              "success": true,
+              "parameter": "setpoint",
+              "value": 42,
+              "registerIndex": 1200,
+              "message": "Successfully wrote value 42 to setpoint at register 1200"
+            }
+          ]
         },
         {
           "deviceId": "681c989bb4d2ff4a937b3836",
           "deviceName": "Schneider Device",
-          "parameter": "mode",
-          "value": 1,
-          "success": true
+          "success": true,
+          "results": [
+            {
+              "success": true,
+              "parameter": "mode",
+              "value": 1,
+              "registerIndex": 1500,
+              "message": "Successfully wrote value 1 to mode at register 1500"
+            }
+          ]
         }
       ],
       "timestamp": "2025-05-08T13:44:12.907Z"
@@ -491,6 +631,7 @@ The server exposes the following client API routes:
 - `GET /client/api/devices/:id/data/historical/parameters` - Get historical parameters
 - `GET /client/api/devices/:id/data/historical/timerange` - Get historical time range
 - `DELETE /client/api/devices/:id/data/historical` - Delete historical data
+- `GET /client/api/devices/data/historical/aggregate` - Get aggregated historical data for all devices
 
 #### System-wide Auto-polling Routes
 - `POST /client/api/system/polling/start` - Start auto-polling for all devices
@@ -580,7 +721,7 @@ The server exposes the following client API routes:
     ```
 
 #### Monitoring Routes
-- `GET /client/api/monitoring/stats` - Get Modbus API statistics
+ - `GET /client/api/monitoring/stats` - Get Modbus API statistics
   - **Response**:
     ```json
     {
@@ -661,6 +802,553 @@ The server exposes the following client API routes:
 
 - `GET /client/api/monitoring` - Monitoring dashboard
   - Serves an HTML page with a real-time monitoring dashboard for Modbus communications
+
+#### Schedule Management Routes
+
+##### Create Schedule Template
+- `POST /client/api/schedules/templates` - Create a new schedule template
+  - **Frontend Request**:
+    ```javascript
+    const response = await fetch('http://localhost:3333/client/api/schedules/templates', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "name": "Office Hours",
+        "description": "Standard office hours temperature schedule",
+        "type": "daily",
+        "rules": [
+          {
+            "startTime": "06:00",
+            "endTime": "18:00",
+            "setpoint": 22,
+            "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": true,
+            "defaultSetpoint": 18
+          },
+          {
+            "startTime": "08:00",
+            "endTime": "22:00",
+            "setpoint": 24,
+            "days": ["Sat", "Sun"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": true,
+            "defaultSetpoint": 18
+          }
+        ],
+        "isPublic": false
+      })
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule template created successfully",
+      "template": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "name": "Office Hours",
+        "description": "Standard office hours temperature schedule",
+        "type": "daily",
+        "rules": [
+          {
+            "startTime": "06:00",
+            "endTime": "18:00",
+            "setpoint": 22,
+            "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": true,
+            "defaultSetpoint": 18
+          }
+        ],
+        "createdBy": {
+          "userId": "123456",
+          "username": "john_doe",
+          "email": "john@example.com"
+        },
+        "isPublic": false,
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+      }
+    }
+    ```
+
+##### Get All Schedule Templates
+- `GET /client/api/schedules/templates` - Get all schedule templates
+  - **Frontend Request**:
+    ```javascript
+    // Get all templates (including private)
+    const response = await fetch('http://localhost:3333/client/api/schedules/templates', {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    
+    // Get only public templates
+    const publicResponse = await fetch('http://localhost:3333/client/api/schedules/templates?includePrivate=false', {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule templates retrieved successfully",
+      "templates": [
+        {
+          "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+          "name": "Office Hours",
+          "description": "Standard office hours temperature schedule",
+          "type": "daily",
+          "rules": [...],
+          "isPublic": false,
+          "createdBy": {
+            "userId": "123456",
+            "username": "john_doe"
+          }
+        },
+        {
+          "_id": "65a1b2c3d4e5f6g7h8i9j0k2",
+          "name": "Energy Saving",
+          "description": "Energy saving schedule",
+          "type": "daily",
+          "rules": [...],
+          "isPublic": true,
+          "createdBy": {
+            "userId": "789012",
+            "username": "admin"
+          }
+        }
+      ],
+      "count": 2
+    }
+    ```
+
+##### Get Schedule Template by ID
+- `GET /client/api/schedules/templates/:id` - Get specific schedule template
+  - **Frontend Request**:
+    ```javascript
+    const templateId = '65a1b2c3d4e5f6g7h8i9j0k1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/templates/${templateId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule template retrieved successfully",
+      "template": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "name": "Office Hours",
+        "description": "Standard office hours temperature schedule",
+        "type": "daily",
+        "rules": [
+          {
+            "startTime": "06:00",
+            "endTime": "18:00",
+            "setpoint": 22,
+            "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": true,
+            "defaultSetpoint": 18
+          }
+        ],
+        "isPublic": false,
+        "createdBy": {
+          "userId": "123456",
+          "username": "john_doe",
+          "email": "john@example.com"
+        },
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+      }
+    }
+    ```
+
+##### Update Schedule Template
+- `PUT /client/api/schedules/templates/:id` - Update schedule template
+  - **Frontend Request**:
+    ```javascript
+    const templateId = '65a1b2c3d4e5f6g7h8i9j0k1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/templates/${templateId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "name": "Updated Office Hours",
+        "description": "Modified schedule with lunch break",
+        "rules": [
+          {
+            "startTime": "06:00",
+            "endTime": "12:00",
+            "setpoint": 22,
+            "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": false
+          },
+          {
+            "startTime": "13:00",
+            "endTime": "18:00",
+            "setpoint": 22,
+            "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": true,
+            "defaultSetpoint": 18
+          }
+        ]
+      })
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule template updated successfully",
+      "template": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "name": "Updated Office Hours",
+        "description": "Modified schedule with lunch break",
+        "type": "daily",
+        "rules": [...],
+        "updatedAt": "2024-01-16T14:20:00Z"
+      }
+    }
+    ```
+
+##### Delete Schedule Template
+- `DELETE /client/api/schedules/templates/:id` - Delete schedule template
+  - **Frontend Request**:
+    ```javascript
+    const templateId = '65a1b2c3d4e5f6g7h8i9j0k1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/templates/${templateId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response (Success)**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule template deleted successfully"
+    }
+    ```
+  - **Server Response (Error - Template in Use)**:
+    ```json
+    {
+      "success": false,
+      "message": "Cannot delete template. It is currently used by 3 device(s).",
+      "error": "Cannot delete template. It is currently used by 3 device(s)."
+    }
+    ```
+
+##### Get Devices Using Template
+- `GET /client/api/schedules/templates/:templateId/devices` - Get devices using a template
+  - **Frontend Request**:
+    ```javascript
+    const templateId = '65a1b2c3d4e5f6g7h8i9j0k1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/templates/${templateId}/devices`, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Devices using template retrieved successfully",
+      "schedules": [
+        {
+          "_id": "65a1b2c3d4e5f6g7h8i9j0k3",
+          "deviceId": {
+            "_id": "6821fe542af1d1a3177c7fe1",
+            "name": "Conference Room AC",
+            "make": "Daikin",
+            "model": "VRV-IV"
+          },
+          "templateId": "65a1b2c3d4e5f6g7h8i9j0k1",
+          "active": true,
+          "startDate": "2024-01-01T00:00:00Z",
+          "endDate": "2024-12-31T23:59:59Z"
+        },
+        {
+          "_id": "65a1b2c3d4e5f6g7h8i9j0k4",
+          "deviceId": {
+            "_id": "6821fe542af1d1a3177c7fe2",
+            "name": "Office Floor AC",
+            "make": "Mitsubishi",
+            "model": "City Multi"
+          },
+          "templateId": "65a1b2c3d4e5f6g7h8i9j0k1",
+          "active": true,
+          "startDate": "2024-01-01T00:00:00Z"
+        }
+      ],
+      "count": 2
+    }
+    ```
+
+##### Apply Template to Device
+- `POST /client/api/schedules/devices/:deviceId/apply` - Apply schedule template to device
+  - **Frontend Request**:
+    ```javascript
+    const deviceId = '6821fe542af1d1a3177c7fe1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/devices/${deviceId}/apply`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "templateId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "customRules": [
+          {
+            "startTime": "20:00",
+            "endTime": "06:00",
+            "setpoint": 16,
+            "days": ["All"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": false
+          }
+        ],
+        "startDate": "2024-01-15",
+        "endDate": "2024-12-31"
+      })
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Schedule template applied to device successfully",
+      "schedule": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k5",
+        "deviceId": "6821fe542af1d1a3177c7fe1",
+        "templateId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "customRules": [
+          {
+            "startTime": "20:00",
+            "endTime": "06:00",
+            "setpoint": 16,
+            "days": ["All"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": false
+          }
+        ],
+        "active": true,
+        "startDate": "2024-01-15T00:00:00Z",
+        "endDate": "2024-12-31T23:59:59Z",
+        "createdBy": {
+          "userId": "123456",
+          "username": "john_doe"
+        },
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+      }
+    }
+    ```
+
+##### Get Device Schedule
+- `GET /client/api/schedules/devices/:deviceId` - Get device's current schedule
+  - **Frontend Request**:
+    ```javascript
+    const deviceId = '6821fe542af1d1a3177c7fe1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/devices/${deviceId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response (Has Schedule)**:
+    ```json
+    {
+      "success": true,
+      "message": "Device schedule retrieved successfully",
+      "schedule": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k5",
+        "deviceId": "6821fe542af1d1a3177c7fe1",
+        "templateId": {
+          "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+          "name": "Office Hours",
+          "description": "Standard office hours temperature schedule",
+          "type": "daily",
+          "rules": [...]
+        },
+        "customRules": [...],
+        "active": true,
+        "startDate": "2024-01-15T00:00:00Z",
+        "endDate": "2024-12-31T23:59:59Z",
+        "lastApplied": "2024-01-16T08:00:00Z",
+        "currentActiveRule": {
+          "startTime": "06:00",
+          "endTime": "18:00",
+          "setpoint": 22,
+          "parameter": "Temperature",
+          "registerAddress": 40001
+        },
+        "nextScheduledChange": {
+          "startTime": "18:00",
+          "endTime": "06:00",
+          "setpoint": 18,
+          "parameter": "Temperature",
+          "registerAddress": 40001
+        }
+      }
+    }
+    ```
+  - **Server Response (No Schedule)**:
+    ```json
+    {
+      "success": true,
+      "message": "No schedule found for this device",
+      "schedule": null
+    }
+    ```
+
+##### Update Device Schedule
+- `PUT /client/api/schedules/devices/:deviceId` - Update device schedule
+  - **Frontend Request**:
+    ```javascript
+    const deviceId = '6821fe542af1d1a3177c7fe1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/devices/${deviceId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "active": true,
+        "customRules": [
+          {
+            "startTime": "19:00",
+            "endTime": "07:00",
+            "setpoint": 15,
+            "days": ["All"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": false
+          }
+        ],
+        "endDate": "2024-11-30"
+      })
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Device schedule updated successfully",
+      "schedule": {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k5",
+        "deviceId": "6821fe542af1d1a3177c7fe1",
+        "templateId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "customRules": [
+          {
+            "startTime": "19:00",
+            "endTime": "07:00",
+            "setpoint": 15,
+            "days": ["All"],
+            "enabled": true,
+            "parameter": "Temperature",
+            "registerAddress": 40001,
+            "returnToDefault": false
+          }
+        ],
+        "active": true,
+        "endDate": "2024-11-30T23:59:59Z",
+        "updatedAt": "2024-01-16T15:45:00Z"
+      }
+    }
+    ```
+
+##### Deactivate Device Schedule
+- `DELETE /client/api/schedules/devices/:deviceId` - Deactivate device schedule
+  - **Frontend Request**:
+    ```javascript
+    const deviceId = '6821fe542af1d1a3177c7fe1';
+    const response = await fetch(`http://localhost:3333/client/api/schedules/devices/${deviceId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer YOUR_AUTH_TOKEN'
+      }
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Device schedule deactivated successfully"
+    }
+    ```
+
+##### Process Scheduled Changes (Admin/Cron)
+- `POST /client/api/schedules/process` - Process all pending scheduled changes
+  - **Frontend Request (or Cron Job)**:
+    ```javascript
+    const response = await fetch('http://localhost:3333/client/api/schedules/process', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ADMIN_TOKEN_OR_CRON_KEY'
+      }
+    });
+    ```
+  - **Server Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Processed 5 scheduled changes",
+      "processedCount": 5,
+      "totalSchedules": 5,
+      "errors": []
+    }
+    ```
+  - **Server Response (With Errors)**:
+    ```json
+    {
+      "success": true,
+      "message": "Processed 3 scheduled changes",
+      "processedCount": 3,
+      "totalSchedules": 5,
+      "errors": [
+        "Failed to process start for device 6821fe542af1d1a3177c7fe1: Connection timeout",
+        "Failed to process end for device 6821fe542af1d1a3177c7fe2: Device not found"
+      ]
+    }
+    ```
 
 ### Client API (`/client/api`)
 
@@ -1207,6 +1895,23 @@ Used for serial-connected devices. Configuration includes:
 - Stop bits (1, 2)
 - Slave ID / Unit ID
 
+### Register Addressing
+
+**IMPORTANT**: When using the device control endpoints, you must provide the actual Modbus register address in the `registerIndex` field. This is a common source of errors.
+
+- The `registerIndex` parameter must be the actual register address that you want to write to (e.g., 1512).
+- It is not a relative index or offset - it's the actual address used in the Modbus write operation.
+- For example, if your device documentation states that the temperature setpoint is at register 1512, you should use:
+  ```json
+  {
+    "name": "Temperature",
+    "value": 26,
+    "registerIndex": 1512,
+    "dataType": "FLOAT32"
+  }
+  ```
+- Sending `registerIndex: 0` when you meant register 1512 will result in a Modbus exception if register 0 is not writable.
+
 ### Register Reading and Writing
 
 The server supports reading and writing different types of Modbus registers:
@@ -1527,4 +2232,246 @@ npm test
 
 # Test connection to Modbus device
 node scripts/test-modbus-port.js --ip=192.168.1.100 --port=502 --unit=1
+```
+
+## Schedule Management
+
+Schedule management is a two-step process:
+
+1. **Create a Schedule Template**: A template defines the time-based rules but is not yet associated with any device
+2. **Apply Template to Device**: Assign the template to a specific device to enable scheduling
+
+### Schedule Components
+
+- **Schedule Template**: Reusable time-based control patterns
+- **Device Schedule**: Active schedule instance applied to a specific device
+- **Rules**: Individual time periods within a schedule, each with:
+  - Start time and end time (HH:MM format, 24-hour)
+  - Setpoint temperature
+  - Days of the week (Mon-Sun) - optional for new rules
+
+### Database Relationships
+
+The system maintains bidirectional references between devices and schedules:
+
+#### Device Model
+- **activeScheduleId**: References the currently active schedule for the device
+  - Type: ObjectId (references DeviceSchedule collection)
+  - Default: null
+  - Automatically set when a schedule is applied to the device
+  - Automatically cleared when a schedule is deactivated or deleted
+
+#### Schedule Model  
+- **deviceId**: References the device this schedule is applied to
+  - Type: ObjectId (references Device collection)
+  - Required field when creating a device schedule
+  - Ensures one-to-one relationship between active schedule and device
+
+#### Automatic Reference Management
+
+The system automatically maintains these references in the following scenarios:
+
+1. **When applying a schedule template to a device**:
+   ```javascript
+   // Apply template to device
+   POST /api/schedules/devices/:deviceId/apply
+   
+   // This automatically:
+   // 1. Creates a new device schedule with deviceId reference
+   // 2. Updates device.activeScheduleId to point to the new schedule
+   ```
+
+2. **When deactivating a schedule**:
+   ```javascript
+   // Deactivate device schedule
+   DELETE /api/schedules/devices/:deviceId
+   
+   // This automatically:
+   // 1. Sets schedule.active to false
+   // 2. Clears device.activeScheduleId (sets to null)
+   ```
+
+3. **When deleting a device**:
+   ```javascript
+   // Delete device
+   DELETE /api/devices/:id
+   
+   // This automatically:
+   // 1. Checks if device has activeScheduleId
+   // 2. If yes, deletes the associated schedule from DeviceSchedule collection
+   // 3. Deletes the device
+   ```
+
+4. **When updating a schedule status**:
+   ```javascript
+   // Update device schedule
+   PUT /api/schedules/devices/:deviceId
+   
+   // When setting active: true
+   // - Updates device.activeScheduleId to point to this schedule
+   
+   // When setting active: false  
+   // - Clears device.activeScheduleId (sets to null)
+   ```
+
+#### Data Integrity
+
+The bidirectional reference system ensures:
+- A device can only have one active schedule at a time
+- When a device is deleted, its schedule is also cleaned up
+- Schedule status changes are immediately reflected in the device record
+- No orphaned schedules remain in the database
+
+### Schedule Workflow
+
+1. **Create a schedule template** with specific rules (times, temperatures, days)
+   - Templates are reusable and not tied to any specific device
+   - Can be marked as public (available to all users) or private
+
+2. **Apply the template to a device**:
+   - System first checks if the device's Schedule parameter is enabled (see Schedule Bit Validation)
+   - Creates a device-specific schedule with deviceId reference
+   - Updates device.activeScheduleId to reference the new schedule
+   - Activates the schedule for automatic control
+
+3. **The backend automatically handles device control** based on active schedules
+   - Processes scheduled changes at defined intervals
+   - Applies temperature setpoints according to schedule rules
+   - Respects start/end dates and day-of-week settings
+
+4. **Modify, deactivate, or delete schedules** as needed:
+   - Updates maintain referential integrity automatically
+   - Deactivating a schedule clears the device's activeScheduleId
+   - Deleting a device removes its associated schedule
+
+### Schedule Bit Validation
+
+Before a schedule can be activated, the system checks if the device has a "Schedule" parameter enabled:
+
+- The system reads all device registers to find a parameter named "Schedule" (case-insensitive)
+- If found, it checks if the Schedule bit is ON (true/1)
+- If the Schedule bit is OFF, the schedule activation is rejected with an appropriate error message
+- If the Schedule parameter doesn't exist on the device, schedules are allowed by default
+- If there's a connection error while checking, schedules are allowed to prevent blocking due to connectivity issues
+
+Error Response when Schedule bit is OFF:
+```json
+{
+  "success": false,
+  "message": "Schedule bit is not enabled on the device. Please enable the Schedule parameter on the device before applying a schedule.",
+  "requiresScheduleBit": true
+}
+```
+
+### Schedule ID System Examples
+
+#### Example 1: Applying a Schedule to a Device
+
+```javascript
+// 1. Initial device state
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Office AC Unit",
+  "activeScheduleId": null,  // No schedule applied
+  // ... other device fields
+}
+
+// 2. Apply schedule template
+POST /api/schedules/devices/507f1f77bcf86cd799439011/apply
+{
+  "templateId": "507f1f77bcf86cd799439012",
+  "customRules": []
+}
+
+// 3. Result: Device now has activeScheduleId
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Office AC Unit",
+  "activeScheduleId": "507f1f77bcf86cd799439013",  // Points to new schedule
+  // ... other device fields
+}
+
+// 4. The created schedule has deviceId reference
+{
+  "_id": "507f1f77bcf86cd799439013",
+  "deviceId": "507f1f77bcf86cd799439011",  // Points back to device
+  "templateId": "507f1f77bcf86cd799439012",
+  "active": true,
+  // ... other schedule fields
+}
+```
+
+#### Example 2: Deactivating a Schedule
+
+```javascript
+// 1. Deactivate the schedule
+DELETE /api/schedules/devices/507f1f77bcf86cd799439011
+
+// 2. Result: Device's activeScheduleId is cleared
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Office AC Unit",
+  "activeScheduleId": null,  // Cleared automatically
+  // ... other device fields
+}
+
+// 3. Schedule is marked as inactive
+{
+  "_id": "507f1f77bcf86cd799439013",
+  "deviceId": "507f1f77bcf86cd799439011",
+  "active": false,  // Set to false
+  // ... other schedule fields
+}
+```
+
+#### Example 3: Deleting a Device with Active Schedule
+
+```javascript
+// 1. Device with active schedule
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Office AC Unit",
+  "activeScheduleId": "507f1f77bcf86cd799439013",
+  // ... other device fields
+}
+
+// 2. Delete the device
+DELETE /api/devices/507f1f77bcf86cd799439011
+
+// 3. Results:
+// - Device is deleted from database
+// - Associated schedule (507f1f77bcf86cd799439013) is also deleted
+// - No orphaned schedule remains
+```
+
+#### Example 4: Retrieving Device with Schedule Information
+
+```javascript
+// When fetching device details
+GET /api/devices/507f1f77bcf86cd799439011
+
+// Response includes activeScheduleId
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Office AC Unit",
+  "activeScheduleId": "507f1f77bcf86cd799439013",
+  // ... other device fields
+}
+
+// To get the full schedule details
+GET /api/schedules/devices/507f1f77bcf86cd799439011
+
+// Response includes complete schedule
+{
+  "success": true,
+  "schedule": {
+    "_id": "507f1f77bcf86cd799439013",
+    "deviceId": "507f1f77bcf86cd799439011",
+    "templateId": {
+      // Populated template details
+    },
+    "active": true,
+    // ... other schedule fields
+  }
+}
 ```

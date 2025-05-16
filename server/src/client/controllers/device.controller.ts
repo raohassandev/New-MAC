@@ -426,7 +426,7 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
     console.log(`[deviceController] Pagination: page=${page}, limit=${limit}, skip=${skip}`);
 
     // Execute query with pagination and use lean() for better performance
-    const devices = await DeviceModel.find(filter).sort(sortOptions).skip(skip).limit(limit).lean();
+    const devices = await DeviceModel.find(filter).sort(sortOptions).skip(skip).limit(limit).lean().populate('activeScheduleId');
 
     // Get total count for pagination metadata
     const totalDevices = await DeviceModel.countDocuments(filter);
@@ -902,6 +902,12 @@ export const updateDevice = async (req: AuthRequest, res: Response) => {
       req.body.createdBy = device.createdBy;
     }
 
+    // Ensure we don't overwrite activeScheduleId unless explicitly provided
+    // This prevents accidental removal of schedule associations
+    if (req.body.activeScheduleId === undefined && device.activeScheduleId) {
+      req.body.activeScheduleId = device.activeScheduleId;
+    }
+
     // Fix connection settings based on connection type if they are being updated
     if (req.body.connectionSetting) {
       const connectionSetting = req.body.connectionSetting;
@@ -1051,6 +1057,33 @@ export const deleteDevice = async (req: AuthRequest, res: Response) => {
 
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
+    }
+
+    // Clean up associated schedule if exists
+    if (device.activeScheduleId) {
+      try {
+        // Import the schedule model
+        let ScheduleModel;
+        if (req.app.locals.clientModels?.DeviceSchedule) {
+          ScheduleModel = req.app.locals.clientModels.DeviceSchedule;
+        } else {
+          const clientDb = await getClientDbConnection();
+          if (clientDb) {
+            ScheduleModel = clientDb.model('DeviceSchedule');
+          }
+        }
+        
+        if (ScheduleModel) {
+          // Delete the associated schedule
+          await ScheduleModel.findByIdAndDelete(device.activeScheduleId);
+          console.log(`[deviceController] Cleaned up associated schedule: ${device.activeScheduleId}`);
+        } else {
+          console.warn('[deviceController] Could not get DeviceSchedule model to clean up schedule');
+        }
+      } catch (scheduleError) {
+        console.error('[deviceController] Error cleaning up associated schedule:', scheduleError);
+        // Continue with device deletion even if schedule cleanup fails
+      }
     }
 
     await device.deleteOne();

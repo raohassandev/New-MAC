@@ -4,7 +4,10 @@ import express from 'express';
 
 const router: Router = express.Router();
 
-// Historical data routes
+// Aggregate historical data route for all devices (must be before device-specific routes)
+router.get('/data/historical/aggregate', historicalDataController.getAggregatedHistoricalData as express.RequestHandler);
+
+// Historical data routes (device-specific)
 router.get('/:id/data/historical', historicalDataController.getHistoricalData as express.RequestHandler);
 router.get('/:id/data/historical/parameters', historicalDataController.getHistoricalParameters as express.RequestHandler);
 router.get('/:id/data/historical/timerange', historicalDataController.getHistoricalTimeRange as express.RequestHandler);

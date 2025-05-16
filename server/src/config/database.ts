@@ -4,6 +4,7 @@ import { createDeviceModel } from '../client/models/device.model';
 import { createDeviceDriverModel } from '../amx/models/deviceDriver.model';
 import { createDeviceTypeModel } from '../amx/models/deviceType.model';
 import HistoricalData from '../client/models/historicalData.model';
+import { createScheduleModels } from '../client/models/schedule.model';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -49,10 +50,15 @@ export const initializeDatabases = async () => {
     console.log('AMX library database connected successfully');
 
     // Initialize client models with client connection
+    const scheduleModels = createScheduleModels(clientConnection);
+    
     clientModels = {
       Device: createDeviceModel(clientConnection),
       // Create HistoricalData model with the client connection
       HistoricalData: clientConnection.model('HistoricalData', HistoricalData.schema),
+      // Add schedule models
+      ScheduleTemplate: scheduleModels.ScheduleTemplate,
+      DeviceSchedule: scheduleModels.DeviceSchedule,
       // Add other client models here
     };
 

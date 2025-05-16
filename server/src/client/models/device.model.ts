@@ -121,6 +121,9 @@ export interface IDevice extends Omit<Document, 'model'> {
   // Runtime-populated device driver data (not stored in DB)
   driverData?: any;
 
+  // Schedule linkage - reference to active schedule
+  activeScheduleId?: mongoose.Types.ObjectId | string;
+
   // Metadata fields
   usage?: string;
   usageNotes?: string;
@@ -366,6 +369,13 @@ export const DeviceSchema = new Schema<IDevice>({
 
   // Device driver linkage
   deviceDriverId: { type: String, ref: 'DeviceDriver' },
+
+  // Schedule linkage - reference to active schedule
+  activeScheduleId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'DeviceSchedule',
+    default: null
+  },
 
   // Metadata fields
   usage: { type: String },

@@ -9,6 +9,7 @@ import realtimeDataRoutes from './realtimeData.routes';
 import historicalDataRoutes from './historicalData.routes';
 import coilControlRoutes from './coilControl.routes';
 import controlDeviceRoutes from './controlDevice.routes';
+import scheduleRoutes from './schedule.routes';
 
 
 export const clientRouter: Router = express.Router();
@@ -17,6 +18,7 @@ export const clientRouter: Router = express.Router();
 clientRouter.use('/auth', authRoutes);
 clientRouter.use('/devices', deviceRoutes, pollingRoutes, realtimeDataRoutes, historicalDataRoutes, coilControlRoutes , controlDeviceRoutes);
 clientRouter.use('/monitoring', monitoringRouter);
+clientRouter.use('/schedules', scheduleRoutes);
 clientRouter.use('', autoPollingRoutes); // Mount at root level for system-wide routes
 
 // Library routes (separate database)
