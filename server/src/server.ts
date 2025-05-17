@@ -9,7 +9,6 @@ import fs from 'fs';
 import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes/index.routes';
 import { amxRouter } from './amx/routes/index.routes';
-import monitoringRouter from './client/routes/monitoring.routes';
 import { apiLogger } from './utils/logger';
 // Import the device controller for explicit route registration
 import * as deviceController from './client/controllers/device.controller';
@@ -144,9 +143,9 @@ const startServer = async () => {
     app.use('/amx/api', amxRouter);
     console.log(`✓ Mounted AMX API routes at /amx/api`);
     
-    // Mounting Monitoring routes (admin only)
-    app.use('/monitoring', monitoringRouter);
-    console.log(`✓ Mounted monitoring routes at /monitoring`);
+    // Note: Monitoring routes are now part of the client API routes
+    // Event logging is available at /client/api/monitoring
+    console.log(`✓ Event logging available at /client/api/monitoring`);
 
     // Add explicit route for device test endpoint to ensure it works
     // This is a temporary fix until we resolve the route registration issue
@@ -213,6 +212,26 @@ const startServer = async () => {
       } catch (pollingError) {
         console.warn('⚠️ Failed to start auto-polling service:', pollingError);
         console.log('⚠️ Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend or API.');
+      }
+
+      // Initialize the schedule processor service
+      try {
+        // Import the schedule processor service
+        const { ScheduleProcessorService } = require('./client/services/scheduleProcessor.service');
+        
+        // Create a mock request object with app locals for the schedule processor
+        const scheduleProcessorReq = {
+          app: {
+            locals: app.locals
+          }
+        };
+        
+        // Start the schedule processor
+        ScheduleProcessorService.start(scheduleProcessorReq);
+        console.log('✅ Schedule processor service started - schedules will be processed automatically every minute');
+      } catch (scheduleError) {
+        console.warn('⚠️ Failed to start schedule processor service:', scheduleError);
+        console.log('⚠️ Schedule processing is disabled. Schedules will not be applied automatically.');
       }
     });
 

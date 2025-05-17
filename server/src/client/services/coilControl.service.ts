@@ -149,6 +149,72 @@ export const controlCoilRegister = async (
       message: `Successfully set ${coilType} coil at address ${coilAddress} to ${value}`
     };
     
+    // Create event log entry
+    try {
+      const eventMessage = `User turned ${coilType === 'schedule' ? 'Schedule' : `coil ${coilAddress}`} ${value ? 'ON' : 'OFF'}`;
+      
+      // Get EventLog model from request context
+      const EventLogModel = requestContext.app?.locals?.clientModels?.EventLog;
+      if (EventLogModel) {
+        const eventLog = new EventLogModel({
+          type: 'info',
+          message: eventMessage,
+          deviceId: device._id,
+          deviceName: deviceName,
+          userId: requestContext.user?.id || requestContext.user?._id,
+          userName: requestContext.user?.name || requestContext.user?.username || requestContext.user?.email,
+          timestamp: new Date()
+        });
+        await eventLog.save();
+        console.log(chalk.green('[coilControlService] Event log created:', eventMessage));
+      } else {
+        console.warn(chalk.yellow('[coilControlService] EventLog model not available in request context'));
+      }
+    } catch (eventError) {
+      console.error(chalk.yellow('[coilControlService] Failed to create event log:', eventError));
+      // Don't throw error, just log it - the coil operation was successful
+    }
+    
+    // Handle Schedule coil state changes (on/off)
+    // Handle case-insensitive comparison for 'schedule' type
+    if (coilType.toLowerCase() === 'schedule') {
+      console.log(chalk.yellow(`[coilControlService] Schedule coil state changed to ${value}, updating device schedule`));
+      try {
+        // Import schedule service 
+        const { ScheduleService } = await import('./schedule.service');
+        
+        if (value === false) {
+          // Schedule bit turned OFF - deactivate the schedule
+          await ScheduleService.deactivateDeviceSchedule(deviceId, requestContext);
+          console.log(chalk.green(`[coilControlService] Device schedule deactivated successfully`));
+          result.message += '. Device schedule has been deactivated.';
+        } else {
+          // Schedule bit turned ON - reactivate the schedule if one exists
+          console.log(chalk.blue(`[coilControlService] Checking for existing schedule for device ${deviceId}`));
+          const existingSchedule = await ScheduleService.getDeviceSchedule(deviceId, requestContext);
+          console.log(chalk.blue(`[coilControlService] Existing schedule:`, existingSchedule ? `Found (active: ${existingSchedule.active})` : 'Not found'));
+          
+          if (existingSchedule) {
+            // Add bypassScheduleBitCheck flag to the request object directly
+            (requestContext as any).bypassScheduleBitCheck = true;
+            const updates = { active: true };
+            // Use system user ID for coil-triggered updates
+            const systemUserId = '000000000000000000000000';
+            console.log(chalk.blue(`[coilControlService] Attempting to reactivate schedule for device ${deviceId}`));
+            const updated = await ScheduleService.updateDeviceSchedule(deviceId, updates, systemUserId, requestContext);
+            console.log(chalk.green(`[coilControlService] Device schedule reactivated successfully. Updated:`, updated ? 'Yes' : 'No'));
+            result.message += '. Device schedule has been reactivated.';
+          } else {
+            console.log(chalk.yellow(`[coilControlService] No existing schedule to reactivate for device ${deviceId}`));
+            result.message += '. No existing schedule to reactivate.';
+          }
+        }
+      } catch (scheduleError) {
+        console.error(chalk.red(`[coilControlService] Failed to update schedule state: ${scheduleError instanceof Error ? scheduleError.message : String(scheduleError)}`));
+        // Don't throw error, just log it - the coil operation was successful
+      }
+    }
+    
     return result;
   } catch (error) {
     console.error(chalk.red(`[coilControlService] Coil control error: ${error instanceof Error ? error.message : String(error)}`));
@@ -335,6 +401,67 @@ export const controlMultipleCoilRegisters = async (
       timestamp: new Date(),
       results
     };
+    
+    // Check if any Schedule coils were changed, and update schedule state accordingly
+    // Use case-insensitive comparison for coil type
+    const scheduleCoilChanges = results.filter(r => 
+      r.success && r.coilType.toLowerCase() === 'schedule'
+    );
+    
+    if (scheduleCoilChanges.length > 0) {
+      console.log(chalk.yellow(`[coilControlService] Schedule coil state changed in batch, updating device schedule`));
+      try {
+        // Import schedule service
+        const { ScheduleService } = await import('./schedule.service');
+        
+        // Process schedule state changes (take the last value if multiple)
+        const lastScheduleChange = scheduleCoilChanges[scheduleCoilChanges.length - 1];
+        
+        if (lastScheduleChange.value === false) {
+          // Schedule bit turned OFF - deactivate the schedule
+          await ScheduleService.deactivateDeviceSchedule(deviceId, requestContext);
+          console.log(chalk.green(`[coilControlService] Device schedule deactivated successfully`));
+          // Update the relevant result messages
+          results.forEach(r => {
+            if (r.coilType.toLowerCase() === 'schedule' && r.value === false && r.success) {
+              r.message += '. Device schedule has been deactivated.';
+            }
+          });
+        } else {
+          // Schedule bit turned ON - reactivate the schedule if one exists
+          console.log(chalk.blue(`[coilControlService] Batch: Checking for existing schedule for device ${deviceId}`));
+          const existingSchedule = await ScheduleService.getDeviceSchedule(deviceId, requestContext);
+          console.log(chalk.blue(`[coilControlService] Batch: Existing schedule:`, existingSchedule ? `Found (active: ${existingSchedule.active})` : 'Not found'));
+          
+          if (existingSchedule) {
+            // Add bypassScheduleBitCheck flag to the request object directly
+            (requestContext as any).bypassScheduleBitCheck = true;
+            const updates = { active: true };
+            // Use system user ID for coil-triggered updates
+            const systemUserId = '000000000000000000000000';
+            console.log(chalk.blue(`[coilControlService] Batch: Attempting to reactivate schedule for device ${deviceId}`));
+            const updated = await ScheduleService.updateDeviceSchedule(deviceId, updates, systemUserId, requestContext);
+            console.log(chalk.green(`[coilControlService] Batch: Device schedule reactivated successfully. Updated:`, updated ? 'Yes' : 'No'));
+            // Update the relevant result messages
+            results.forEach(r => {
+              if (r.coilType.toLowerCase() === 'schedule' && r.value === true && r.success) {
+                r.message += '. Device schedule has been reactivated.';
+              }
+            });
+          } else {
+            console.log(chalk.yellow(`[coilControlService] Batch: No existing schedule to reactivate for device ${deviceId}`));
+            results.forEach(r => {
+              if (r.coilType.toLowerCase() === 'schedule' && r.value === true && r.success) {
+                r.message += '. No existing schedule to reactivate.';
+              }
+            });
+          }
+        }
+      } catch (scheduleError) {
+        console.error(chalk.red(`[coilControlService] Failed to update schedule state: ${scheduleError instanceof Error ? scheduleError.message : String(scheduleError)}`));
+        // Don't throw error, just log it - the coil operations were successful
+      }
+    }
     
     return result;
   } catch (error) {

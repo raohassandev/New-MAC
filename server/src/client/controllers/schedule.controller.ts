@@ -305,8 +305,10 @@ export const applyTemplateToDevice = async (req: AuthRequest, res: Response) => 
   } catch (error: any) {
     console.error('[scheduleController] Error applying template to device:', error);
     
-    // Check if it's a Schedule bit validation error
-    if (error.message && error.message.includes('Schedule bit is not enabled')) {
+    // Check if it's a scheduling validation error
+    if (error.message && (error.message.includes('Scheduling is disabled') || 
+                         error.message.includes('does not support scheduling') || 
+                         error.message.includes('Unable to verify scheduling status'))) {
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -389,8 +391,10 @@ export const updateDeviceSchedule = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('[scheduleController] Error updating device schedule:', error);
     
-    // Check if it's a Schedule bit validation error
-    if (error.message && error.message.includes('Schedule bit is not enabled')) {
+    // Check if it's a scheduling validation error
+    if (error.message && (error.message.includes('Scheduling is disabled') || 
+                         error.message.includes('does not support scheduling') || 
+                         error.message.includes('Unable to verify scheduling status'))) {
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -479,31 +483,12 @@ export const processScheduledChanges = async (req: AuthRequest, res: Response) =
       const { schedule, action, rule } = item;
       
       try {
-        // TODO: Call the write register endpoint to apply the change
-        const valueToSet = action === 'start' ? rule.setpoint : (rule.defaultSetpoint || 0);
+        // Simply log the schedule processing - the actual processing is done by the ScheduleProcessorService
+        console.log(`[scheduleController] Schedule processing requested for device ${schedule.deviceId}`);
+        console.log(`[scheduleController] Action: ${action}, Value: ${action === 'start' ? rule.setpoint : (rule.defaultSetpoint || 0)}`);
         
-        // Example of what would be called:
-        // const result = await axios.post(`/api/devices/${schedule.deviceId}/control/write-register`, {
-        //   address: rule.registerAddress,
-        //   value: valueToSet
-        // });
-        
-        // Update the schedule's last applied time
-        await ScheduleService.updateDeviceSchedule(
-          schedule.deviceId.toString(),
-          { 
-            lastApplied: new Date(),
-            currentActiveRule: action === 'start' ? {
-              startTime: rule.startTime,
-              endTime: rule.endTime,
-              setpoint: rule.setpoint,
-              parameter: rule.parameter,
-              registerAddress: rule.registerAddress
-            } : undefined
-          },
-          req.user?._id || SYSTEM_USER_ID.toString(),
-          req
-        );
+        // Note: The actual processing is handled by the ScheduleProcessorService which runs automatically
+        // This endpoint can be used to manually trigger processing or for testing
         
         processedCount++;
       } catch (error: any) {

@@ -67,13 +67,13 @@ export const controlDeviceCoil = async (req: AuthRequest, res: Response) => {
     // Ensure value is boolean
     const boolValue = Boolean(value);
     
-    // Validate coil type
-    const coilType = type || 'control';
+    // Validate coil type - normalize to lowercase for consistency
+    const coilType = (type || 'control').toLowerCase();
     if (!['control', 'schedule', 'status'].includes(coilType)) {
-      console.error(`[coilControlController] Invalid coil type: ${coilType}`);
+      console.error(`[coilControlController] Invalid coil type: ${type}`);
       return res.status(400).json({
         success: false,
-        message: 'Invalid coil type. Must be one of: control, schedule, status'
+        message: 'Invalid coil type. Must be one of: control, schedule, status (case-insensitive)'
       });
     }
     
@@ -212,12 +212,12 @@ export const batchControlDeviceCoils = async (req: AuthRequest, res: Response) =
         });
       }
       
-      // Validate coil type if provided
-      if (coil.type && !['control', 'schedule', 'status'].includes(coil.type)) {
+      // Validate coil type if provided - case insensitive
+      if (coil.type && !['control', 'schedule', 'status'].includes(coil.type.toLowerCase())) {
         console.error(`[coilControlController] Invalid coil type: ${coil.type}`);
         return res.status(400).json({
           success: false,
-          message: `Invalid coil type: ${coil.type}. Must be one of: control, schedule, status`
+          message: `Invalid coil type: ${coil.type}. Must be one of: control, schedule, status (case-insensitive)`
         });
       }
     }
@@ -240,11 +240,11 @@ export const batchControlDeviceCoils = async (req: AuthRequest, res: Response) =
       console.log(chalk.blue(`[coilControlController] Batch coil control request by user: ${req.user.username || req.user.email}`));
     }
     
-    // Standardize and convert values
+    // Standardize and convert values - normalize type to lowercase
     const standardizedCoils = coils.map(coil => ({
       address: Number(coil.address),
       value: Boolean(coil.value),
-      type: (coil.type || 'control') as 'control' | 'schedule' | 'status'
+      type: ((coil.type || 'control').toLowerCase()) as 'control' | 'schedule' | 'status'
     }));
     
     try {
@@ -336,14 +336,14 @@ export const readDeviceCoils = async (req: AuthRequest, res: Response) => {
       ? Number(req.query.count) 
       : 10; // Default to reading 10 coils
     
-    const coilType = (req.query.type as string) || 'control';
+    const coilType = ((req.query.type as string) || 'control').toLowerCase();
     
-    // Validate coil type
+    // Validate coil type - case insensitive
     if (!['control', 'schedule', 'status'].includes(coilType)) {
-      console.error(`[coilControlController] Invalid coil type: ${coilType}`);
+      console.error(`[coilControlController] Invalid coil type: ${req.query.type}`);
       return res.status(400).json({
         success: false,
-        message: 'Invalid coil type. Must be one of: control, schedule, status'
+        message: 'Invalid coil type. Must be one of: control, schedule, status (case-insensitive)'
       });
     }
     

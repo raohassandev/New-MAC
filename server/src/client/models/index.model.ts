@@ -3,10 +3,11 @@ import User from './user.model';
 import HistoricalData from './historicalData.model';
 import RealtimeData from './realtimeData.model';
 import { ScheduleTemplate, DeviceSchedule, createScheduleModels } from './schedule.model';
+import EventLog from './eventLog.model';
 import mongoose from 'mongoose';
 
 // Export models
-export { User, Device, HistoricalData, RealtimeData, createDeviceModel, ScheduleTemplate, DeviceSchedule };
+export { User, Device, HistoricalData, RealtimeData, createDeviceModel, ScheduleTemplate, DeviceSchedule, EventLog };
 
 // Store the connection reference to ensure it's maintained
 let clientDbConnection: mongoose.Connection | null = null;
@@ -63,12 +64,17 @@ export const clientModels = (connection: mongoose.Connection) => {
     const ScheduleTemplateModel = scheduleModels.ScheduleTemplate;
     const DeviceScheduleModel = scheduleModels.DeviceSchedule;
 
+    // Create EventLog model with the client connection
+    const EventLogSchema = EventLog.schema;
+    const EventLogModel = connection.model('EventLog', EventLogSchema);
+
     console.log('Client models initialized successfully with specific connection');
     console.log(`- Device model connected to: ${DeviceModel.db?.name}`);
     console.log(`- HistoricalData model connected to: ${HistoricalDataModel.db?.name}`);
     console.log(`- RealtimeData model connected to: ${RealtimeDataModel.db?.name}`);
     console.log(`- ScheduleTemplate model connected to: ${ScheduleTemplateModel.db?.name}`);
     console.log(`- DeviceSchedule model connected to: ${DeviceScheduleModel.db?.name}`);
+    console.log(`- EventLog model connected to: ${EventLogModel.db?.name}`);
 
     // Return an object containing all models
     return {
@@ -77,6 +83,7 @@ export const clientModels = (connection: mongoose.Connection) => {
       RealtimeData: RealtimeDataModel,
       ScheduleTemplate: ScheduleTemplateModel,
       DeviceSchedule: DeviceScheduleModel,
+      EventLog: EventLogModel,
     };
   } catch (error) {
     console.error('Error initializing client models:', error);

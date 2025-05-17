@@ -18,6 +18,15 @@ startServer()
         console.warn('Failed to stop auto-polling service:', error);
       }
       
+      // Stop the schedule processor service
+      try {
+        const { ScheduleProcessorService } = require('./client/services/scheduleProcessor.service');
+        ScheduleProcessorService.stop();
+        console.log('Schedule processor service stopped successfully');
+      } catch (error) {
+        console.warn('Failed to stop schedule processor service:', error);
+      }
+      
       // Close the server
       server.close(() => {
         console.log('Server closed successfully');

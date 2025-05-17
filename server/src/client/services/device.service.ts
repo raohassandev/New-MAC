@@ -2311,6 +2311,34 @@ export const controlDevice = async (
         
         // Add to results
         results.push(result);
+        
+        // Create event log for successful parameter write
+        if (result.success) {
+          try {
+            const eventMessage = `User changed ${parameter.name} setpoint to ${parameter.value}`;
+            
+            // Get EventLog model from request context
+            const EventLogModel = reqContext.app?.locals?.clientModels?.EventLog;
+            if (EventLogModel) {
+              const eventLog = new EventLogModel({
+                type: 'info',
+                message: eventMessage,
+                deviceId: device._id,
+                deviceName: device.name,
+                userId: reqContext.user?.id || reqContext.user?._id,
+                userName: reqContext.user?.name || reqContext.user?.username || reqContext.user?.email,
+                timestamp: new Date()
+              });
+              await eventLog.save();
+              console.log(chalk.green('[deviceService] Event log created:', eventMessage));
+            } else {
+              console.warn(chalk.yellow('[deviceService] EventLog model not available in request context'));
+            }
+          } catch (eventError) {
+            console.error(chalk.yellow('[deviceService] Failed to create event log:', eventError));
+            // Don't throw error, just log it - the control operation was successful
+          }
+        }
       } catch (paramError: any) {
         console.error(`[deviceService] Error processing parameter ${parameter.name}:`, paramError);
         results.push({

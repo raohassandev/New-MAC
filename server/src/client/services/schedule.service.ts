@@ -165,7 +165,7 @@ export class ScheduleService {
     // Check if Schedule bit is enabled on the device
     const scheduleEnabled = await this.checkScheduleBitEnabled(device, req);
     if (!scheduleEnabled) {
-      throw new Error('Schedule bit is not enabled on the device. Please enable the Schedule parameter on the device before applying a schedule.');
+      throw new Error('Scheduling is disabled on this device. Please enable scheduling in the device settings before applying a schedule.');
     }
     
     // Check if schedule already exists for this device
@@ -226,11 +226,14 @@ export class ScheduleService {
     userId: string,
     req: Request
   ): Promise<IDeviceSchedule | null> {
+    console.log(`[ScheduleService] Updating device schedule for ${deviceId}, updates:`, updates);
+    console.log(`[ScheduleService] Request has app.locals:`, !!req?.app?.locals);
     const DeviceScheduleModel = await this.getDeviceScheduleModel(req);
     const DeviceModel = await this.getDeviceModel(req);
     
     // If updating to active state, check if Schedule bit is enabled
-    if (updates.active === true) {
+    // Skip this check if we're updating from coil control (bypassScheduleBitCheck flag)
+    if (updates.active === true && !(req as any).bypassScheduleBitCheck) {
       const device = await DeviceModel.findById(deviceId);
       if (!device) {
         throw new Error('Device not found');
@@ -238,7 +241,7 @@ export class ScheduleService {
       
       const scheduleEnabled = await this.checkScheduleBitEnabled(device, req);
       if (!scheduleEnabled) {
-        throw new Error('Cannot activate schedule: Schedule bit is not enabled on the device. Please enable the Schedule parameter on the device before activating the schedule.');
+        throw new Error('Cannot activate schedule: Scheduling is currently disabled on this device. Please enable scheduling in the device settings first.');
       }
     }
     
@@ -246,13 +249,16 @@ export class ScheduleService {
       { deviceId },
       { ...updates, updatedAt: new Date() },
       { new: true }
-    );
+    ).populate('templateId');
+    
+    console.log(`[ScheduleService] Schedule updated, active status:`, updatedSchedule?.active);
     
     if (updatedSchedule) {
       // Update the device's activeScheduleId based on the schedule's active status
       await DeviceModel.findByIdAndUpdate(deviceId, {
         activeScheduleId: updatedSchedule.active ? updatedSchedule._id : null
       });
+      console.log(`[ScheduleService] Updated device activeScheduleId:`, updatedSchedule.active ? updatedSchedule._id : 'null');
     }
     
     return updatedSchedule;
@@ -312,7 +318,17 @@ export class ScheduleService {
   ): Promise<{ startTime: string; endTime: string; setpoint: number; parameter?: string; registerAddress?: number; returnToDefault?: boolean; defaultSetpoint?: number } | null> {
     if (!deviceSchedule.active) return null;
     
-    const template = await this.getScheduleTemplateById(deviceSchedule.templateId.toString(), req);
+    // Get template - handle both populated and non-populated cases
+    let templateId: string;
+    if (typeof deviceSchedule.templateId === 'object' && deviceSchedule.templateId._id) {
+      // If populated, get the _id
+      templateId = deviceSchedule.templateId._id.toString();
+    } else {
+      // If not populated, use as is
+      templateId = deviceSchedule.templateId.toString();
+    }
+    
+    const template = await this.getScheduleTemplateById(templateId, req);
     if (!template) return null;
     
     const now = new Date();
@@ -414,18 +430,36 @@ export class ScheduleService {
       ]
     }).populate('templateId');
     
+    console.log(`[ScheduleService] Found ${activeSchedules.length} active schedules`);
+    console.log(`[ScheduleService] Current time: ${currentTime} (${now.toLocaleTimeString()}), Day: ${currentDay}`);
+    
     const schedulesToProcess: Array<{schedule: IDeviceSchedule, action: 'start' | 'end', rule: IScheduleRule}> = [];
     
     for (const schedule of activeSchedules) {
-      const template = await this.getScheduleTemplateById(schedule.templateId.toString(), req);
+      // Get template - handle both populated and non-populated cases
+      let templateId: string;
+      if (typeof schedule.templateId === 'object' && schedule.templateId._id) {
+        // If populated, get the _id
+        templateId = schedule.templateId._id.toString();
+      } else {
+        // If not populated, use as is
+        templateId = schedule.templateId.toString();
+      }
+      
+      const template = await this.getScheduleTemplateById(templateId, req);
       if (!template) continue;
       
       // Combine template rules with custom rules
       const allRules = [...template.rules, ...(schedule.customRules || [])];
+      console.log(`[ScheduleService] Device ${schedule.deviceId} has ${allRules.length} rules`);
       
       // Check each rule
       for (const rule of allRules) {
-        if (!rule.enabled) continue;
+        if (!rule.enabled) {
+          console.log(`[ScheduleService] Rule ${rule.startTime}-${rule.endTime} is disabled`);
+          continue;
+        }
+        console.log(`[ScheduleService] Checking rule: ${rule.startTime}-${rule.endTime}, Days: ${rule.days}, Setpoint: ${rule.setpoint}`);
         
         // Check if rule applies to current day
         const appliesToday = rule.days.includes(currentDay) || 
@@ -435,9 +469,34 @@ export class ScheduleService {
         
         if (!appliesToday) continue;
         
-        // Check if we're at start time
+        // Convert times to minutes for comparison
+        const currentMinutes = parseInt(currentTime.split(':')[0]) * 60 + parseInt(currentTime.split(':')[1]);
+        const startMinutes = parseInt(rule.startTime.split(':')[0]) * 60 + parseInt(rule.startTime.split(':')[1]);
+        const endMinutes = parseInt(rule.endTime.split(':')[0]) * 60 + parseInt(rule.endTime.split(':')[1]);
+        
+        // Check if we're at start time or within the time range
         if (rule.startTime === currentTime) {
           schedulesToProcess.push({ schedule, action: 'start', rule });
+        } else if (startMinutes < endMinutes) {
+          // Normal range (not crossing midnight)
+          if (currentMinutes > startMinutes && currentMinutes <= endMinutes) {
+            // Check if this rule should be active but isn't marked as current
+            if (!schedule.currentActiveRule || 
+                schedule.currentActiveRule.startTime !== rule.startTime ||
+                schedule.currentActiveRule.endTime !== rule.endTime) {
+              schedulesToProcess.push({ schedule, action: 'start', rule });
+            }
+          }
+        } else {
+          // Range crosses midnight
+          if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+            // Check if this rule should be active but isn't marked as current
+            if (!schedule.currentActiveRule || 
+                schedule.currentActiveRule.startTime !== rule.startTime ||
+                schedule.currentActiveRule.endTime !== rule.endTime) {
+              schedulesToProcess.push({ schedule, action: 'start', rule });
+            }
+          }
         }
         
         // Check if we're at end time and should return to default
@@ -468,12 +527,46 @@ export class ScheduleService {
    */
   private static async checkScheduleBitEnabled(device: any, req: Request): Promise<boolean> {
     try {
-      // Create Modbus client
-      const client = new ModbusRTU();
+      console.log(`Checking schedule bit for device ${device.name}`);
       
-      // Set appropriate timeout
-      client.setTimeout(5000);
+      // Look for Schedule parameter in dataPoints structure
+      const dataPoints = device.dataPoints || [];
+      let scheduleParameterFound = false;
+      let schedulePoint = null;
+      
+      // First find the Schedule parameter in dataPoints
+      for (const dataPoint of dataPoints) {
+        if (dataPoint.parser && dataPoint.parser.parameters) {
+          const scheduleParam = dataPoint.parser.parameters.find((param: any) => 
+            param.name && param.name.toLowerCase() === 'schedule'
+          );
+          
+          if (scheduleParam) {
+            scheduleParameterFound = true;
+            schedulePoint = {
+              dataPoint: dataPoint,
+              parameter: scheduleParam
+            };
+            break;
+          }
+        }
+      }
+      
+      if (!scheduleParameterFound) {
+        console.log(`Schedule parameter not found for device ${device.name}`);
+        // If Schedule parameter doesn't exist, we don't allow schedule activation
+        throw new Error('This device does not support scheduling. Please check your device configuration.');
+      }
+      
+      // Check if schedulePoint is null
+      if (!schedulePoint) {
+        throw new Error('Schedule parameter configuration error');
+      }
 
+      // Now read the actual value using Modbus
+      const { createModbusClient, connectRTUBuffered } = await import('../../client/utils/modbusHelper');
+      const client = createModbusClient();
+      
       // Connect based on device connection type
       if (device.connectionSetting.connectionType === 'tcp') {
         await client.connectTCP(
@@ -481,15 +574,12 @@ export class ScheduleService {
           { port: device.connectionSetting.tcp.port }
         );
       } else {
-        await client.connectRTUBuffered(
-          device.connectionSetting.rtu.serialPort,
-          {
-            baudRate: device.connectionSetting.rtu.baudRate,
-            dataBits: device.connectionSetting.rtu.dataBits,
-            stopBits: device.connectionSetting.rtu.stopBits,
-            parity: device.connectionSetting.rtu.parity
-          }
-        );
+        await connectRTUBuffered(client, device.connectionSetting.rtu.serialPort, {
+          baudRate: device.connectionSetting.rtu.baudRate,
+          dataBits: device.connectionSetting.rtu.dataBits,
+          stopBits: device.connectionSetting.rtu.stopBits,
+          parity: device.connectionSetting.rtu.parity
+        });
       }
 
       // Set slave ID
@@ -498,69 +588,63 @@ export class ScheduleService {
         : device.connectionSetting.rtu.slaveId;
       client.setID(slaveId);
 
-      // Read all device registers to find Schedule parameter
-      const registers = device.registers || [];
-      let scheduleParameterFound = false;
+      // Read the register value
+      const range = schedulePoint.dataPoint.range;
+      const startAddress = parseInt(range.startAddress) || 0;
+      const readCount = parseInt(range.count) || 1;
+      const functionCode = parseInt(range.fc) || 3;
+      
+      let result;
+      switch (functionCode) {
+        case 1: // Read Coils
+          result = await client.readCoils(startAddress, readCount);
+          break;
+        case 2: // Read Discrete Inputs
+          result = await client.readDiscreteInputs(startAddress, readCount);
+          break;
+        case 3: // Read Holding Registers
+          result = await client.readHoldingRegisters(startAddress, readCount);
+          break;
+        case 4: // Read Input Registers
+          result = await client.readInputRegisters(startAddress, readCount);
+          break;
+        default:
+          throw new Error(`Unsupported function code: ${functionCode}`);
+      }
+
       let scheduleValue = false;
-
-      for (const register of registers) {
-        // Check for Schedule parameter (case insensitive)
-        if (register.parameters && Array.isArray(register.parameters)) {
-          const scheduleParam = register.parameters.find((param: any) => 
-            param.name && param.name.toLowerCase() === 'schedule'
-          );
-
-          if (scheduleParam) {
-            scheduleParameterFound = true;
-            
-            // Read the register value
-            const startAddress = parseInt(register.startAddress) || 0;
-            const readCount = parseInt(register.readCount) || 1;
-            
-            let result;
-            if (register.registerType === 'Input Register' || register.registerType === 'input') {
-              result = await client.readInputRegisters(startAddress, readCount);
-            } else if (register.registerType === 'Holding Register' || register.registerType === 'holding') {
-              result = await client.readHoldingRegisters(startAddress, readCount);
-            } else if (register.registerType === 'Coil' || register.registerType === 'coil') {
-              result = await client.readCoils(startAddress, readCount);
-            } else if (register.registerType === 'Discrete Input' || register.registerType === 'discrete') {
-              result = await client.readDiscreteInputs(startAddress, readCount);
-            }
-
-            if (result && result.data) {
-              // Check if the parameter indicates bit position
-              if (scheduleParam.bitPosition !== undefined && typeof scheduleParam.bitPosition === 'number') {
-                const registerValue: number = Number(result.data[0]);
-                const bitPosition: number = Number(scheduleParam.bitPosition);
-                const mask: number = Math.pow(2, bitPosition);
-                scheduleValue = Boolean(registerValue & mask);
-              } else {
-                // Treat as boolean value (non-zero = true)
-                scheduleValue = Boolean(result.data[0]);
-              }
-            }
-            break;
+      
+      if (result && result.data) {
+        const parameter = schedulePoint.parameter;
+        
+        // For BOOLEAN data type
+        if (parameter.dataType === 'BOOLEAN') {
+          // Check if using bit position
+          if (parameter.bitPosition !== undefined && typeof parameter.bitPosition === 'number') {
+            const registerValue: number = Number(result.data[0]);
+            const bitPosition: number = Number(parameter.bitPosition);
+            const mask: number = Math.pow(2, bitPosition);
+            scheduleValue = Boolean(registerValue & mask);
+          } else {
+            // For coils/discrete inputs, value is already boolean
+            scheduleValue = Boolean(result.data[0]);
           }
+        } else {
+          // For other data types, treat non-zero as true
+          scheduleValue = Boolean(result.data[0]);
         }
       }
 
       // Close the connection
       client.close();
 
-      if (!scheduleParameterFound) {
-        console.log(`Schedule parameter not found for device ${device.name}`);
-        // If Schedule parameter doesn't exist, we allow schedule activation
-        return true;
-      }
-
+      console.log(`Schedule bit for device ${device.name}: ${scheduleValue}`);
       return scheduleValue;
 
     } catch (error) {
       console.error('Error checking Schedule bit:', error);
-      // If we can't read the device, we'll allow schedule activation
-      // This prevents blocking schedule functionality due to connection issues
-      return true;
+      // If we can't read the device, we don't allow schedule activation
+      throw new Error(`Unable to verify scheduling status: ${error instanceof Error ? error.message : 'Connection error'}`);
     }
   }
 }

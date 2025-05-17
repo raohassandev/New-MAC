@@ -5,6 +5,7 @@ import { createDeviceDriverModel } from '../amx/models/deviceDriver.model';
 import { createDeviceTypeModel } from '../amx/models/deviceType.model';
 import HistoricalData from '../client/models/historicalData.model';
 import { createScheduleModels } from '../client/models/schedule.model';
+import EventLog from '../client/models/eventLog.model';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -56,6 +57,8 @@ export const initializeDatabases = async () => {
       Device: createDeviceModel(clientConnection),
       // Create HistoricalData model with the client connection
       HistoricalData: clientConnection.model('HistoricalData', HistoricalData.schema),
+      // Create EventLog model with the client connection
+      EventLog: clientConnection.model('EventLog', EventLog.schema),
       // Add schedule models
       ScheduleTemplate: scheduleModels.ScheduleTemplate,
       DeviceSchedule: scheduleModels.DeviceSchedule,
