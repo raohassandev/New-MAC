@@ -21,7 +21,7 @@ export const selectUsersError = createSelector(selectUsersState, users => users.
  * Select all users as an array
  */
 export const selectAllUsers = createSelector(selectUsersState, users =>
-  users.allIds.map(id => users.byId[id])
+  users.allIds.map((id: any) => users.byId[id])
 );
 
 /**
@@ -47,12 +47,12 @@ export const selectSelectedUser = createSelector(selectUsersState, users =>
  * Select users by role
  */
 export const selectUsersByRole = (role: string) =>
-  createSelector(selectAllUsers, users => users.filter(user => user.role === role));
+  createSelector(selectAllUsers, users => users.filter((user: User) => user.role === role));
 
 /**
  * Select users by permission
  */
 export const selectUsersByPermission = (permission: string) =>
   createSelector(selectAllUsers, users =>
-    users.filter(user => user.permissions?.includes(permission))
+    users.filter((user: User) => user.permissions?.includes(permission))
   );

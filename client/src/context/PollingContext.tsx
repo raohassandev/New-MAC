@@ -139,7 +139,8 @@ export const PollingProvider: React.FC<PollingProviderProps> = ({
         await refreshDeviceData(deviceId, true);
 
         // Set up client-side polling for sync
-        const pollingInterval = setInterval(() => {
+        // const pollingInterval = setInterval(() => {
+        setInterval(() => {
           refreshDeviceData(deviceId, false).catch(err => {
             console.error(`Error refreshing device ${deviceId} data:`, err);
           });

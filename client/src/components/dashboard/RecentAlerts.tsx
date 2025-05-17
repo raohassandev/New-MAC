@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/Card';
+import { Card } from '../ui';
 import { AlertCircle, AlertTriangle, Info, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -19,12 +19,12 @@ interface RecentAlertsProps {
 const RecentAlerts = ({ alerts }: RecentAlertsProps) => {
   if (!alerts || alerts.length === 0) {
     return (
-      <Card.Root className="py-8 text-center text-gray-500">
-        <Card.Content className="flex flex-col items-center">
+      <Card className="py-8 text-center text-gray-500">
+        <div className="flex flex-col items-center">
           <Info className="mx-auto mb-2" size={24} />
           <p>No alerts found</p>
-        </Card.Content>
-      </Card.Root>
+        </div>
+      </Card>
     );
   }
 
@@ -74,8 +74,8 @@ const RecentAlerts = ({ alerts }: RecentAlertsProps) => {
   return (
     <div className="space-y-3">
       {alerts.map(alert => (
-        <Card.Root key={alert.id} className={getAlertClass(alert.severity, alert.isRead)}>
-          <Card.Content className="rounded-r-md border-l-4 p-3">
+        <Card key={alert.id} className={getAlertClass(alert.severity, alert.isRead)}>
+          <div className="rounded-r-md border-l-4 p-3">
             <div className="flex items-start">
               <div className="mr-3 mt-0.5">{getAlertIcon(alert.severity)}</div>
               <div className="min-w-0 flex-1">
@@ -95,8 +95,8 @@ const RecentAlerts = ({ alerts }: RecentAlertsProps) => {
                 </div>
               </div>
             </div>
-          </Card.Content>
-        </Card.Root>
+          </div>
+        </Card>
       ))}
     </div>
   );

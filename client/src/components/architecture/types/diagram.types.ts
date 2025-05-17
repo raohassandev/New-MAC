@@ -23,9 +23,10 @@ export interface SystemNode extends Node {
   };
 }
 
-export interface SystemEdge extends Edge {
-  source: ReactNode;
-  target: ReactNode;
+export interface SystemEdge extends Omit<Edge, 'data'> {
+  id: string;
+  source: string;
+  target: string;
   data?: {
     type: 'call' | 'data' | 'event' | 'depend';
     description?: string;

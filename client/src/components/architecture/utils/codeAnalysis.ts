@@ -527,12 +527,33 @@ function addEdge(
   type: 'call' | 'data' | 'event' | 'depend' | 'compose' | 'use' | 'route',
   description: string
 ): void {
+  // Map extra types to the allowed SystemEdge types
+  let mappedType: 'call' | 'data' | 'event' | 'depend' = 'call';
+  
+  switch (type) {
+    case 'call':
+    case 'route':
+    case 'use':
+      mappedType = 'call';
+      break;
+    case 'data':
+      mappedType = 'data';
+      break;
+    case 'event':
+      mappedType = 'event';
+      break;
+    case 'depend':
+    case 'compose':
+      mappedType = 'depend';
+      break;
+  }
+  
   edges.push({
     id: `e-${source}-${target}`,
     source,
     target,
     data: {
-      type,
+      type: mappedType,
       description,
     },
   });

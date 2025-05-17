@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -16,8 +16,8 @@ import {
   Save,
   Zap,
   Clock,
-  Database,
-  TerminalSquare,
+  // Database,
+  // TerminalSquare,
   Radio,
   Eye,
   EyeOff,
@@ -75,20 +75,20 @@ const DeviceDetails: React.FC = () => {
 
   // Use the polling hook instead of manual polling
   const {
-    deviceData: polledDeviceData,
+    // deviceData: polledDeviceData,
     isPolling: autoPolling,
     startPolling,
     stopPolling,
-    refreshData: refreshDeviceData,
-    pollingStatus,
-    lastUpdated,
+    // refreshData: refreshDeviceData,
+    // pollingStatus,
+    // lastUpdated,
   } = useDevicePolling(deviceId || '', {
     autoStart: false, // Changed from true to false to prevent auto-starting
     refreshInterval: 5000,
     onDataReceived: (data) => {
       // Update readings when new data arrives
       if (data.readings) {
-        setReadings(data.readings);
+        setReadings(data.readings as unknown as DeviceReading[]);
         addCommunicationLog({
           type: 'response',
           operation: 'Auto Poll Data',
@@ -109,7 +109,7 @@ const DeviceDetails: React.FC = () => {
   });
 
   // State for polling interval (UI only)
-  const [pollingInterval, setPollingInterval] = useState<number>(5000); // 5 seconds default
+  const [pollingInterval/*, setPollingInterval*/] = useState<number>(5000); // 5 seconds default
   
   // Display settings
   const [showScientificNotation, setShowScientificNotation] = useState<boolean>(false);
@@ -415,7 +415,7 @@ const DeviceDetails: React.FC = () => {
   };
 
   // Memoized function to read registers to avoid recreation on every render
-  const handleReadRegistersAsync = useCallback(
+  /* const handleReadRegistersAsync = useCallback(
     async (showSuccess = true) => {
       if (!deviceId || !device) return;
 
@@ -591,7 +591,7 @@ const DeviceDetails: React.FC = () => {
       }
     },
     [deviceId, device, readRegisters]
-  );
+  ); */
 
   // Regular handler for button click that calls the async function with full UI feedback
   // Using the original readRegisters function for compatibility
@@ -666,7 +666,7 @@ const DeviceDetails: React.FC = () => {
   };
   
   // Handle toggling auto-polling
-  const handleToggleAutoPolling = async () => {
+  /* const handleToggleAutoPolling = async () => {
     if (autoPolling) {
       // Currently polling, so stop it
       const success = await stopPolling();
@@ -700,7 +700,7 @@ const DeviceDetails: React.FC = () => {
         });
       }
     }
-  };
+  }; */
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -1525,7 +1525,10 @@ const DeviceDetails: React.FC = () => {
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {showScientificNotation && typeof reading.value === 'number' && Math.abs(reading.value) < 1e-10 
                               ? reading.value.toExponential(4) // Display in scientific notation with 4 decimal places
-                              : formatByDataType(reading.value, reading.dataType)}
+                              : formatByDataType(
+                                  typeof reading.value === 'boolean' ? String(reading.value) : reading.value, 
+                                  reading.dataType
+                                )}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {reading.unit || '-'}
@@ -1792,6 +1795,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'tcp',
                                 tcp: {
                                   ...editedDevice.connectionSetting?.tcp,
                                   ip: e.target.value,
@@ -1817,6 +1821,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'tcp',
                                 tcp: {
                                   ...editedDevice.connectionSetting?.tcp,
                                   port: parseInt(e.target.value),
@@ -1842,6 +1847,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'tcp',
                                 tcp: {
                                   ...editedDevice.connectionSetting?.tcp,
                                   slaveId: parseInt(e.target.value),
@@ -1869,6 +1875,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'rtu',
                                 rtu: {
                                   ...editedDevice.connectionSetting?.rtu,
                                   serialPort: e.target.value,
@@ -1894,6 +1901,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'rtu',
                                 rtu: {
                                   ...editedDevice.connectionSetting?.rtu,
                                   baudRate: parseInt(e.target.value),
@@ -1924,6 +1932,7 @@ const DeviceDetails: React.FC = () => {
                               ...editedDevice,
                               connectionSetting: {
                                 ...editedDevice.connectionSetting,
+                                connectionType: editedDevice.connectionSetting?.connectionType || 'rtu',
                                 rtu: {
                                   ...editedDevice.connectionSetting?.rtu,
                                   slaveId: parseInt(e.target.value),
@@ -2303,7 +2312,7 @@ const PollingControlsWrapper = () => {
         stopPolling,
         refreshData,
         lastUpdated,
-        pollingStatus
+        // pollingStatus
       } = useDevicePolling(deviceId || '', {
         autoStart: false, // We'll control this through the UI
         refreshInterval: pollingInterval,

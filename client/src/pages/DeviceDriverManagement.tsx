@@ -1,4 +1,4 @@
-import { CreditCard, Edit, Plus, Search, Trash, X } from 'lucide-react';
+import { CreditCard, Plus, Search, Trash, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewDeviceDriverForm from '../components/templates/index';
@@ -27,14 +27,15 @@ const DeviceDriverManagement: React.FC = () => {
   const {
     deviceDrivers: apiDeviceDrivers,
     loading: apiLoading,
-    error: apiError,
+    // error: apiError,
     addDeviceDriver,
     refreshDeviceDrivers,
     deleteDeviceDriver,
   } = useDeviceDrivers();
 
   // This will convert the API deviceDriver format to our UI format
-  const convertApiDeviceDrivers = useEffect(() => {
+  // const convertApiDeviceDrivers
+  useEffect(() => {
     if (apiDeviceDrivers) {
       // Map the API deviceDrivers to our UI deviceDriver format
       const mappedDeviceDrivers = apiDeviceDrivers.map(deviceDriver => ({

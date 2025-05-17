@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '../ui';
 import * as Progress from '@radix-ui/react-progress';
 import { AlertCircle, CheckCircle, Clock, Cpu, Database, Server } from 'lucide-react';
 
@@ -8,235 +8,221 @@ const SystemStatus: React.FC = () => {
     serverStatus: 'healthy', // healthy, warning, error
     databaseStatus: 'healthy',
     apiStatus: 'healthy',
-    uptime: '5d 7h 23m',
-    cpuUsage: 32,
-    memoryUsage: 41,
+    cpuUsage: 65,
+    memoryUsage: 42,
+    diskUsage: 38,
+    activeDevices: 12,
+    totalDevices: 15,
+    connectedUsers: 5,
+    uptime: '15 days, 3 hours',
     lastCheckTime: new Date().toLocaleTimeString(),
   });
 
-  // In a real app, this would fetch data from an API
   useEffect(() => {
-    const fetchSystemStatus = async () => {
-      try {
-        // Mock API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    // Simulate fetching real system metrics
+    const interval = setInterval(() => {
+      setSystemStats(prev => ({
+        ...prev,
+        cpuUsage: Math.max(30, Math.min(90, prev.cpuUsage + Math.floor(Math.random() * 10 - 5))),
+        memoryUsage: Math.max(20, Math.min(80, prev.memoryUsage + Math.floor(Math.random() * 8 - 4))),
+        activeDevices: Math.max(
+          5,
+          Math.min(prev.totalDevices, prev.activeDevices + Math.floor(Math.random() * 3 - 1))
+        ),
+        lastCheckTime: new Date().toLocaleTimeString(),
+      }));
+    }, 5000);
 
-        // Simulate some random variations in system metrics
-        setSystemStats(prev => ({
-          ...prev,
-          cpuUsage: Math.min(
-            95,
-            Math.max(
-              5,
-              prev.cpuUsage + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 5)
-            )
-          ),
-          memoryUsage: Math.min(
-            95,
-            Math.max(
-              5,
-              prev.memoryUsage + (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3)
-            )
-          ),
-          lastCheckTime: new Date().toLocaleTimeString(),
-        }));
-      } catch (error) {
-        console.error('Error fetching system status:', error);
-      }
-    };
-
-    // Initial fetch
-    fetchSystemStatus();
-
-    // Set up interval for periodic updates
-    const intervalId = setInterval(fetchSystemStatus, 30000); // Update every 30 seconds
-
-    // Clean up interval on component unmount
-    return () => clearInterval(intervalId);
+    return () => clearInterval(interval);
   }, []);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return 'text-green-500';
-      case 'warning':
-        return 'text-amber-500';
-      case 'error':
-        return 'text-red-500';
-      default:
-        return 'text-gray-500';
-    }
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'healthy':
-        return <CheckCircle size={16} className="text-green-500" />;
+        return <CheckCircle size={12} className="text-green-500" />;
       case 'warning':
-        return <AlertCircle size={16} className="text-amber-500" />;
+        return <Clock size={12} className="text-yellow-500" />;
       case 'error':
-        return <AlertCircle size={16} className="text-red-500" />;
+        return <AlertCircle size={12} className="text-red-500" />;
       default:
         return null;
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'healthy':
+        return 'text-green-600';
+      case 'warning':
+        return 'text-yellow-600';
+      case 'error':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
   const getUsageColor = (usage: number) => {
     if (usage < 50) return 'bg-green-500';
-    if (usage < 80) return 'bg-amber-500';
+    if (usage < 75) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
+  const StatsCard = ({
+    icon,
+    title,
+    status,
+    stats,
+  }: {
+    icon: React.ReactNode;
+    title: string;
+    status: string;
+    stats?: { label: string; value: string | number; unit?: string }[];
+  }) => {
+    return (
+      <div className="rounded-lg bg-gray-50 p-3">
+        <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center">
+            {icon}
+            <span className="text-sm font-medium text-gray-700">{title}</span>
+          </div>
+          <div className="flex items-center">
+            {getStatusIcon(status)}
+            <span className={`ml-1 text-xs ${getStatusColor(status)}`}>
+              {status.toUpperCase()}
+            </span>
+          </div>
+        </div>
+        {stats && (
+          <div className="mt-2 space-y-1">
+            {stats.map((stat, index) => (
+              <div key={index} className="flex justify-between text-xs text-gray-500">
+                <span>{stat.label}</span>
+                <span>
+                  {stat.value}
+                  {stat.unit && ` ${stat.unit}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <Card.Root className="rounded-lg bg-white shadow-sm">
-      <Card.Header className="flex items-center justify-between border-b border-gray-200 p-4">
+    <Card className="rounded-lg bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-gray-200 p-4">
         <h2 className="flex items-center text-lg font-semibold">
           <Server className="mr-2 text-blue-500" size={20} />
           System Status
         </h2>
         <div className="text-sm text-gray-500">Last checked: {systemStats.lastCheckTime}</div>
-      </Card.Header>
+      </div>
 
-      <Card.Content className="p-4">
+      <div className="p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Server Status */}
-          <Card.Root className="rounded-lg bg-gray-50 p-3">
-            <Card.Content>
-              <div className="mb-1 flex items-center justify-between">
-                <div className="flex items-center">
-                  <Server size={16} className="mr-2 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">Server</span>
-                </div>
-                <div className="flex items-center">
-                  {getStatusIcon(systemStats.serverStatus)}
-                  <span className={`ml-1 text-xs ${getStatusColor(systemStats.serverStatus)}`}>
-                    {systemStats.serverStatus.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="mb-1 flex justify-between text-xs text-gray-500">
-                  <span>CPU Usage</span>
-                  <span>{systemStats.cpuUsage}%</span>
-                </div>
-                <Progress.Root
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
-                  value={systemStats.cpuUsage}
-                >
-                  <Progress.Indicator
-                    className={`h-1.5 rounded-full ${getUsageColor(systemStats.cpuUsage)}`}
-                    style={{ width: `${systemStats.cpuUsage}%` }}
-                  />
-                </Progress.Root>
-              </div>
-              <div className="mt-2">
-                <div className="mb-1 flex justify-between text-xs text-gray-500">
-                  <span>Memory Usage</span>
-                  <span>{systemStats.memoryUsage}%</span>
-                </div>
-                <Progress.Root
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
-                  value={systemStats.memoryUsage}
-                >
-                  <Progress.Indicator
-                    className={`h-1.5 rounded-full ${getUsageColor(systemStats.memoryUsage)}`}
-                    style={{ width: `${systemStats.memoryUsage}%` }}
-                  />
-                </Progress.Root>
-              </div>
-            </Card.Content>
-          </Card.Root>
+          <StatsCard
+            icon={<Server size={16} className="mr-2 text-gray-600" />}
+            title="Server"
+            status={systemStats.serverStatus}
+            stats={[
+              { label: 'CPU Usage', value: systemStats.cpuUsage, unit: '%' },
+              { label: 'Memory Usage', value: systemStats.memoryUsage, unit: '%' },
+              { label: 'Uptime', value: systemStats.uptime },
+            ]}
+          />
 
           {/* Database Status */}
-          <Card.Root className="rounded-lg bg-gray-50 p-3">
-            <Card.Content>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Database size={16} className="mr-2 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">MongoDB</span>
-                </div>
-                <div className="flex items-center">
-                  {getStatusIcon(systemStats.databaseStatus)}
-                  <span className={`ml-1 text-xs ${getStatusColor(systemStats.databaseStatus)}`}>
-                    {systemStats.databaseStatus.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-500">
-                <div className="mb-1 flex justify-between">
-                  <span>Connection Pool</span>
-                  <span>12/20</span>
-                </div>
-                <div className="mb-1 flex justify-between">
-                  <span>Query Response Time</span>
-                  <span>42ms</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Database Size</span>
-                  <span>248MB</span>
-                </div>
-              </div>
-            </Card.Content>
-          </Card.Root>
+          <StatsCard
+            icon={<Database size={16} className="mr-2 text-gray-600" />}
+            title="Database"
+            status={systemStats.databaseStatus}
+            stats={[
+              { label: 'Disk Usage', value: systemStats.diskUsage, unit: '%' },
+              { label: 'Active Connections', value: 12 },
+              { label: 'Response Time', value: '32ms' },
+            ]}
+          />
 
           {/* API Status */}
-          <Card.Root className="rounded-lg bg-gray-50 p-3">
-            <Card.Content>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Cpu size={16} className="mr-2 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">API Service</span>
-                </div>
-                <div className="flex items-center">
-                  {getStatusIcon(systemStats.apiStatus)}
-                  <span className={`ml-1 text-xs ${getStatusColor(systemStats.apiStatus)}`}>
-                    {systemStats.apiStatus.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-500">
-                <div className="mb-1 flex justify-between">
-                  <span>Request Rate</span>
-                  <span>127 req/min</span>
-                </div>
-                <div className="mb-1 flex justify-between">
-                  <span>Avg Response Time</span>
-                  <span>238ms</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Error Rate</span>
-                  <span className="text-green-500">0.02%</span>
-                </div>
-              </div>
-            </Card.Content>
-          </Card.Root>
+          <StatsCard
+            icon={<Cpu size={16} className="mr-2 text-gray-600" />}
+            title="API"
+            status={systemStats.apiStatus}
+            stats={[
+              { label: 'Response Time', value: '45ms' },
+              { label: 'Requests/min', value: 234 },
+              { label: 'Error Rate', value: '0.02%' },
+            ]}
+          />
 
-          {/* System Uptime */}
-          <Card.Root className="rounded-lg bg-gray-50 p-3">
-            <Card.Content>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Clock size={16} className="mr-2 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">System Uptime</span>
-                </div>
-              </div>
-              <div className="mt-3 text-center">
-                <div className="text-2xl font-bold text-gray-700">{systemStats.uptime}</div>
-                <div className="mt-1 text-xs text-gray-500">Since last restart</div>
-              </div>
-              <div className="mt-3 flex justify-center space-x-2">
-                <button className="rounded bg-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-300">
-                  Restart API
-                </button>
-                <button className="rounded bg-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-300">
-                  Restart All
-                </button>
-              </div>
-            </Card.Content>
-          </Card.Root>
+          {/* Device Status */}
+          <StatsCard
+            icon={<CheckCircle size={16} className="mr-2 text-gray-600" />}
+            title="Devices"
+            status="healthy"
+            stats={[
+              { label: 'Active', value: systemStats.activeDevices },
+              { label: 'Total', value: systemStats.totalDevices },
+              { label: 'Connected Users', value: systemStats.connectedUsers },
+            ]}
+          />
         </div>
-      </Card.Content>
-    </Card.Root>
+
+        {/* Progress Bars for Usage Metrics */}
+        <div className="mt-6 space-y-4">
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-gray-500">
+              <span>CPU Usage</span>
+              <span>{systemStats.cpuUsage}%</span>
+            </div>
+            <Progress.Root
+              className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
+              value={systemStats.cpuUsage}
+            >
+              <Progress.Indicator
+                className={`h-2 rounded-full transition-all ${getUsageColor(systemStats.cpuUsage)}`}
+                style={{ width: `${systemStats.cpuUsage}%` }}
+              />
+            </Progress.Root>
+          </div>
+
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-gray-500">
+              <span>Memory Usage</span>
+              <span>{systemStats.memoryUsage}%</span>
+            </div>
+            <Progress.Root
+              className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
+              value={systemStats.memoryUsage}
+            >
+              <Progress.Indicator
+                className={`h-2 rounded-full transition-all ${getUsageColor(systemStats.memoryUsage)}`}
+                style={{ width: `${systemStats.memoryUsage}%` }}
+              />
+            </Progress.Root>
+          </div>
+
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-gray-500">
+              <span>Disk Usage</span>
+              <span>{systemStats.diskUsage}%</span>
+            </div>
+            <Progress.Root
+              className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
+              value={systemStats.diskUsage}
+            >
+              <Progress.Indicator
+                className={`h-2 rounded-full transition-all ${getUsageColor(systemStats.diskUsage)}`}
+                style={{ width: `${systemStats.diskUsage}%` }}
+              />
+            </Progress.Root>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 };
 

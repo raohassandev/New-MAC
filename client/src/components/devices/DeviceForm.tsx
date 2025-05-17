@@ -7,7 +7,6 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Form } from '../../components/ui/Form';
 import { Tabs } from '../../components/ui/Tabs';
-import { Dialog } from '../../components/ui/Dialog';
 import { Switch } from '../../components/ui/Switch';
 
 interface DeviceFormProps {

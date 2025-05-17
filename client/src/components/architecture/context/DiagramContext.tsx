@@ -49,8 +49,8 @@ interface DiagramProviderProps {
 }
 
 export const DiagramProvider: React.FC<DiagramProviderProps> = ({ children }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<SystemNode['data']>(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<SystemEdge['data']>(initialEdges);
+  const [nodes, setNodes] = useNodesState<SystemNode['data']>(initialNodes);
+  const [edges, setEdges] = useEdgesState<SystemEdge['data']>(initialEdges);
   const [selectedNode, setSelectedNode] = useState<SystemNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SystemEdge | null>(null);
   const [config, setConfig] = useState<DiagramConfig>(initialConfig);

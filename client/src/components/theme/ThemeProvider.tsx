@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   selectActiveTheme,
-  selectThemeMode,
+  // selectThemeMode,
   setSystemPreference,
 } from '../../redux/features/theme';
 import { useAppSelector } from '../../redux/store';
@@ -13,7 +13,7 @@ interface ThemeProviderProps {
 
 const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const dispatch = useDispatch();
-  const themeMode = useAppSelector(selectThemeMode);
+  // const themeMode = useAppSelector(selectThemeMode);
   const activeTheme = useAppSelector(selectActiveTheme);
 
   // Add theme class to document element

@@ -172,7 +172,7 @@ export const deviceDataApi = {
     
     // Try both the device routes and devices routes paths
     return api.get(`/client/api/devices/${id}/data/history${query}`)
-      .catch(error => {
+      .catch(_error => {
         console.log(`[endpoints.ts] Falling back to alternate path for historical data`);
         return api.get(`/client/api/devices/${id}/data/history${query}`);
       });

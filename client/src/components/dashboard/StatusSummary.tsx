@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Clock, Server } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '../ui';
 
 export type StatusData = {
   total: number;

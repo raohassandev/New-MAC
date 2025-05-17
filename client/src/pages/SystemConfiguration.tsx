@@ -5,12 +5,12 @@ import type { RootState } from '../redux/store';
 import {
   Save,
   RefreshCw,
-  Settings,
+  // Settings,
   Clock,
   Server,
   Sliders,
   Code,
-  Database,
+  // Database,
   Shield,
   Info,
 } from 'lucide-react';
@@ -107,7 +107,7 @@ const SystemConfiguration: React.FC = () => {
     label: string;
     name: string;
     type: string;
-    value: any;
+    value?: any;
     min?: number;
     max?: number;
     step?: number;

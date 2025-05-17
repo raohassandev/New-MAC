@@ -25,7 +25,6 @@ import {
   AccordionDetails,
   IconButton,
   Tooltip,
-  Divider,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
@@ -797,7 +796,7 @@ const UpgradePlanner: React.FC = () => {
       case 'blocked':
         return <WarningIcon fontSize="small" color="error" />;
       default:
-        return null;
+        return <span />;
     }
   };
 

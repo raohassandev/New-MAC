@@ -100,7 +100,7 @@ const ReduxExample: React.FC = () => {
           <p>No notifications</p>
         ) : (
           <ul className="space-y-2">
-            {notifications.map(notification => (
+            {notifications.map((notification: any) => (
               <li
                 key={notification.id}
                 className={`flex justify-between rounded p-2 ${

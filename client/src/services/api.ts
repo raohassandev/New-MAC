@@ -323,7 +323,7 @@ export const readDeviceRegisters = async (id: string) => {
     // For non-Axios errors, also return a structured error response
     return {
       error: true,
-      message: `Error: ${error.message || 'Unknown error'}`,
+      message: `Error: ${(error as Error).message || 'Unknown error'}`,
       deviceId: id,
       timestamp: new Date(),
       readings: []

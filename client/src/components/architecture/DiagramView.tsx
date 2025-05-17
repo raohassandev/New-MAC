@@ -7,11 +7,9 @@ import ReactFlow, {
   NodeTypes,
   EdgeTypes,
   ConnectionLineType,
-  OnNodesChange,
-  OnEdgesChange,
-  OnConnect,
   useNodesState,
   useEdgesState,
+  Connection,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -44,9 +42,18 @@ const DiagramView: React.FC = () => {
   }, [filteredData, setNodes, setEdges]);
 
   // Handle connection between nodes
-  const onConnect: OnConnect = useCallback(
-    connection => {
-      setEdges(eds => [...eds, { ...connection, type: 'default' }]);
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const id = `e-${connection.source}-${connection.target}`;
+      const newEdge = {
+        id,
+        source: connection.source || '',
+        target: connection.target || '',
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        type: 'default'
+      };
+      setEdges(eds => [...eds, newEdge]);
     },
     [setEdges]
   );

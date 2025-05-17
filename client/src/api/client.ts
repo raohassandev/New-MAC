@@ -69,7 +69,7 @@ api.interceptors.response.use(
           // to allow debugging errors from the device form
           if (
             !response.config?.url?.includes('/client/api/devices') ||
-            !response.config?.method?.toLowerCase() === 'post'
+            response.config?.method?.toLowerCase() !== 'post'
           ) {
             window.location.href = '/login';
           }

@@ -167,9 +167,9 @@ const TemplateDataReaderTab: React.FC = () => {
     const sameRangeParams = existingParams.filter(p => p.registerRange === parameter.registerRange);
 
     // Calculate register ranges and buffer indices
-    const wordCount = parameter.wordCount || getWordCount(parameter);
-    const paramStart = parameter.registerIndex;
-    const paramEnd = paramStart + wordCount - 1;
+    // const wordCount = parameter.wordCount || getWordCount(parameter);
+    // const paramStart = parameter.registerIndex;
+    // const paramEnd = paramStart + wordCount - 1;
 
     // Calculate buffer ranges
     const byteSize = getWordCount(parameter) * 2; // 2 bytes per register

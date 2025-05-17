@@ -31,7 +31,7 @@ export interface Method {
 export interface Connection {
   targetId: string;
   targetName: string;
-  type: 'api' | 'database' | 'event' | 'data' | 'config';
+  type: 'api' | 'database' | 'event' | 'data' | 'config' | 'middleware';
   description?: string;
 }
 

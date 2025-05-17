@@ -21,11 +21,13 @@ interface UseDevicesReturn {
   updateDevice: (device: Device) => Promise<Device>;
   deleteDevice: (id: string) => Promise<void>;
   testConnection: (id: string) => Promise<{
-    error: undefined;
-    errorType: undefined;
-    troubleshooting: undefined;
-    deviceInfo: undefined; success: boolean; message: string 
-}>;
+    success: boolean;
+    message: string;
+    error?: string;
+    errorType?: string;
+    troubleshooting?: string;
+    deviceInfo?: any;
+  }>;
   readRegisters: (id: string) => Promise<any>;
   loadingDevice: boolean;
   deviceError: Error | null;
@@ -240,7 +242,7 @@ export const useDevices = (): UseDevicesReturn => {
         connectionSetting: device.connectionSetting
           ? {
               ...device.connectionSetting,
-              connectionType: device.connectionSetting.connectionType || 'tcp',
+              connectionType: (device.connectionSetting.connectionType || 'tcp') as 'tcp' | 'rtu',
               tcp: device.connectionSetting.tcp || {
                 ip: device.ip || '',
                 port: typeof device.port === 'number' ? device.port : 502,
@@ -256,7 +258,7 @@ export const useDevices = (): UseDevicesReturn => {
               },
             }
           : {
-              connectionType: 'tcp',
+              connectionType: 'tcp' as const,
               tcp: {
                 ip: device.ip || '',
                 port: typeof device.port === 'number' ? device.port : 502,
@@ -300,7 +302,14 @@ export const useDevices = (): UseDevicesReturn => {
   };
 
   // Test connection to a device
-  const testConnection = async (id: string): Promise<{ success: boolean; message: string }> => {
+  const testConnection = async (id: string): Promise<{
+    success: boolean;
+    message: string;
+    error?: string;
+    errorType?: string;
+    troubleshooting?: string;
+    deviceInfo?: any;
+  }> => {
     try {
       // Use our updated testConnectionService that handles auth issues
       const result = await testConnectionService(id);

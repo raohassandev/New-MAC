@@ -11,7 +11,7 @@ import {
   X,
   Activity,
 } from 'lucide-react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -19,15 +19,15 @@ import { useAuth } from '../context/AuthContext';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user /*, logout*/ } = useAuth();
+  // const navigate = useNavigate();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const handleLogout = () => {
+  /* const handleLogout = () => {
     logout();
     // No need to navigate manually, the ProtectedRoute will handle redirection
-  };
+  }; */
 
   // Check if user has specific permissions
   const hasPermission = (permission: string) => {

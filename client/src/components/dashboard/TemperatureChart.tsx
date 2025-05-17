@@ -1,6 +1,6 @@
 // src/components/dashboard/TemperatureChart.tsx
 import React from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '../ui';
 
 import {
   CartesianGrid,
@@ -29,20 +29,20 @@ const TemperatureChart: React.FC<TemperatureChartProps> = ({
 }) => {
   if (!data || data.length === 0) {
     return (
-      <Card.Root className="rounded-lg bg-gray-50 p-6 text-center">
-        <Card.Content>
+      <Card className="rounded-lg bg-gray-50 p-6 text-center">
+        <div>
           <div>No temperature data available</div>
-        </Card.Content>
-      </Card.Root>
+        </div>
+      </Card>
     );
   }
 
   return (
-    <Card.Root className="chart-container">
-      <Card.Header className="border-b border-gray-200 p-4">
+    <Card className="chart-container">
+      <div className="border-b border-gray-200 p-4">
         <h3 className="text-lg font-medium">{title}</h3>
-      </Card.Header>
-      <Card.Content className="p-4">
+      </div>
+      <div className="p-4">
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
@@ -63,8 +63,8 @@ const TemperatureChart: React.FC<TemperatureChartProps> = ({
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </Card>
   );
 };
 

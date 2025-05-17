@@ -81,7 +81,7 @@ const devicesSlice = createSlice({
       const byId: Record<string, Device> = {};
       const allIds: string[] = [];
 
-      devices.forEach(device => {
+      devices.forEach((device: any) => {
         byId[device._id] = device;
         allIds.push(device._id);
       });

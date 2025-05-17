@@ -15,7 +15,7 @@ export const exportToImage = async (
   }
 
   // Prepare the element
-  const transform = reactFlowInstance.getTransform();
+  const viewport = reactFlowInstance.getViewport();
   reactFlowInstance.fitView({ padding: 0.2 });
 
   try {
@@ -45,7 +45,7 @@ export const exportToImage = async (
     a.click();
 
     // Reset view transform after download
-    reactFlowInstance.setTransform(transform);
+    reactFlowInstance.setViewport(viewport);
   } catch (error) {
     console.error('Error exporting diagram:', error);
   }

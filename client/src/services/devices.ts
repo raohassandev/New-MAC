@@ -41,7 +41,7 @@ export function isDevice(obj: any): obj is Device {
 }
 
 // Helper function to ensure all required properties are defined
-export function ensureDeviceProperties(device: BaseDevice): Device {
+export function ensureDeviceProperties(device: Omit<BaseDevice, '_id'> & { _id?: string }): Device {
   // Extract connection settings from the device object
   let connectionSetting = device.connectionSetting;
 
@@ -74,6 +74,7 @@ export function ensureDeviceProperties(device: BaseDevice): Device {
 
   return {
     ...device,
+    _id: device._id || '', // _id will be set by the API when creating a new device
     connectionSetting,
     dataPoints,
     tags: device.tags || [],
@@ -84,7 +85,7 @@ export function ensureDeviceProperties(device: BaseDevice): Device {
     usage: device.usage || '',
     usageNotes: device.usageNotes || '',
     location: device.location || '',
-  };
+  } as Device;
 }
 
 // Function to convert service Device to BaseDevice
@@ -132,7 +133,7 @@ export function convertToBaseDevice(serviceDevice: Device): BaseDevice {
 }
 
 // Sample devices for testing and development
-const SAMPLE_DEVICES: Device[] = [
+/* const SAMPLE_DEVICES: Device[] = [
   {
     _id: 'sample_device_1',
     name: 'AC Room 1',
@@ -261,7 +262,7 @@ const SAMPLE_DEVICES: Device[] = [
     lastSeen: new Date(),
     description: '',
   },
-];
+]; */
 
 // Export functions that integrate with the backend API using the unified endpoint helpers
 export async function getDevices(): Promise<any> {
@@ -303,14 +304,14 @@ export async function getDevices(): Promise<any> {
     return { devices: [], pagination: { total: 0, page: 1, limit: 50, pages: 1 } };
   } catch (error) {
     console.error('[devices.ts] Error fetching devices from API:', error);
-    if (error.response) {
-      console.error('[devices.ts] Error status:', error.response.status);
-      console.error('[devices.ts] Error data:', error.response.data);
-      console.error('[devices.ts] Request URL:', error.config?.url);
-    } else if (error.request) {
-      console.error('[devices.ts] No response received. Request:', error.request);
+    if ((error as any).response) {
+      console.error('[devices.ts] Error status:', (error as any).response.status);
+      console.error('[devices.ts] Error data:', (error as any).response.data);
+      console.error('[devices.ts] Request URL:', (error as any).config?.url);
+    } else if ((error as any).request) {
+      console.error('[devices.ts] No response received. Request:', (error as any).request);
     } else {
-      console.error('[devices.ts] Error message:', error.message);
+      console.error('[devices.ts] Error message:', (error as any).message);
     }
     
     // Return empty array instead of sample devices
@@ -329,7 +330,7 @@ export async function getDevice(id: string): Promise<Device> {
   }
 }
 
-export async function addDevice(device: BaseDevice): Promise<Device> {
+export async function addDevice(device: Omit<BaseDevice, '_id'>): Promise<Device> {
   try {
     console.log('[devices.ts] addDevice called with:', device);
 

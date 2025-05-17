@@ -282,7 +282,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
   useEffect(() => {
     // Set appropriate word count based on data type
     const newWordCount = getRequiredWordCount(parameter.dataType);
-    const currentByteSize = getByteSize(parameter.dataType);
+    // const currentByteSize = getByteSize(parameter.dataType);
 
     // Only update if word count changed and not manually set before
     if (newWordCount !== parameter.wordCount) {
@@ -417,7 +417,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
 
             if (selectedRange) {
               const registersNeeded = getRequiredWordCount(parameter.dataType);
-              const bytesNeeded = getByteSize(parameter.dataType);
+              // const bytesNeeded = getByteSize(parameter.dataType);
               const lastValidRegisterIndex = selectedRange.length - registersNeeded;
 
               // Different validation for bufferIndex vs registerIndex
@@ -874,7 +874,17 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
                 id="signed"
                 name="signed"
                 checked={parameter.signed}
-                onChange={handleInputChange}
+                onCheckedChange={(checked) => {
+                  const event = {
+                    target: {
+                      name: 'signed',
+                      type: 'checkbox',
+                      checked: Boolean(checked),
+                      value: String(checked)
+                    }
+                  } as React.ChangeEvent<HTMLInputElement>;
+                  handleInputChange(event);
+                }}
                 className="mr-2"
               />
               <label htmlFor="signed" className="text-sm font-medium text-gray-700">

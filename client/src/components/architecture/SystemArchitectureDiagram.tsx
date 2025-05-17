@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
@@ -44,9 +44,6 @@ import DataObjectIcon from '@mui/icons-material/DataObject';
 
 import DetailedNodeComponent, {
   DetailedNodeData,
-  NodeParameter,
-  Method,
-  Connection,
 } from './components/DetailedNodeComponent';
 import DetailedEdgeComponent, { DetailedEdgeData } from './components/DetailedEdgeComponent';
 

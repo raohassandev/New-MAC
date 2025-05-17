@@ -10,7 +10,7 @@ export const fetchDevices = createAsyncThunk<
   any, // Use 'any' to handle different response formats
   DeviceFilter | undefined,
   ThunkApiConfig
->('devices/fetchDevices', async (filters, { rejectWithValue }) => {
+>('devices/fetchDevices', async (_filters, { rejectWithValue }) => {
   try {
     const response = await deviceService.getDevices();
     return response;

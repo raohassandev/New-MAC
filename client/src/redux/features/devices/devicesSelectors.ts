@@ -21,7 +21,7 @@ export const selectDevicesError = createSelector(selectDevicesState, devices => 
  * Select all devices as an array
  */
 export const selectAllDevices = createSelector(selectDevicesState, devices =>
-  devices.allIds.map(id => devices.byId[id])
+  devices.allIds.map((id: any) => devices.byId[id])
 );
 
 /**
@@ -56,7 +56,7 @@ export const selectDeviceFilters = createSelector(selectDevicesState, devices =>
 export const selectFilteredDevices = createSelector(
   [selectAllDevices, selectDeviceFilters],
   (devices, filters) => {
-    return devices.filter(device => {
+    return devices.filter((device: Device) => {
       // Filter by search term
       if (filters.search && !device.name.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
@@ -77,7 +77,7 @@ export const selectFilteredDevices = createSelector(
 
       // Filter by tags
       if (filters.tags && filters.tags.length > 0) {
-        if (!device.tags || !filters.tags.some(tag => device.tags?.includes(tag))) {
+        if (!device.tags || !filters.tags.some((tag: string) => device.tags?.includes(tag))) {
           return false;
         }
       }
@@ -92,27 +92,27 @@ export const selectFilteredDevices = createSelector(
  */
 export const selectDevicesByType = (deviceType: string) =>
   createSelector(selectAllDevices, devices =>
-    devices.filter(device => device.deviceType === deviceType)
+    devices.filter((device: any) => device.deviceType === deviceType)
   );
 
 /**
  * Select devices by tag
  */
 export const selectDevicesByTag = (tag: string) =>
-  createSelector(selectAllDevices, devices => devices.filter(device => device.tags?.includes(tag)));
+  createSelector(selectAllDevices, devices => devices.filter((device: any) => device.tags?.includes(tag)));
 
 /**
  * Select enabled devices
  */
 export const selectEnabledDevices = createSelector(selectAllDevices, devices =>
-  devices.filter(device => device.enabled)
+  devices.filter((device: any) => device.enabled)
 );
 
 /**
  * Select disabled devices
  */
 export const selectDisabledDevices = createSelector(selectAllDevices, devices =>
-  devices.filter(device => !device.enabled)
+  devices.filter((device: any) => !device.enabled)
 );
 
 /**

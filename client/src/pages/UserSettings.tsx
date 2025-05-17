@@ -1,9 +1,7 @@
 import {
   Bell,
-  Globe,
   Key,
   Lock,
-  Mail,
   Monitor,
   Moon,
   Shield,

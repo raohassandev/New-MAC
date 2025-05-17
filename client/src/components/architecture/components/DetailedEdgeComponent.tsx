@@ -4,7 +4,7 @@ import { styled } from '@mui/material/styles';
 import { Typography, Chip, Paper, Tooltip } from '@mui/material';
 
 // Edge types for different connections
-export type EdgeType = 'api' | 'data' | 'event' | 'database' | 'config' | 'call' | 'dependency';
+export type EdgeType = 'api' | 'data' | 'event' | 'database' | 'config' | 'call' | 'dependency' | 'middleware';
 
 // Define edge data interface
 export interface DetailedEdgeData {
@@ -110,8 +110,8 @@ const getEdgeThickness = (importance?: 'high' | 'medium' | 'low') => {
 // The main edge component
 const DetailedEdgeComponent: React.FC<EdgeProps<DetailedEdgeData>> = ({
   id,
-  source,
-  target,
+  source: _source,
+  target: _target,
   sourceX,
   sourceY,
   targetX,

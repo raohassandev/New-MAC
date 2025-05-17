@@ -24,7 +24,6 @@ export * from './Switch';
 export * from './Table';
 
 // Handle Table and Tabs with explicit re-exports to resolve naming conflicts
-import { Table, type TableProps } from './Table';
 
 export * from './Toast';
 export * from './Tooltip';

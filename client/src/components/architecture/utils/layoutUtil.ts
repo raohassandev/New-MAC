@@ -1,13 +1,13 @@
 import { SystemNode, SystemEdge, NodeType } from '../types/diagram.types';
 import dagre from 'dagre';
 
-interface LayoutOptions {
-  direction?: 'TB' | 'LR' | 'RL' | 'BT';
-  nodeWidth?: number;
-  nodeHeight?: number;
-  rankSep?: number;
-  nodeSep?: number;
-}
+// interface LayoutOptions {
+//   direction?: 'TB' | 'LR' | 'RL' | 'BT';
+//   nodeWidth?: number;
+//   nodeHeight?: number;
+//   rankSep?: number;
+//   nodeSep?: number;
+// }
 
 // Layout configuration for each algorithm
 const layoutConfigs = {
@@ -84,7 +84,9 @@ export function generateSystemLayout(
 
   // Add edges to dagre
   edges.forEach(edge => {
-    dagreGraph.setEdge(edge.source, edge.target);
+    if (typeof edge.source === 'string' && typeof edge.target === 'string') {
+      dagreGraph.setEdge(edge.source, edge.target);
+    }
   });
 
   // Apply layout
@@ -112,12 +114,12 @@ export function generateSystemLayout(
 
   // Apply curved edges in radial layout
   const newEdges = edges.map(edge => {
-    const updatedEdge = { ...edge };
+    const updatedEdge: SystemEdge = { ...edge };
 
     if (algorithm === 'force-directed' || algorithm === 'radial') {
-      updatedEdge.type = 'smoothstep';
+      (updatedEdge as any).type = 'smoothstep';
     } else {
-      updatedEdge.type = 'step';
+      (updatedEdge as any).type = 'step';
     }
 
     return updatedEdge;
@@ -130,7 +132,7 @@ export function generateSystemLayout(
 function getRadialPosition(
   nodes: SystemNode[],
   node: SystemNode,
-  dagreNode: { x: number; y: number }
+  _dagreNode: { x: number; y: number }
 ): { x: number; y: number } {
   const centerX = 1000;
   const centerY = 1000;
@@ -198,5 +200,5 @@ export function layerBasedLayout(
     };
   });
 
-  return { newNodes, edges };
+  return { newNodes, newEdges: edges };
 }

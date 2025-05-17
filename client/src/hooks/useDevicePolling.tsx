@@ -83,19 +83,20 @@ export function useDevicePolling(
   }, [deviceId]);
 
   // Safely update state only if component is still mounted
-  const safeSetState = useCallback(<T>(
-    setter: React.Dispatch<React.SetStateAction<T>>, 
-    value: T
-  ) => {
-    if (isMountedRef.current) {
-      setter(value);
-    }
-  }, []);
+  const safeSetState = useCallback(
+    (setter: (value: any) => void, value: any) => {
+      if (isMountedRef.current) {
+        setter(value);
+      }
+    },
+    []
+  );
 
   /**
    * Refresh device data by calling the current data endpoint
    */
-  const refreshData = useCallback(async (forceRefresh = false): Promise<DeviceData | null> => {
+  const refreshData = useCallback(
+    async (forceRefresh = false): Promise<DeviceData | null> => {
     if (!deviceIdRef.current) return null;
     
     // Skip refresh if polling has been stopped (unless forced)
@@ -182,7 +183,9 @@ export function useDevicePolling(
     } finally {
       safeSetState(setLoading, false);
     }
-  }, [onDataReceived, onError, safeSetState]);
+    },
+    [onDataReceived, onError, safeSetState]
+  );
   
   // Update refreshDataRef when refreshData changes
   useEffect(() => {
@@ -192,7 +195,8 @@ export function useDevicePolling(
   /**
    * Start server-side polling for the device with improved state handling
    */
-  const startPolling = useCallback(async (intervalMs = refreshInterval): Promise<boolean> => {
+  const startPolling = useCallback(
+    async (intervalMs = refreshInterval): Promise<boolean> => {
     if (!deviceIdRef.current || !isMountedRef.current) return false;
     
     // Ensure intervalMs is a number and within reasonable bounds
@@ -300,7 +304,9 @@ export function useDevicePolling(
       if (onError) onError(new Error(errorMessage));
       return false;
     }
-  }, [refreshInterval, onError, safeSetState]);
+    },
+    [refreshInterval, onError, safeSetState]
+  );
 
   /**
    * Stop server-side polling for the device with improved state handling
@@ -351,7 +357,9 @@ export function useDevicePolling(
       if (onError) onError(new Error(errorMessage));
       return false;
     }
-  }, [onError, safeSetState]);
+    },
+    [onError, safeSetState]
+  );
 
   // Auto-start polling if enabled
   useEffect(() => {

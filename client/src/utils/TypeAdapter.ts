@@ -6,7 +6,6 @@ import {
 import {
   RegisterRange as DeviceRegisterRange,
   ParameterConfig as DeviceParameterConfig,
-  DataType,
   DataPoint,
   ConnectionSetting,
   Device,

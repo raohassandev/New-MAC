@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Edit, ArrowLeft, Save, Trash, File, CreditCard, RotateCcw } from 'lucide-react';
+import { Edit, ArrowLeft, Trash, File, CreditCard, RotateCcw } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useDeviceDrivers } from '../hooks/useDeviceDrivers';
 import { DeviceDriver } from '../types/deviceDriver.types';
@@ -292,11 +292,11 @@ const DeviceDriverDetails: React.FC = () => {
                                   <span className="font-medium">{param.name}:</span>
                                   <span>
                                     {param.dataType}
-                                    {param.unit ? ` (${param.unit})` : ''}
+                                    {(param as any).unit ? ` (${(param as any).unit})` : ''}
                                   </span>
-                                  {param.description && (
+                                  {(param as any).description && (
                                     <span className="w-full text-xs text-gray-500">
-                                      {param.description}
+                                      {(param as any).description}
                                     </span>
                                   )}
                                 </div>

@@ -1,6 +1,6 @@
 // src/components/dashboard/QuickActionPanel.tsx
 import React from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '../ui';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   BarChart,
@@ -22,12 +22,12 @@ const QuickActionPanel: React.FC = () => {
   };
 
   return (
-    <Card.Root className="rounded-lg bg-white p-4 shadow-sm">
-      <Card.Header className="mb-4 flex items-center justify-between">
+    <Card className="rounded-lg bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Quick Actions</h2>
-      </Card.Header>
+      </div>
 
-      <Card.Content>
+      <div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9">
           <ActionButton
             icon={<Plus size={20} />}
@@ -92,8 +92,8 @@ const QuickActionPanel: React.FC = () => {
             onClick={() => handleAction('view_reports')}
           />
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </Card>
   );
 };
 

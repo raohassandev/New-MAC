@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import XmlViewer from '../components/ui/XmlViewer';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import MainLayout from '../layouts/MainLayout';
 
 const XmlStructureView: React.FC = () => {
   const [xmlContent, setXmlContent] = useState<string>('');

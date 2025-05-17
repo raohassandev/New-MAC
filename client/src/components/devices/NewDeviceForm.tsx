@@ -22,7 +22,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Form } from '../../components/ui/Form';
 import { Tabs } from '../../components/ui/Tabs';
-import { Dialog } from '../../components/ui/Dialog';
+// import { Dialog } from '../../components/ui/Dialog';
 import { Switch } from '../../components/ui/Switch';
 import { Card } from '../../components/ui/Card';
 import { Alert } from '../../components/ui/Alert';
@@ -256,14 +256,18 @@ const NewDeviceForm: React.FC<NewDeviceFormProps> = ({
           });
         } else if (paths.length === 3) {
           // Handle 'advancedSettings.connectionOptions.timeout'
+          const key1 = paths[1] as keyof typeof deviceData.advancedSettings;
+          const existingValue = deviceData.advancedSettings?.[key1];
+          const currentObj = (existingValue && typeof existingValue === 'object' && existingValue !== null) 
+            ? existingValue as Record<string, any>
+            : {};
+          
           setDeviceData({
             ...deviceData,
             advancedSettings: {
               ...deviceData.advancedSettings,
               [paths[1]]: {
-                ...deviceData.advancedSettings[
-                  paths[1] as keyof typeof deviceData.advancedSettings
-                ],
+                ...currentObj,
                 [paths[2]]: newValue,
               },
             },

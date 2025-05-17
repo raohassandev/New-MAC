@@ -9,7 +9,7 @@ import { endpoints } from '../../../CONSTANTS';
 
 // Create api instance
 const API_URL = import.meta.env.VITE_API_URL || endpoints.baseUrl;
-const AMX_API_PATH = endpoints.frontend.amxPrefix;
+// const AMX_API_PATH = endpoints.frontend.amxPrefix;
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -48,7 +48,7 @@ export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
       } else {
         console.warn('[deviceDrivers.ts] Library API returned empty result. Response:', response.data);
       }
-    } catch (libraryError) {
+    } catch (libraryError: any) {
       console.warn('[deviceDrivers.ts] Error fetching from library API, details:', libraryError);
       if (libraryError.response) {
         console.warn('[deviceDrivers.ts] Library API error details:',
@@ -87,14 +87,14 @@ export const getDeviceDrivers = async (): Promise<DeviceDriver[]> => {
       }
     } catch (deviceError) {
       console.warn('[deviceDrivers.ts] Error fetching from devices API:', deviceError);
-      if (deviceError.response) {
+      if ((deviceError as any).response) {
         console.warn('[deviceDrivers.ts] Devices API error details:',
-          'Status:', deviceError.response.status,
-          'Data:', deviceError.response.data);
-      } else if (deviceError.request) {
-        console.warn('[deviceDrivers.ts] No response received from devices API. Request:', deviceError.request);
+          'Status:', (deviceError as any).response.status,
+          'Data:', (deviceError as any).response.data);
+      } else if ((deviceError as any).request) {
+        console.warn('[deviceDrivers.ts] No response received from devices API. Request:', (deviceError as any).request);
       } else {
-        console.warn('[deviceDrivers.ts] Error message:', deviceError.message);
+        console.warn('[deviceDrivers.ts] Error message:', (deviceError as any).message);
       }
     }
 

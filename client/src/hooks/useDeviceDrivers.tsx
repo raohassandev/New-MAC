@@ -12,7 +12,6 @@ import {
   DeviceDriver,
   DeviceType,
   DeviceDriverFormData,
-  NewDeviceType,
 } from '../types/deviceDriver.types';
 
 export const useDeviceDrivers = () => {
