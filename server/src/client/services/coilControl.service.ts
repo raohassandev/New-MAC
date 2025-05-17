@@ -124,8 +124,19 @@ export const controlCoilRegister = async (
       // Connect to the device with TCP
       console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
       
-      await client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      client.setID(parseInt(slaveId as string, 10) || 1);
+      // Add timeout to TCP connection to prevent hanging
+      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+      );
+      
+      try {
+        await Promise.race([connectPromise, timeoutPromise]);
+        client.setID(parseInt(slaveId as string, 10) || 1);
+      } catch (error) {
+        console.error(`[coilControlService] TCP connection failed: ${error}`);
+        throw error;
+      }
     } else {
       throw new Error(`Unknown connection type: ${connectionType}`);
     }
@@ -234,8 +245,25 @@ export const controlCoilRegister = async (
     
     throw errorResult;
   } finally {
-    // Always close the client
-    await safeCloseModbusClient(client);
+    // Always close the client with timeout
+    if (client) {
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
+    }
   }
 };
 
@@ -351,8 +379,19 @@ export const controlMultipleCoilRegisters = async (
       // Connect to the device with TCP
       console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
       
-      await client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      client.setID(parseInt(slaveId as string, 10) || 1);
+      // Add timeout to TCP connection to prevent hanging
+      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+      );
+      
+      try {
+        await Promise.race([connectPromise, timeoutPromise]);
+        client.setID(parseInt(slaveId as string, 10) || 1);
+      } catch (error) {
+        console.error(`[coilControlService] TCP connection failed: ${error}`);
+        throw error;
+      }
     } else {
       throw new Error(`Unknown connection type: ${connectionType}`);
     }
@@ -479,8 +518,25 @@ export const controlMultipleCoilRegisters = async (
     
     throw errorResult;
   } finally {
-    // Always close the client
-    await safeCloseModbusClient(client);
+    // Always close the client with timeout
+    if (client) {
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
+    }
   }
 };
 
@@ -592,8 +648,19 @@ export const readCoilRegisters = async (
       // Connect to the device with TCP
       console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
       
-      await client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      client.setID(parseInt(slaveId as string, 10) || 1);
+      // Add timeout to TCP connection to prevent hanging
+      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+      );
+      
+      try {
+        await Promise.race([connectPromise, timeoutPromise]);
+        client.setID(parseInt(slaveId as string, 10) || 1);
+      } catch (error) {
+        console.error(`[coilControlService] TCP connection failed: ${error}`);
+        throw error;
+      }
     } else {
       throw new Error(`Unknown connection type: ${connectionType}`);
     }
@@ -647,7 +714,24 @@ export const readCoilRegisters = async (
     
     throw errorResult;
   } finally {
-    // Always close the client
-    await safeCloseModbusClient(client);
+    // Always close the client with timeout
+    if (client) {
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
+    }
   }
 };

@@ -29,6 +29,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/client/api': {
+        target: 'http://localhost:3333',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   build: {

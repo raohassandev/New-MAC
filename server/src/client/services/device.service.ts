@@ -153,7 +153,18 @@ export const connectToModbusDevice = async (
 
   // Connect based on connection type
   if (connectionType === 'tcp' && ip && port) {
-    await client.connectTCP(ip, { port });
+    // Add timeout to TCP connection to prevent hanging
+    const connectPromise = client.connectTCP(ip, { port });
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+    );
+    
+    try {
+      await Promise.race([connectPromise, timeoutPromise]);
+    } catch (error) {
+      console.error(`[deviceService] TCP connection failed: ${error}`);
+      throw error;
+    }
   } else if (connectionType === 'rtu' && serialPort) {
     const rtuOptions: any = {};
     if (baudRate) rtuOptions.baudRate = baudRate;
@@ -1268,9 +1279,24 @@ export const readDeviceRegistersData = async (device: IDevice): Promise<Register
     
     return readings;
   } finally {
-    // Always close the client
+    // Always close the client with timeout
     if (client) {
-      await safeCloseModbusClient(client);
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
     }
   }
 };
@@ -1783,8 +1809,22 @@ export const testConnection = async (
   } finally {
     // Always close the client
     if (client) {
-      await safeCloseModbusClient(client);
-      console.log(chalk.blue(`[deviceService] Closed Modbus connection`));
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
     }
   }
 };
@@ -2378,9 +2418,24 @@ export const controlDevice = async (
     
     throw error;
   } finally {
-    // Always close the client
+    // Always close the client with timeout
     if (client) {
-      await safeCloseModbusClient(client);
+      try {
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
+      } catch (closeError) {
+        // Force close if safe close fails or times out
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
+      }
     }
   }
 };

@@ -296,8 +296,19 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
       }
 
       // Connect to TCP device
-      await client.connectTCP(ip, { port });
-      console.log(chalk.green(`✓ Connected to TCP device ${device.name} at ${ip}:${port}`));
+      // Add timeout to TCP connection to prevent hanging
+      const connectPromise = client.connectTCP(ip, { port });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+      );
+      
+      try {
+        await Promise.race([connectPromise, timeoutPromise]);
+        console.log(chalk.green(`✓ Connected to TCP device ${device.name} at ${ip}:${port}`));
+      } catch (error) {
+        console.error(chalk.red(`[pollingService] TCP connection failed for device ${device.name}: ${error}`));
+        throw error;
+      }
 
       // Set slave ID for TCP
       const slaveId = device.connectionSetting?.tcp?.slaveId || device.slaveId || 1;
@@ -858,10 +869,22 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
     // Always close the connection if open
     if (client) {
       try {
-        await safeCloseModbusClient(client);
+        // Add a timeout to prevent hanging on close
+        const closePromise = safeCloseModbusClient(client);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
+        );
+        
+        await Promise.race([closePromise, timeoutPromise]);
         console.log(chalk.cyan(`✓ Closed Modbus connection`));
       } catch (closeError) {
         console.warn(chalk.yellow(`⚠ Error closing Modbus connection:`), closeError);
+        // Force close if safe close fails
+        try {
+          client.close();
+        } catch (forceCloseError) {
+          // Silently ignore force close errors
+        }
       }
     }
   }

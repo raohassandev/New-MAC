@@ -72,9 +72,8 @@ export function ensureDeviceProperties(device: Omit<BaseDevice, '_id'> & { _id?:
   // Ensure dataPoints exist
   const dataPoints = device.dataPoints || [];
 
-  return {
+  const result = {
     ...device,
-    _id: device._id || '', // _id will be set by the API when creating a new device
     connectionSetting,
     dataPoints,
     tags: device.tags || [],
@@ -85,7 +84,14 @@ export function ensureDeviceProperties(device: Omit<BaseDevice, '_id'> & { _id?:
     usage: device.usage || '',
     usageNotes: device.usageNotes || '',
     location: device.location || '',
-  } as Device;
+  } as any;
+  
+  // Only include _id if it exists and is not empty
+  if (device._id && device._id !== '') {
+    result._id = device._id;
+  }
+  
+  return result as Device;
 }
 
 // Function to convert service Device to BaseDevice

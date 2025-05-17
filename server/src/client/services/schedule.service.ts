@@ -569,10 +569,21 @@ export class ScheduleService {
       
       // Connect based on device connection type
       if (device.connectionSetting.connectionType === 'tcp') {
-        await client.connectTCP(
+        // Add timeout to TCP connection to prevent hanging
+        const connectPromise = client.connectTCP(
           device.connectionSetting.tcp.ip,
           { port: device.connectionSetting.tcp.port }
         );
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+        );
+        
+        try {
+          await Promise.race([connectPromise, timeoutPromise]);
+        } catch (error) {
+          console.error(`[scheduleService] TCP connection failed: ${error}`);
+          throw error;
+        }
       } else {
         await connectRTUBuffered(client, device.connectionSetting.rtu.serialPort, {
           baudRate: device.connectionSetting.rtu.baudRate,

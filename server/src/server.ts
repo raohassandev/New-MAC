@@ -235,6 +235,29 @@ const startServer = async () => {
       }
     });
 
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason: any, promise) => {
+      // Suppress TCP timeout errors since we handle them in our close operations
+      if (reason?.message && reason.message.includes('TCP Connection Timed Out')) {
+        // Silently ignore TCP timeout errors
+        return;
+      }
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      // Log the error but don't crash the server
+    });
+
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error: Error) => {
+      // Suppress TCP timeout errors
+      if (error.message && error.message.includes('TCP Connection Timed Out')) {
+        // Silently ignore TCP timeout errors
+        return;
+      }
+      console.error('Uncaught Exception:', error);
+      // Log the error but try to keep the server running
+      // In production, you might want to restart the process
+    });
+
     return server;
   } catch (err) {
     console.error('Database connection error:', err);

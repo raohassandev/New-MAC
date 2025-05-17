@@ -24,7 +24,12 @@ export const createModbusClient = (): ModbusRTU => {
   // Add error handler to catch unhandled errors
   client.on('error', (err: Error | unknown) => {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(chalk.red(`💥 Unhandled client error: ${errorMessage}`));
+    // Suppress TCP timeout errors and socket errors since we handle them separately
+    if (!errorMessage.includes('TCP Connection Timed Out') && 
+        !errorMessage.includes('ETIMEDOUT') &&
+        !errorMessage.includes('ECONNRESET')) {
+      console.error(chalk.red(`💥 Unhandled client error: ${errorMessage}`));
+    }
   });
 
   return client;
@@ -294,7 +299,25 @@ export const safeCloseModbusClient = async (client: ModbusRTU | null): Promise<v
 
     // If either the client or port is open, try to close it
     if (isOpenProperty || isPortOpen) {
-      await client.close();
+      // Wrap close in a promise with timeout
+      const closePromise = new Promise<void>((resolve) => {
+        // Always resolve after a timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          resolve();
+        }, 3000); // 3 second timeout
+        
+        try {
+          client.close(() => {
+            clearTimeout(timeout);
+            resolve();
+          });
+        } catch (err) {
+          clearTimeout(timeout);
+          resolve(); // Resolve anyway on error
+        }
+      });
+      
+      await closePromise;
       console.log(chalk.cyan('✅ Successfully closed Modbus connection'));
 
       // Release port from tracking if we have a path

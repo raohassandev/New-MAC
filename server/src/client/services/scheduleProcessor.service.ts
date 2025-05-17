@@ -134,10 +134,21 @@ export class ScheduleProcessorService {
         if (!tcpSettings) {
           throw new Error('TCP connection settings not found');
         }
-        await client.connectTCP(
+        // Add timeout to TCP connection to prevent hanging
+        const connectPromise = client.connectTCP(
           tcpSettings.ip,
           { port: tcpSettings.port }
         );
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
+        );
+        
+        try {
+          await Promise.race([connectPromise, timeoutPromise]);
+        } catch (error) {
+          console.error(`[scheduleProcessor] TCP connection failed: ${error}`);
+          throw error;
+        }
         client.setID(tcpSettings.slaveId);
       } else {
         const rtuSettings = device.connectionSetting.rtu;
