@@ -217,7 +217,6 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
   isEditing = false,
 }) => {
   // Parse initialData into form state format if provided
-  // Parse initialData into form state format
   const formattedInitialData = initialData
     ? {
         deviceBasics: {
@@ -246,13 +245,22 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
                 scalingFactor: param.scalingFactor,
                 decimalPoint: param.decimalPoint,
                 byteOrder: param.byteOrder,
-                registerRange: dp.range.name || `Range ${rangeIndex + 1}`, // Use saved range name
+                registerRange: dp.range.name || `Range ${rangeIndex + 1}`, // Match the saved range name
                 registerIndex: param.registerIndex || 0,
                 bufferIndex:
                   param.bufferIndex !== undefined
                     ? param.bufferIndex
                     : (param.registerIndex || 0) * 2,
                 wordCount: param.wordCount || 1,
+                bitPosition: param.bitPosition, // Add bitPosition
+                unit: param.unit, // Add unit
+                description: param.description, // Add description
+                maxValue: param.maxValue, // Add maxValue
+                minValue: param.minValue, // Add minValue
+                signed: param.signed, // Add signed
+                bitmask: param.bitmask, // Add bitmask
+                scalingEquation: param.scalingEquation, // Add scalingEquation
+                formatString: param.formatString, // Add formatString
               }))
             )
           : [],

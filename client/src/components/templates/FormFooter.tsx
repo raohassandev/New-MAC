@@ -32,10 +32,10 @@ const FormFooter: React.FC<FormFooterProps> = ({
             Previous
           </Button>
         )}
-        {!isLastStep && onNext ? (
-          <Button onClick={onNext}>Next</Button>
+        {isLastStep ? (
+          <Button onClick={onSubmit}>Save Device Driver</Button>
         ) : (
-          <Button onClick={onSubmit}>{isLastStep ? 'Save Device Driver' : 'Next'}</Button>
+          onNext && <Button onClick={onNext}>Next</Button>
         )}
       </div>
     </div>

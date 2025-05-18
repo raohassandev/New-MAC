@@ -83,6 +83,29 @@ const DeviceDriverDetails: React.FC = () => {
     setShowCancelConfirm(false);
   };
 
+  const handleUpdateDeviceDriver = async (updatedData: any) => {
+    if (!driverId) {
+      return;
+    }
+    
+    try {
+      const result = await updateDeviceDriver(driverId, updatedData);
+      
+      // Update the local state with the new data
+      setDeviceDriver(result);
+      setIsEditing(false);
+      
+      // Refresh the page to show the updated data
+      const freshData = await getDeviceDriver(driverId);
+      setDeviceDriver(freshData);
+    } catch (error) {
+      console.error('Error updating device driver:', error);
+      
+      // Show error message to user
+      alert('Failed to update device driver: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  };
+
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this device driver?')) {
       return;
@@ -342,6 +365,26 @@ const DeviceDriverDetails: React.FC = () => {
         title="Discard changes?"
         message="Are you sure you want to close the form? Any unsaved changes will be lost."
       />
+
+      {/* Edit Modal */}
+      {isEditing && deviceDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6">
+            <button
+              onClick={handleCancelEdit}
+              className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+            <NewDeviceDriverForm
+              onClose={handleCancelEdit}
+              onSubmit={handleUpdateDeviceDriver}
+              initialData={deviceDriver}
+              isEditing={true}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };

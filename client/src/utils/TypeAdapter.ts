@@ -54,8 +54,10 @@ function createDataPointFromRange(
   range: FormRegisterRange,
   parameters: FormParameterConfig[]
 ): DataPoint {
-  // Find all parameters associated with this range
-  const rangeParameters = parameters.filter(param => param.registerRange === range.rangeName);
+  // Find all parameters associated with this range (case-insensitive match)
+  const rangeParameters = parameters.filter(param => 
+    param.registerRange.toLowerCase() === range.rangeName.toLowerCase()
+  );
 
   return {
     range: {
@@ -97,6 +99,7 @@ export function convertFormToDeviceData(
     dataPoints, // Data points array with range and parser
     createdBy, // Add user information
     isTemplate: true, // Mark this as a template
+    isDeviceDriver: true, // Mark this as a device driver
   };
 }
 

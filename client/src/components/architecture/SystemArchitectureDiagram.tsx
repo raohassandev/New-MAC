@@ -1314,19 +1314,18 @@ const SystemArchitectureDiagram: React.FC = () => {
       </Paper>
 
       <Box sx={{ height: 'calc(100vh - 150px)', width: '100%' }} ref={diagramRef}>
-        <ReactFlowProvider>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            attributionPosition="bottom-left"
-            minZoom={0.2}
-            maxZoom={2}
-          >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          attributionPosition="bottom-left"
+          minZoom={0.2}
+          maxZoom={2}
+        >
             <Background />
             <Controls />
             <MiniMap
@@ -1367,7 +1366,6 @@ const SystemArchitectureDiagram: React.FC = () => {
               </Box>
             </Panel>
           </ReactFlow>
-        </ReactFlowProvider>
       </Box>
 
       <Box
@@ -1389,4 +1387,13 @@ const SystemArchitectureDiagram: React.FC = () => {
   );
 };
 
-export default SystemArchitectureDiagram;
+// Wrapper component to provide ReactFlow context
+const SystemArchitectureDiagramWrapper: React.FC = () => {
+  return (
+    <ReactFlowProvider>
+      <SystemArchitectureDiagram />
+    </ReactFlowProvider>
+  );
+};
+
+export default SystemArchitectureDiagramWrapper;
