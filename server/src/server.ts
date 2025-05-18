@@ -31,10 +31,7 @@ if (!fs.existsSync(logsDir)) {
 
 // Configure Morgan logger
 // Create a write stream for access logs
-const accessLogStream = fs.createWriteStream(
-  path.join(logsDir, 'access.log'),
-  { flags: 'a' }
-);
+const accessLogStream = fs.createWriteStream(path.join(logsDir, 'access.log'), { flags: 'a' });
 
 // Configure API rate limiting
 const apiLimiter = rateLimit({
@@ -48,9 +45,9 @@ const apiLimiter = rateLimit({
     res.status(429).json({
       message: 'Too many requests, please try again later',
       rateLimit: true,
-      retryAfter: Math.floor(15 * 60)
+      retryAfter: Math.floor(15 * 60),
     });
-  }
+  },
 });
 
 // Configure stricter rate limiting for device read operations
@@ -65,9 +62,9 @@ const deviceReadLimiter = rateLimit({
     res.status(429).json({
       message: 'Too many device read requests, please slow down your polling rate',
       rateLimit: true,
-      retryAfter: 10
+      retryAfter: 10,
     });
-  }
+  },
 });
 
 // Error handler for tracking API errors
@@ -77,18 +74,20 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
   console.error(`IP: ${req.ip}`);
   console.error(`Body: ${JSON.stringify(req.body)}`);
   console.error(`Stack: ${err.stack}`);
-  
+
   res.status(500).json({
     message: 'An error occurred while processing your request',
-    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
+    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message,
   });
 };
 
 // Middleware
-app.use(cors({
-  origin: ['http://localhost:5173' , 'http://localhost:5174' ,'http://localhost:5175' ],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 // Add Morgan logger
@@ -109,8 +108,6 @@ app.use('/client/api/devices/:id/read', (req, res, next) => {
   }
   next();
 });
-
-
 
 // Database Connection and Server Start
 const startServer = async () => {
@@ -142,7 +139,7 @@ const startServer = async () => {
     // Mounting AMX API routes
     app.use('/amx/api', amxRouter);
     console.log(`✓ Mounted AMX API routes at /amx/api`);
-    
+
     // Note: Monitoring routes are now part of the client API routes
     // Event logging is available at /client/api/monitoring
     console.log(`✓ Event logging available at /client/api/monitoring`);
@@ -186,10 +183,9 @@ const startServer = async () => {
       });
       console.log('Static assets configured for production');
     }
-    
+
     // Add error tracking middleware last
     app.use(errorHandler);
-  
 
     // Start server
     const server = app.listen(PORT, async () => {
@@ -205,33 +201,41 @@ const startServer = async () => {
       try {
         // Import the auto-polling service
         const { startAutoPollingService } = require('./client/services/autoPolling.service');
-        
+
         // Start the auto-polling service
-        // await startAutoPollingService();
-        console.log('✅ Auto-polling service started - all enabled devices will be polled automatically');
+        await startAutoPollingService();
+        console.log(
+          '✅ Auto-polling service started - all enabled devices will be polled automatically',
+        );
       } catch (pollingError) {
         console.warn('⚠️ Failed to start auto-polling service:', pollingError);
-        console.log('⚠️ Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend or API.');
+        console.log(
+          '⚠️ Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend or API.',
+        );
       }
 
       // Initialize the schedule processor service
       try {
         // Import the schedule processor service
         const { ScheduleProcessorService } = require('./client/services/scheduleProcessor.service');
-        
+
         // Create a mock request object with app locals for the schedule processor
         const scheduleProcessorReq = {
           app: {
-            locals: app.locals
-          }
+            locals: app.locals,
+          },
         };
-        
+
         // Start the schedule processor
         ScheduleProcessorService.start(scheduleProcessorReq);
-        console.log('✅ Schedule processor service started - schedules will be processed automatically every minute');
+        console.log(
+          '✅ Schedule processor service started - schedules will be processed automatically every minute',
+        );
       } catch (scheduleError) {
         console.warn('⚠️ Failed to start schedule processor service:', scheduleError);
-        console.log('⚠️ Schedule processing is disabled. Schedules will not be applied automatically.');
+        console.log(
+          '⚠️ Schedule processing is disabled. Schedules will not be applied automatically.',
+        );
       }
     });
 

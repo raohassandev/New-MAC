@@ -125,6 +125,9 @@ export const createDeviceDriver = async (req: Request, res: Response) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    
+    // Remove connectionSetting if present
+    delete deviceDriverData.connectionSetting;
 
     // Add user info if available
     if (userReq.user) {
@@ -175,12 +178,16 @@ export const updateDeviceDriver = async (req: Request, res: Response) => {
     // Get AMX database connection
     const db = await getAmxDatabase();
 
+    // Remove connectionSetting from update data
+    const updateData = { ...req.body };
+    delete updateData.connectionSetting;
+    
     // Update device driver directly in collection
     const result = await db.collection('templates').updateOne(
       { _id: new mongoose.Types.ObjectId(id) },
       {
         $set: {
-          ...req.body,
+          ...updateData,
           updatedAt: new Date(),
         },
       },
@@ -192,7 +199,7 @@ export const updateDeviceDriver = async (req: Request, res: Response) => {
 
     // Get the updated device driver
     const updatedDeviceDriver = await db
-      .collection('templates')
+      .collection('deviceDrivers')
       .findOne({ _id: new mongoose.Types.ObjectId(id) });
 
     res.status(200).json(updatedDeviceDriver);
