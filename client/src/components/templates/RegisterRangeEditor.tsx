@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Form } from '../ui/Form';
 import { RegisterRange } from '../../types/form.types';
+import { useTemplateForm } from './TemplateFormContext';
 
 // Custom Select component
 interface SelectOption {
@@ -54,6 +55,8 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { state } = useTemplateForm();
+  
   const [range, setRange] = useState<RegisterRange>(
     initialData || {
       rangeName: '',
@@ -64,6 +67,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
   );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (initialData) {
@@ -84,21 +88,60 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
       [name]: parsedValue,
     }));
 
-    // Clear error for the field being edited
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }));
+
+    // Validate the field immediately
+    validateField(name, parsedValue);
   };
 
   const handleFunctionCodeChange = (value: string) => {
+    const functionCode = parseInt(value, 10) || 3;
     setRange(prev => ({
       ...prev,
-      functionCode: parseInt(value, 10) || 3,
+      functionCode,
     }));
+    
+    // Mark as touched and validate
+    setTouched(prev => ({ ...prev, functionCode: true }));
+    validateField('functionCode', functionCode);
+  };
+
+  const validateField = (fieldName: string, value: any) => {
+    const newErrors = { ...errors };
+    
+    switch (fieldName) {
+      case 'rangeName':
+        if (!value || !value.trim()) {
+          newErrors.rangeName = 'Range name is required';
+        } else {
+          delete newErrors.rangeName;
+        }
+        break;
+      case 'startRegister':
+        if (value < 0) {
+          newErrors.startRegister = 'Start register must be a positive number';
+        } else {
+          delete newErrors.startRegister;
+        }
+        break;
+      case 'length':
+        if (value <= 0) {
+          newErrors.length = 'Length must be greater than 0';
+        } else {
+          delete newErrors.length;
+        }
+        break;
+      case 'functionCode':
+        if (![1, 2, 3, 4].includes(value)) {
+          newErrors.functionCode = 'Invalid function code';
+        } else {
+          delete newErrors.functionCode;
+        }
+        break;
+    }
+    
+    setErrors(newErrors);
   };
 
   const validateForm = (): boolean => {
@@ -121,6 +164,8 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
     }
 
     setErrors(newErrors);
+    // Mark all fields as touched
+    setTouched({ rangeName: true, startRegister: true, length: true, functionCode: true });
     return Object.keys(newErrors).length === 0;
   };
 
@@ -143,7 +188,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
           name="rangeName"
           value={range.rangeName}
           onChange={handleInputChange}
-          error={errors.rangeName}
+          error={touched.rangeName ? errors.rangeName : undefined}
           placeholder="e.g., Energy Measurements"
         />
       </Form.Group>
@@ -159,7 +204,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
             type="number"
             value={range.startRegister}
             onChange={handleInputChange}
-            error={errors.startRegister}
+            error={touched.startRegister ? errors.startRegister : undefined}
           />
         </Form.Group>
 
@@ -173,7 +218,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
             type="number"
             value={range.length}
             onChange={handleInputChange}
-            error={errors.length}
+            error={touched.length ? errors.length : undefined}
           />
         </Form.Group>
       </Form.Row>
@@ -186,7 +231,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
           id="functionCode"
           value={range.functionCode.toString()}
           onChange={handleFunctionCodeChange}
-          error={errors.functionCode}
+          error={touched.functionCode ? errors.functionCode : undefined}
           options={[
             { value: '1', label: '1 - Read Coils' },
             { value: '2', label: '2 - Read Discrete Inputs' },
@@ -195,7 +240,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
           ]}
         />
         <p className="mt-1 text-xs text-gray-500">
-          Select the appropriate Modbus function code for this template register range
+          Select the appropriate Modbus function code for this device driver register range
         </p>
       </Form.Group>
 
@@ -204,7 +249,7 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
           Cancel
         </Button>
         <Button type="submit">
-          {initialData ? 'Update Template Range' : 'Add Template Range'}
+          {initialData ? 'Update Device Driver Range' : 'Add Device Driver Range'}
         </Button>
       </Form.Actions>
     </Form>

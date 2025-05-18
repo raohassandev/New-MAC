@@ -121,7 +121,6 @@ export const getDeviceDriverById = async (id: string): Promise<DeviceDriver> => 
     });
 
     const response = await api.get(fullUrl);
-    console.log('Device driver data received:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching device driver:', error);

@@ -1,7 +1,7 @@
 // client/src/components/templates/NewTemplateFormContainer.tsx
 import React, { useState, useEffect } from 'react';
 import { convertFormToTemplateData } from '../../utils/TypeAdapter';
-import ConnectionSettings from './ConnectionSettings'; // Use template-specific ConnectionSettings
+import TemplateBasicInfo from './TemplateBasicInfo'; // Use template-specific TemplateBasicInfo
 import RegisterConfiguration from './RegisterConfiguration'; // Use template-specific RegisterConfiguration
 import DataReaderTab from './DataReaderTab'; // Use template-specific DataReaderTab
 import FormTabs from './FormTabs';
@@ -36,7 +36,7 @@ const TemplateFormContent: React.FC<{
   };
 
   const tabs = [
-    { id: 'connection', label: 'Connection Settings' },
+    { id: 'connection', label: 'Device Driver Information' },
     { id: 'registers', label: 'Register Configuration' },
     { id: 'parameters', label: 'Data Reader' },
   ];
@@ -65,14 +65,13 @@ const TemplateFormContent: React.FC<{
     // Only update UI with error state if showErrors is true
     if (showErrors) {
       if (activeTab === 'connection') {
-        // Only show connection errors when on connection tab
-        const connectionValidation = {
+        // Only show basic info errors when on connection tab
+        const basicInfoValidation = {
           ...newValidationState,
-          basicInfo: [],
           registers: [],
           parameters: [],
         };
-        actions.setValidationState(connectionValidation);
+        actions.setValidationState(basicInfoValidation);
       } else if (activeTab === 'registers') {
         // Only show register errors when on registers tab
         const registersValidation = {
@@ -102,8 +101,6 @@ const TemplateFormContent: React.FC<{
 
   const handleSubmitForm = () => {
     // Run full validation before submitting and show errors
-    console.log('Form submission - validating form');
-    console.log('Register ranges:', state.registerRanges);
 
     // Ensure all parameters have a bufferIndex
     const updatedParameters = state.parameters.map(param => {
@@ -122,23 +119,19 @@ const TemplateFormContent: React.FC<{
       ...state,
       parameters: updatedParameters,
     };
-    console.log('Parameters with buffer indices:', stateWithBufferIndices.parameters);
 
     const validationErrors = validateTemplateForm(stateWithBufferIndices);
-    console.log('Validation errors:', JSON.stringify(validationErrors, null, 2));
 
     const isValid = validationErrors.isValid;
     setHasAttemptedNextStep(true);
 
     if (!isValid) {
       // Display error message or highlight the tab with errors
-      console.error('Please fix validation errors before submitting');
       return;
     }
 
     const templateData = convertFormToTemplateData(
       state.deviceBasics,
-      state.connectionSettings,
       state.registerRanges,
       updatedParameters, // Use the parameters with bufferIndex added
       user
@@ -146,13 +139,12 @@ const TemplateFormContent: React.FC<{
 
     // The template adapter already sets isTemplate=true
     // No need to set it again
-    console.log('Template data ready for submission:', templateData);
-    console.log('Calling onSubmit with data - typeof onSubmit:', typeof onSubmit);
     try {
+      // Reset unsaved changes flag before submitting
+      actions.setHasUnsavedChanges(false);
       onSubmit(templateData);
-      console.log('onSubmit called successfully');
     } catch (error) {
-      console.error('Error calling onSubmit:', error);
+      // Error handled in parent component
     }
   };
 
@@ -165,7 +157,7 @@ const TemplateFormContent: React.FC<{
       <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-3">
         <div className="md:col-span-2">
           {/* Form content */}
-          {activeTab === 'connection' && <ConnectionSettings />}
+          {activeTab === 'connection' && <TemplateBasicInfo />}
           {activeTab === 'registers' && <RegisterConfiguration />}
           {activeTab === 'parameters' && <DataReaderTab />}
 
@@ -224,12 +216,6 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
   initialData,
   isEditing = false,
 }) => {
-  console.log('NewTemplateFormContainer rendered with props:', {
-    onClose,
-    onSubmit,
-    initialData,
-    isEditing,
-  });
   // Parse initialData into form state format if provided
   // Parse initialData into form state format
   const formattedInitialData = initialData
@@ -243,42 +229,10 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
           enabled: initialData.enabled !== undefined ? initialData.enabled : true,
           tags: initialData.tags || [],
         },
-        connectionSettings: {
-          // Handle both old direct properties and new nested connectionSetting structure
-          type:
-            initialData.connectionSetting?.connectionType || initialData.connectionType || 'tcp',
-          // TCP settings - check both nested and direct properties
-          ip: initialData.connectionSetting?.tcp?.ip || initialData.ip || '',
-          port: (initialData.connectionSetting?.tcp?.port || initialData.port || 502).toString(),
-          slaveId: (
-            initialData.connectionSetting?.tcp?.slaveId ||
-            initialData.slaveId ||
-            1
-          ).toString(),
-          // RTU settings - check both nested and direct properties
-          serialPort:
-            initialData.connectionSetting?.rtu?.serialPort || initialData.serialPort || '',
-          baudRate: (
-            initialData.connectionSetting?.rtu?.baudRate ||
-            initialData.baudRate ||
-            9600
-          ).toString(),
-          dataBits: (
-            initialData.connectionSetting?.rtu?.dataBits ||
-            initialData.dataBits ||
-            8
-          ).toString(),
-          stopBits: (
-            initialData.connectionSetting?.rtu?.stopBits ||
-            initialData.stopBits ||
-            1
-          ).toString(),
-          parity: initialData.connectionSetting?.rtu?.parity || initialData.parity || 'none',
-        },
         // Add register ranges and parameters from dataPoints
         registerRanges: initialData.dataPoints
           ? initialData.dataPoints.map((dp: any, index: number) => ({
-              rangeName: `Range ${index + 1}`,
+              rangeName: dp.range.name || `Range ${index + 1}`, // Use saved name or fallback
               startRegister: dp.range.startAddress,
               length: dp.range.count,
               functionCode: dp.range.fc,
@@ -292,7 +246,7 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
                 scalingFactor: param.scalingFactor,
                 decimalPoint: param.decimalPoint,
                 byteOrder: param.byteOrder,
-                registerRange: `Range ${rangeIndex + 1}`,
+                registerRange: dp.range.name || `Range ${rangeIndex + 1}`, // Use saved range name
                 registerIndex: param.registerIndex || 0,
                 bufferIndex:
                   param.bufferIndex !== undefined
@@ -304,8 +258,6 @@ const NewTemplateFormContainer: React.FC<NewTemplateFormContainerProps> = ({
           : [],
       }
     : undefined;
-
-  console.log('Formatted initial data for form:', formattedInitialData);
 
   return (
     <TemplateFormProvider initialData={formattedInitialData}>

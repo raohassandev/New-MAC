@@ -1,5 +1,5 @@
 // client/src/types/deviceDriver.types.ts
-import { Device, ConnectionSetting, DataPoint } from './device.types';
+import { Device, DataPoint } from './device.types';
 
 /**
  * DeviceType interface defines the structure for device type data
@@ -51,7 +51,6 @@ export interface DeviceDriverFormData {
   description?: string;
   enabled?: boolean;
   tags?: string[];
-  connectionSetting?: ConnectionSetting;
   dataPoints?: DataPoint[];
   newDeviceType?: NewDeviceType; // For creating a new device type during deviceDriver creation
   isDeviceDriver?: boolean; // Flag to mark this as a device driver

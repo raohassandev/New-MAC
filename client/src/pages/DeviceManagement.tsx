@@ -475,7 +475,7 @@ const DeviceManagement: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Physical Device Management</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage and monitor your actual Modbus devices (not templates)
+            Manage and monitor your actual Modbus devices (not device drivers)
           </p>
         </div>
         <div className="flex space-x-2">
@@ -797,7 +797,7 @@ const DeviceManagement: React.FC = () => {
           <p className="mb-4 text-gray-500">
             {searchQuery || statusFilter || typeFilter || groupFilter || selectedTags.length > 0
               ? 'Try adjusting your filters'
-              : "You haven't added any physical devices yet. First create a template in the Template Library, then use it to create a device."}
+              : "You haven't added any physical devices yet. First create a device driver in the Device Driver Library, then use it to create a device."}
           </p>
         </div>
       ) : viewMode === 'list' ? (

@@ -1,4 +1,4 @@
-// client/src/components/templates/ConnectionSettings.tsx
+// client/src/components/templates/TemplateBasicInfo.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import { useTemplateForm } from './TemplateFormContext';
 import { Input } from '../ui/Input';
@@ -63,22 +63,63 @@ const FieldError: React.FC<{ message?: string }> = ({ message }) => {
   );
 };
 
-const TemplateConnectionSettings: React.FC = () => {
+const TemplateBasicInfo: React.FC = () => {
   const { state, actions } = useTemplateForm();
-  const { deviceBasics, connectionSettings, validationState } = state;
+  const { deviceBasics, validationState } = state;
   const { refs } = useContext(FormFieldRefsContext);
 
   // State for device types and modal
   const [deviceTypes, setDeviceTypes] = useState<NewDeviceType[]>([]);
   const [showNewDeviceTypeModal, setShowNewDeviceTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // State for real-time validation
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Field validation function
+  const validateField = (fieldName: string, value: string) => {
+    const newErrors = { ...errors };
+    
+    switch (fieldName) {
+      case 'name':
+        if (!value || value.trim().length < 3) {
+          newErrors.name = 'Device driver name must be at least 3 characters';
+        } else {
+          delete newErrors.name;
+        }
+        break;
+      case 'deviceType':
+        if (!value || value === '') {
+          newErrors.deviceType = 'Device type is required';
+        } else {
+          delete newErrors.deviceType;
+        }
+        break;
+      case 'make':
+        if (!value || !value.trim()) {
+          newErrors.make = 'Manufacturer/Make is required';
+        } else {
+          delete newErrors.make;
+        }
+        break;
+      case 'model':
+        if (!value || !value.trim()) {
+          newErrors.model = 'Model is required';
+        } else {
+          delete newErrors.model;
+        }
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
 
   // Function to load device types
   const loadDeviceTypes = async () => {
     try {
       setLoading(true);
       const data = await getDeviceTypes();
-      console.log('Loaded device types:', data);
       setDeviceTypes(data);
     } catch (error) {
       console.error('Error loading device types:', error);
@@ -92,14 +133,13 @@ const TemplateConnectionSettings: React.FC = () => {
     loadDeviceTypes();
   }, []);
 
-  // Helper to get connection error message for a specific field
-  const getFieldError = (fieldName: string): string | undefined => {
-    const error = validationState.connection.find(err => err.field === fieldName);
-    return error?.message;
-  };
-
   // Helper to get device basic info error message
   const getBasicFieldError = (fieldName: string): string | undefined => {
+    // First check real-time validation if field is touched
+    if (touched[fieldName] && errors[fieldName]) {
+      return errors[fieldName];
+    }
+    // Fall back to validation state from form context
     const error = validationState.basicInfo.find(err => err.field === fieldName);
     return error?.message;
   };
@@ -107,31 +147,19 @@ const TemplateConnectionSettings: React.FC = () => {
   // Handle device basics changes with validation
   const handleDeviceBasicsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
-    // For template name, enforce minimum length of 3 characters
-    if (name === 'name') {
-      // Always update the state, but users will see validation error if too short
-      actions.setDeviceBasics({ [name]: value });
-
-      // Print debug message
-      console.log(`Template name updated to "${value}" (length: ${value.length})`);
-    } else {
-      actions.setDeviceBasics({ [name]: value });
-    }
+    
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    // Update state
+    actions.setDeviceBasics({ [name]: value });
+    
+    // Validate field after state update
+    setTimeout(() => {
+      validateField(name, value);
+    }, 0);
   };
 
-  const handleConnectionTypeChange = (value: string) => {
-    actions.setConnectionSettings({ type: value as 'tcp' | 'rtu' });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    actions.setConnectionSettings({ [name]: value });
-  };
-
-  const handleSelectChange = (name: string) => (value: string) => {
-    actions.setConnectionSettings({ [name]: value });
-  };
 
   // Handle device type changes
   const handleDeviceTypeChange = (value: string) => {
@@ -139,7 +167,16 @@ const TemplateConnectionSettings: React.FC = () => {
       // Show the device type modal
       setShowNewDeviceTypeModal(true);
     } else {
+      // Mark field as touched
+      setTouched(prev => ({ ...prev, deviceType: true }));
+      
+      // Update state
       actions.setDeviceBasics({ deviceType: value });
+      
+      // Validate field after state update
+      setTimeout(() => {
+        validateField('deviceType', value);
+      }, 0);
     }
   };
 
@@ -151,7 +188,6 @@ const TemplateConnectionSettings: React.FC = () => {
 
       // First create the device type in the database
       const createdDeviceType = await createDeviceType(deviceType);
-      console.log('Successfully created device type:', createdDeviceType);
 
       // Add the new device type to the local state
       setDeviceTypes(prev => [...prev, createdDeviceType]);
@@ -184,19 +220,19 @@ const TemplateConnectionSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900">Template Information</h3>
+      <h3 className="text-lg font-medium text-gray-900">Device Driver Information</h3>
 
       <Form.Row>
         <Form.Group>
           <Form.Label htmlFor="name" required>
-            Template Name
+            Device Driver Name
           </Form.Label>
           <Input
             id="name"
             name="name"
             value={deviceBasics.name}
             onChange={handleDeviceBasicsChange}
-            placeholder="Energy Analyzer Template"
+            placeholder="Energy Analyzer Device Driver"
             className={getBasicFieldError('name') ? 'border-red-300' : ''}
             ref={refs.name as React.RefObject<HTMLInputElement>}
             minLength={3}
@@ -273,167 +309,11 @@ const TemplateConnectionSettings: React.FC = () => {
             name="description"
             value={deviceBasics.description}
             onChange={handleDeviceBasicsChange}
-            placeholder="Optional template description"
+            placeholder="Optional device driver description"
             ref={refs.description as React.RefObject<HTMLInputElement>}
           />
         </Form.Group>
       </Form.Row>
-
-      <h3 className="mt-8 text-lg font-medium text-gray-900">Connection Settings</h3>
-
-      <Form.Group>
-        <Form.Label htmlFor="connectionType">Connection Type</Form.Label>
-        <Select
-          id="connectionType"
-          value={connectionSettings.type}
-          onChange={handleConnectionTypeChange}
-          options={[
-            { value: 'tcp', label: 'TCP/IP (Ethernet)' },
-            { value: 'rtu', label: 'RTU (Serial)' },
-          ]}
-          error={getFieldError('connectionType')}
-          ref={refs.connectionType as React.RefObject<HTMLSelectElement>}
-        />
-      </Form.Group>
-
-      {connectionSettings.type === 'tcp' ? (
-        <>
-          <Form.Row>
-            <Form.Group>
-              <Form.Label htmlFor="ip" required>
-                IP Address
-              </Form.Label>
-              <Input
-                id="ip"
-                name="ip"
-                value={connectionSettings.ip}
-                onChange={handleInputChange}
-                placeholder="192.168.1.100"
-                className={getFieldError('ip') ? 'border-red-300' : ''}
-                ref={refs.ip as React.RefObject<HTMLInputElement>}
-              />
-              <FieldError message={getFieldError('ip')} />
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label htmlFor="port" required>
-                Port
-              </Form.Label>
-              <Input
-                id="port"
-                name="port"
-                type="number"
-                value={connectionSettings.port}
-                onChange={handleInputChange}
-                placeholder="502"
-                className={getFieldError('port') ? 'border-red-300' : ''}
-                ref={refs.port as React.RefObject<HTMLInputElement>}
-              />
-              <FieldError message={getFieldError('port')} />
-            </Form.Group>
-          </Form.Row>
-        </>
-      ) : (
-        <>
-          <Form.Row>
-            <Form.Group>
-              <Form.Label htmlFor="serialPort" required>
-                Serial Port
-              </Form.Label>
-              <Input
-                id="serialPort"
-                name="serialPort"
-                value={connectionSettings.serialPort}
-                onChange={handleInputChange}
-                placeholder="COM1 or /dev/ttyS0"
-                className={getFieldError('serialPort') ? 'border-red-300' : ''}
-              />
-              <FieldError message={getFieldError('serialPort')} />
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label htmlFor="baudRate">Baud Rate</Form.Label>
-              <Select
-                id="baudRate"
-                value={connectionSettings.baudRate}
-                onChange={handleSelectChange('baudRate')}
-                options={[
-                  { value: '1200', label: '1200' },
-                  { value: '2400', label: '2400' },
-                  { value: '4800', label: '4800' },
-                  { value: '9600', label: '9600' },
-                  { value: '19200', label: '19200' },
-                  { value: '38400', label: '38400' },
-                  { value: '57600', label: '57600' },
-                  { value: '115200', label: '115200' },
-                ]}
-              />
-            </Form.Group>
-          </Form.Row>
-
-          <Form.Row>
-            <Form.Group>
-              <Form.Label htmlFor="dataBits">Data Bits</Form.Label>
-              <Select
-                id="dataBits"
-                value={connectionSettings.dataBits}
-                onChange={handleSelectChange('dataBits')}
-                options={[
-                  { value: '5', label: '5' },
-                  { value: '6', label: '6' },
-                  { value: '7', label: '7' },
-                  { value: '8', label: '8' },
-                ]}
-              />
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label htmlFor="stopBits">Stop Bits</Form.Label>
-              <Select
-                id="stopBits"
-                value={connectionSettings.stopBits}
-                onChange={handleSelectChange('stopBits')}
-                options={[
-                  { value: '1', label: '1' },
-                  { value: '1.5', label: '1.5' },
-                  { value: '2', label: '2' },
-                ]}
-              />
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label htmlFor="parity">Parity</Form.Label>
-              <Select
-                id="parity"
-                value={connectionSettings.parity}
-                onChange={handleSelectChange('parity')}
-                options={[
-                  { value: 'none', label: 'None' },
-                  { value: 'even', label: 'Even' },
-                  { value: 'odd', label: 'Odd' },
-                ]}
-              />
-            </Form.Group>
-          </Form.Row>
-        </>
-      )}
-
-      <Form.Group>
-        <Form.Label htmlFor="slaveId" required>
-          Slave ID
-        </Form.Label>
-        <Input
-          id="slaveId"
-          name="slaveId"
-          type="number"
-          value={connectionSettings.slaveId}
-          onChange={handleInputChange}
-          placeholder="1"
-          className={getFieldError('slaveId') ? 'border-red-300' : ''}
-          ref={refs.slaveId as React.RefObject<HTMLInputElement>}
-        />
-        <FieldError message={getFieldError('slaveId')} />
-      </Form.Group>
 
       {/* New Device Type Modal */}
       {showNewDeviceTypeModal && (
@@ -450,4 +330,4 @@ const TemplateConnectionSettings: React.FC = () => {
   );
 };
 
-export default TemplateConnectionSettings;
+export default TemplateBasicInfo;

@@ -7,7 +7,7 @@ import { FormFieldRefsContext } from './FormFieldRefsContext';
 // Group errors by section for better organization
 const groupErrorsBySection = (errors: Array<{ field: string; message: string }>) => {
   const grouped: Record<string, string[]> = {
-    template: [],
+    deviceDriver: [],
     connection: [],
     registers: [],
     parameters: [],
@@ -15,12 +15,12 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
   };
 
   // CRITICAL: Log all validation errors for debugging purposes
-  console.log('All template validation errors:', errors);
+  console.log('All device driver validation errors:', errors);
 
   // Map error field names to friendly messages
   const friendlyMessages: Record<string, string> = {
-    range_0_name: 'Template range name is required',
-    param_0_registerIndex: 'Template register index is required',
+    range_0_name: 'Device driver range name is required',
+    param_0_registerIndex: 'Device driver register index is required',
   };
 
   errors.forEach(error => {
@@ -32,7 +32,7 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
       error.field.includes('make') ||
       error.field.includes('model')
     ) {
-      grouped.template.push(message);
+      grouped.deviceDriver.push(message);
     } else if (
       error.field.includes('ip') ||
       error.field.includes('port') ||
@@ -43,11 +43,11 @@ const groupErrorsBySection = (errors: Array<{ field: string; message: string }>)
       grouped.connection.push(message);
     } else if (error.field.includes('range')) {
       // Highlight register range errors
-      console.log('Template register range error:', error);
+      console.log('Device driver register range error:', error);
       grouped.registers.push(message);
     } else if (error.field.includes('param')) {
       // Highlight parameter errors
-      console.log('Template parameter error:', error);
+      console.log('Device driver parameter error:', error);
       grouped.parameters.push(message);
     } else {
       grouped.other.push(message);
@@ -87,7 +87,7 @@ const ValidationMessages: React.FC = () => {
         <div>
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-red-800">
-              Please fix before continuing with template:
+              Please fix before continuing with device driver:
             </h3>
             <span className="ml-2 rounded-full bg-red-200 px-2 py-0.5 text-xs text-red-800">
               {allErrors.length}

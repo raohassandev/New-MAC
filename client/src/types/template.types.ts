@@ -15,6 +15,7 @@ export interface RegisterRange {
   startAddress: number;
   count: number;
   fc: number;
+  name?: string; // Optional range name
 }
 
 export interface DataPoint {
@@ -66,22 +67,6 @@ export interface Template {
   make: string;
   model: string;
   tags: string[];
-  connectionSetting: {
-    connectionType: string;
-    tcp?: {
-      ip: string;
-      port: number;
-      slaveId: number;
-    };
-    rtu?: {
-      serialPort: string;
-      baudRate: number;
-      dataBits: number;
-      stopBits: number;
-      parity: string;
-      slaveId: number;
-    };
-  };
   dataPoints: DataPoint[];
   createdBy: {
     userId: string;
@@ -99,22 +84,6 @@ export interface TemplateFormData {
   make: string;
   model: string;
   tags?: string[];
-  connectionSetting: {
-    connectionType: string;
-    tcp?: {
-      ip: string;
-      port: number;
-      slaveId: number;
-    };
-    rtu?: {
-      serialPort: string;
-      baudRate: number;
-      dataBits: number;
-      stopBits: number;
-      parity: string;
-      slaveId: number;
-    };
-  };
   dataPoints?: DataPoint[];
 }
 
@@ -142,7 +111,6 @@ export interface DeviceBasics {
 
 export interface TemplateFormState {
   deviceBasics: DeviceBasics;
-  connectionSettings: ConnectionSettings;
   validationState: ValidationState;
   registers?: any[]; // Will be defined based on specific register implementation
   dataPoints?: DataPoint[];

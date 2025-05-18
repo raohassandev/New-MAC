@@ -41,7 +41,7 @@ const TemplateRegisterConfiguration: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900">Template Register Ranges</h3>
+        <h3 className="text-lg font-medium text-gray-900">Device Driver Register Ranges</h3>
         <Button onClick={handleAddRange} size="sm" icon={<Plus size={16} />} disabled={isAddingNew}>
           Add Register Range
         </Button>

@@ -140,6 +140,7 @@ export interface Range {
   startAddress: number;
   count: number;
   fc: number;
+  name?: string; // Optional range name
 }
 
 // Parameter interface for parser

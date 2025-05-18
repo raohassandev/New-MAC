@@ -142,6 +142,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   // Whether to show specific fields based on data type
@@ -337,16 +338,26 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       }
       registerDetail.textContent = message;
     }
+
+    // Perform comprehensive validation when critical values change
+    setTimeout(() => {
+      performComprehensiveValidation();
+    }, 0);
   }, [
     parameter.dataType,
     isMultiRegister,
     parameter.bufferIndex,
     parameter.registerRange,
     parameter.wordCount,
+    parameter.registerIndex,
+    parameter.byteOrder,
   ]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
+    
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }));
 
     let parsedValue: string | number | boolean = value;
     if (type === 'checkbox') {
@@ -391,89 +402,229 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       }));
     }
 
-    // Clear error for the field being edited
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
+    // Validate immediately for better UX
+    setTimeout(() => {
+      validateField(name, parsedValue);
+    }, 0);
+  };
+
+  // Comprehensive validation that checks all interdependent fields
+  const performComprehensiveValidation = () => {
+    const newErrors: Record<string, string> = {};
+    
+    // 1. Basic field validation
+    if (!parameter.name || !parameter.name.trim()) {
+      newErrors.name = 'Parameter name is required';
     }
+    
+    if (!parameter.dataType) {
+      newErrors.dataType = 'Data type is required';
+    }
+    
+    if (!parameter.registerRange) {
+      newErrors.registerRange = 'Register range is required';
+    }
+    
+    // 2. Check for duplicate names globally
+    const overlapError = checkForParameterOverlaps();
+    if (overlapError) {
+      if (overlapError.includes('name')) {
+        newErrors.name = overlapError;
+      } else if (overlapError.includes('buffer')) {
+        newErrors.bufferIndex = overlapError;
+      } else if (overlapError.includes('register')) {
+        newErrors.registerIndex = overlapError;
+      }
+    }
+    
+    // 3. Validate data type and register range compatibility
+    if (parameter.registerRange && parameter.dataType) {
+      const selectedRange = availableRanges.find(
+        range => range.rangeName === parameter.registerRange
+      );
+      
+      if (selectedRange) {
+        const registersNeeded = getRequiredWordCount(parameter.dataType);
+        const availableRegisters = selectedRange.length;
+        const registerIndex = parameter.registerIndex || 0;
+        
+        if (registersNeeded > availableRegisters) {
+          newErrors.dataType = `${parameter.dataType} requires ${registersNeeded} registers, but range "${parameter.registerRange}" only has ${availableRegisters} registers`;
+          newErrors.registerRange = `This range cannot accommodate ${parameter.dataType} (needs ${registersNeeded} registers)`;
+        } else if (registerIndex + registersNeeded > availableRegisters) {
+          newErrors.bufferIndex = `${parameter.dataType} requires ${registersNeeded} registers starting at index ${registerIndex}, but only ${availableRegisters - registerIndex} registers are available`;
+          newErrors.registerIndex = `Not enough registers for ${parameter.dataType} at this position`;
+        }
+      }
+    }
+    
+    // 4. Validate bit position for bit types
+    if (['BOOLEAN', 'BIT'].includes(parameter.dataType)) {
+      if (parameter.bitPosition === undefined || parameter.bitPosition === null) {
+        newErrors.bitPosition = 'Bit position is required for boolean/bit types';
+      } else if (parameter.bitPosition < 0 || parameter.bitPosition > 15) {
+        newErrors.bitPosition = 'Bit position must be between 0 and 15';
+      }
+    }
+    
+    // 5. Validate word count for string types
+    if (['STRING', 'ASCII'].includes(parameter.dataType)) {
+      if (!parameter.wordCount || parameter.wordCount < 1) {
+        newErrors.wordCount = 'Word count must be at least 1 for string types';
+      } else if (parameter.wordCount > 125) {
+        newErrors.wordCount = 'Word count must not exceed 125 for strings';
+      }
+    }
+    
+    // 6. Validate byte order compatibility
+    if (isMultiRegister) {
+      if (!['ABCD', 'DCBA', 'BADC', 'CDAB'].includes(parameter.byteOrder)) {
+        newErrors.byteOrder = 'For multi-register types, use ABCD, DCBA, BADC, or CDAB';
+      }
+    } else {
+      if (!['AB', 'BA'].includes(parameter.byteOrder)) {
+        newErrors.byteOrder = 'For single register types, use AB or BA';
+      }
+    }
+    
+    // 7. Validate scaling equation if provided
+    if (parameter.scalingEquation) {
+      try {
+        if (!parameter.scalingEquation.includes('x')) {
+          newErrors.scalingEquation = 'Equation must contain "x" as the variable';
+        } else {
+          const testFunc = new Function('x', `return ${parameter.scalingEquation}`);
+          testFunc(1);
+        }
+      } catch (error) {
+        newErrors.scalingEquation = 'Invalid equation format. Use JavaScript syntax with "x" as the value.';
+      }
+    }
+    
+    // 8. Validate bitmask if provided
+    if (parameter.bitmask && !/^0x[0-9A-Fa-f]+$/.test(parameter.bitmask)) {
+      newErrors.bitmask = 'Bitmask must be in hexadecimal format (e.g., 0xFF00)';
+    }
+    
+    // 9. Validate min/max values if both are provided
+    if (parameter.minValue !== undefined && parameter.maxValue !== undefined) {
+      if (parameter.minValue >= parameter.maxValue) {
+        newErrors.minValue = 'Minimum value must be less than maximum value';
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    // For critical fields like bufferIndex, registerIndex, bitPosition, and wordCount,
-    // validate immediately to give quick feedback
-    if (['bufferIndex', 'registerIndex', 'bitPosition', 'wordCount'].includes(name)) {
-      // Use setTimeout to ensure state is updated before validation
-      setTimeout(() => {
-        // Partial validation for just this field
-        const newErrors: Record<string, string> = {};
+  // Check if data type and register range are compatible
+  const checkDataTypeAndRangeCompatibility = () => {
+    performComprehensiveValidation();
+  };
 
-        if (name === 'bufferIndex' || name === 'registerIndex') {
-          // Check register range validity
-          if (parameter.registerRange) {
-            const selectedRange = availableRanges.find(
-              range => range.rangeName === parameter.registerRange
-            );
-
-            if (selectedRange) {
-              const registersNeeded = getRequiredWordCount(parameter.dataType);
-              // const bytesNeeded = getByteSize(parameter.dataType);
-              const lastValidRegisterIndex = selectedRange.length - registersNeeded;
-
-              // Different validation for bufferIndex vs registerIndex
-              if (name === 'bufferIndex') {
-                const bufferIndex = parseFloat(value) || 0;
-                const lastValidBufferIndex = lastValidRegisterIndex * 2;
-
-                if (bufferIndex < 0) {
-                  newErrors.bufferIndex = 'Buffer index must be a positive number';
-                } else if (bufferIndex > lastValidBufferIndex) {
-                  newErrors.bufferIndex = `Index too high. Max buffer index: ${lastValidBufferIndex} for this data type`;
-                }
-
-                // Check for overlaps
-                const overlapError = checkForParameterOverlaps();
-                if (overlapError) {
-                  newErrors.bufferIndex = overlapError;
-                }
+  const validateField = (fieldName: string, value: any) => {
+    // For critical fields that affect other validations, perform comprehensive validation
+    const criticalFields = ['name', 'dataType', 'registerRange', 'bufferIndex', 'registerIndex'];
+    
+    if (criticalFields.includes(fieldName)) {
+      // Perform comprehensive validation when critical fields change
+      setTimeout(() => performComprehensiveValidation(), 0);
+    } else {
+      // For non-critical fields, do specific validation
+      const newErrors = { ...errors };
+      
+      switch (fieldName) {
+        case 'bitPosition':
+          const bitVal = typeof value === 'number' ? value : parseFloat(value) || 0;
+          if (['BOOLEAN', 'BIT'].includes(parameter.dataType) && (bitVal < 0 || bitVal > 15)) {
+            newErrors.bitPosition = 'Bit position must be between 0 and 15';
+          } else {
+            delete newErrors.bitPosition;
+          }
+          break;
+          
+        case 'scalingEquation':
+          if (value) {
+            try {
+              if (!value.includes('x')) {
+                newErrors.scalingEquation = 'Equation must contain "x" as the variable';
               } else {
-                // registerIndex
-                const registerIndex = parseFloat(value) || 0;
-
-                if (registerIndex < 0) {
-                  newErrors.registerIndex = 'Register index must be a positive number';
-                } else if (registerIndex > lastValidRegisterIndex) {
-                  newErrors.registerIndex = `Index too high. Max index: ${lastValidRegisterIndex} for this data type`;
-                }
-
-                // Check for overlaps
-                const overlapError = checkForParameterOverlaps();
-                if (overlapError) {
-                  newErrors.registerIndex = overlapError;
-                }
+                const testFunc = new Function('x', `return ${value}`);
+                testFunc(1);
+                delete newErrors.scalingEquation;
               }
+            } catch (error) {
+              newErrors.scalingEquation = 'Invalid equation format';
+            }
+          } else {
+            delete newErrors.scalingEquation;
+          }
+          break;
+          
+        case 'bitmask':
+          if (value && !/^0x[0-9A-Fa-f]+$/.test(value)) {
+            newErrors.bitmask = 'Bitmask must be in hexadecimal format (e.g., 0xFF00)';
+          } else {
+            delete newErrors.bitmask;
+          }
+          break;
+          
+        case 'minValue':
+        case 'maxValue':
+          if (parameter.minValue !== undefined && parameter.maxValue !== undefined) {
+            if (parameter.minValue >= parameter.maxValue) {
+              newErrors.minValue = 'Minimum value must be less than maximum value';
+            } else {
+              delete newErrors.minValue;
+              delete newErrors.maxValue;
             }
           }
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-          setErrors(prev => ({ ...prev, ...newErrors }));
-        }
-      }, 0);
+          break;
+          
+        case 'wordCount':
+          if (['STRING', 'ASCII'].includes(parameter.dataType)) {
+            const wordCountVal = typeof value === 'number' ? value : parseFloat(value) || 0;
+            if (wordCountVal < 1) {
+              newErrors.wordCount = 'Word count must be at least 1 for string types';
+            } else if (wordCountVal > 125) {
+              newErrors.wordCount = 'Word count must not exceed 125 for strings';
+            } else {
+              delete newErrors.wordCount;
+              // Word count affects buffer calculations, so revalidate
+              setTimeout(() => performComprehensiveValidation(), 0);
+            }
+          }
+          break;
+      }
+      
+      setErrors(newErrors);
     }
   };
 
   const handleSelectChange = (name: string) => (value: string) => {
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    let parsedValue: string | number = value;
+    if (name === 'scalingFactor' || name === 'decimalPoint' || name === 'wordCount') {
+      parsedValue = parseInt(value, 10) || 0;
+    }
+    
+    // Update state
     setParameter(prev => ({
       ...prev,
-      [name]: value,
+      [name]: parsedValue,
     }));
-
-    // If data type or register range changes, we should revalidate immediately
-    if (name === 'dataType' || name === 'registerRange') {
-      // Use setTimeout to ensure state is updated before validation
-      setTimeout(() => validateForm(), 0);
-    }
+    
+    // Validate immediately
+    setTimeout(() => {
+      validateField(name, parsedValue);
+      
+      // For data type or register range changes, also check compatibility
+      if (name === 'dataType' || name === 'registerRange') {
+        checkDataTypeAndRangeCompatibility();
+      }
+    }, 0);
   };
 
   // Helper function to get required word count based on data type
@@ -595,119 +746,16 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!parameter.name.trim()) {
-      newErrors.name = 'Parameter name is required';
-    }
-
-    if (!parameter.dataType) {
-      newErrors.dataType = 'Data type is required';
-    }
-
-    if (!parameter.registerRange) {
-      newErrors.registerRange = 'Register range is required';
-    }
-
-    // Check if the buffer index and register index are valid for the selected range
-    if (parameter.registerRange) {
-      const selectedRange = availableRanges.find(
-        range => range.rangeName === parameter.registerRange
-      );
-
-      if (selectedRange) {
-        // Validate based on wordCount and register index
-        const registersNeeded = getRequiredWordCount(parameter.dataType);
-        const bytesNeeded = getByteSize(parameter.dataType);
-        const lastValidRegisterIndex = selectedRange.length - registersNeeded;
-        const lastValidBufferIndex = lastValidRegisterIndex * 2;
-
-        // Validate bufferIndex
-        if (parameter.bufferIndex < 0) {
-          newErrors.bufferIndex = 'Buffer index must be a positive number';
-        } else if (parameter.bufferIndex > lastValidBufferIndex) {
-          newErrors.bufferIndex = `Index too high. This ${parameter.dataType} uses ${bytesNeeded} bytes, max buffer index: ${lastValidBufferIndex}`;
-        }
-
-        // Validate registerIndex for backward compatibility
-        if (parameter.registerIndex < 0) {
-          newErrors.registerIndex = 'Register index must be a positive number';
-        } else if (parameter.registerIndex > lastValidRegisterIndex) {
-          newErrors.registerIndex = `Index too high. This ${parameter.dataType} uses ${registersNeeded} registers, max index: ${lastValidRegisterIndex}`;
-        }
-
-        // Check for overlaps with other parameters
-        const overlapError = checkForParameterOverlaps();
-        if (overlapError) {
-          newErrors.bufferIndex = overlapError;
-          newErrors.registerIndex = overlapError;
-        }
-      }
-    }
-
-    // Validate byte order based on data type using the already defined isMultiRegister constant
-    if (isMultiRegister) {
-      // Multi-register should use 4-char byte orders
-      if (!['ABCD', 'DCBA', 'BADC', 'CDAB'].includes(parameter.byteOrder)) {
-        newErrors.byteOrder = 'For multi-register types, use ABCD, DCBA, BADC, or CDAB';
-      }
-    } else {
-      // Single register should use 2-char byte orders
-      if (!['AB', 'BA'].includes(parameter.byteOrder)) {
-        newErrors.byteOrder = 'For single register types, use AB or BA';
-      }
-    }
-
-    // Validate scaling equation if provided
-    if (parameter.scalingEquation) {
-      try {
-        // Check if equation contains 'x' variable
-        if (!parameter.scalingEquation.includes('x')) {
-          newErrors.scalingEquation = 'Equation must contain "x" as the variable';
-        } else {
-          // A simple test with x = 1 to see if the equation is valid
-          // eslint-disable-next-line no-new-func
-          const testFunc = new Function('x', `return ${parameter.scalingEquation}`);
-          testFunc(1);
-        }
-      } catch (error) {
-        newErrors.scalingEquation =
-          'Invalid equation format. Use JavaScript syntax with "x" as the value.';
-      }
-    }
-
-    // Validate bitmask if provided
-    if (parameter.bitmask && !/^0x[0-9A-Fa-f]+$/.test(parameter.bitmask)) {
-      newErrors.bitmask = 'Bitmask must be in hexadecimal format (e.g., 0xFF00)';
-    }
-
-    // Validate bit position for boolean types
-    if (isBitType) {
-      if (parameter.bitPosition === undefined || parameter.bitPosition === null) {
-        newErrors.bitPosition = 'Bit position is required for boolean/bit types';
-      } else if (parameter.bitPosition < 0 || parameter.bitPosition > 15) {
-        newErrors.bitPosition = 'Bit position must be between 0 and 15';
-      }
-    }
-
-    // Validate word count for string types
-    if (isStringType) {
-      if (!parameter.wordCount || parameter.wordCount < 1) {
-        newErrors.wordCount = 'Word count must be at least 1 for string types';
-      } else if (parameter.wordCount > 125) {
-        newErrors.wordCount = 'Word count must not exceed 125 for strings';
-      }
-    }
-
-    // Validate min/max values if both are provided
-    if (parameter.minValue !== undefined && parameter.maxValue !== undefined) {
-      if (parameter.minValue >= parameter.maxValue) {
-        newErrors.minValue = 'Minimum value must be less than maximum value';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Mark all fields as touched when validating the entire form
+    const allFields = ['name', 'dataType', 'registerRange', 'bufferIndex', 'registerIndex'];
+    if (isBitType) allFields.push('bitPosition');
+    if (isStringType) allFields.push('wordCount');
+    const touchedFields: Record<string, boolean> = {};
+    allFields.forEach(field => touchedFields[field] = true);
+    setTouched(touchedFields);
+    
+    // Use comprehensive validation for form submission
+    return performComprehensiveValidation();
   };
 
   // Display a summary of all validation errors at once
@@ -804,7 +852,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
           name="name"
           value={parameter.name}
           onChange={handleInputChange}
-          error={errors.name}
+          error={touched.name ? errors.name : undefined}
           placeholder="e.g., Voltage_PhaseA"
         />
       </Form.Group>
@@ -819,7 +867,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
           id="dataType"
           value={parameter.dataType as string}
           onChange={handleSelectChange('dataType')}
-          error={errors.dataType}
+          error={touched.dataType ? errors.dataType : undefined}
           options={dataTypeOptions}
         />
       </FormFieldWithHelp>
@@ -842,7 +890,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
             max={isStringType ? '125' : '8'}
             value={parameter.wordCount}
             onChange={handleInputChange}
-            error={errors.wordCount}
+            error={touched.wordCount ? errors.wordCount : undefined}
             disabled={!isStringType}
           />
         </FormFieldWithHelp>
@@ -907,7 +955,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
             id="registerRange"
             value={parameter.registerRange || ''}
             onChange={handleSelectChange('registerRange')}
-            error={errors.registerRange}
+            error={touched.registerRange ? errors.registerRange : undefined}
             options={availableRanges.map(range => ({
               value: range.rangeName,
               label: range.rangeName,
@@ -933,7 +981,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
             min="0"
             value={parameter.bufferIndex}
             onChange={handleInputChange}
-            error={errors.bufferIndex || errors.registerIndex} // Use both for backward compatibility
+            error={touched.bufferIndex ? (errors.bufferIndex || errors.registerIndex) : undefined}
           />
           <div id="register-detail" className="mt-1 text-xs italic text-blue-600"></div>
         </FormFieldWithHelp>
@@ -954,7 +1002,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
             max="15"
             value={parameter.bitPosition || 0}
             onChange={handleInputChange}
-            error={errors.bitPosition}
+            error={touched.bitPosition ? errors.bitPosition : undefined}
           />
         </FormFieldWithHelp>
       )}

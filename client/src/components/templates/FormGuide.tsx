@@ -5,41 +5,28 @@ import { useTemplateForm } from './TemplateFormContext';
 
 const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
   const { state } = useTemplateForm();
-  const { deviceBasics, connectionSettings, registerRanges, parameters } = state;
+  const { deviceBasics, registerRanges, parameters } = state;
 
   // Define completion status for each step
   const connectionComplete = connectionIsComplete();
   const registersComplete = registerRanges.length > 0;
   const parametersComplete = parameters.length > 0;
 
-  // Helper function to check if connection settings are complete
+  // Helper function to check if basic info is complete
   function connectionIsComplete(): boolean {
-    if (connectionSettings.type === 'tcp') {
-      return Boolean(
-        deviceBasics.name &&
-          deviceBasics.deviceType &&
-          deviceBasics.make &&
-          connectionSettings.ip &&
-          connectionSettings.port &&
-          connectionSettings.slaveId
-      );
-    } else {
-      return Boolean(
-        deviceBasics.name &&
-          deviceBasics.deviceType &&
-          deviceBasics.make &&
-          connectionSettings.serialPort &&
-          connectionSettings.baudRate &&
-          connectionSettings.slaveId
-      );
-    }
+    return Boolean(
+      deviceBasics.name &&
+      deviceBasics.deviceType &&
+      deviceBasics.make &&
+      deviceBasics.model
+    );
   }
 
   // Guide content for each step
   const guides = {
     connection: (
       <>
-        <h4 className="mb-2 text-sm font-medium">Template Information Guide</h4>
+        <h4 className="mb-2 text-sm font-medium">Device Driver Information Guide</h4>
         <ul className="space-y-2 text-sm">
           <li className="flex items-start">
             <span
@@ -48,7 +35,7 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
               {deviceBasics.name ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
             </span>
             <span>
-              Provide a <strong>descriptive template name</strong> for this device type
+              Provide a <strong>descriptive device driver name</strong> for this device type
             </span>
           </li>
           <li className="flex items-start">
@@ -71,69 +58,14 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
               Specify the <strong>manufacturer/make</strong> of the device type
             </span>
           </li>
-          {connectionSettings.type === 'tcp' ? (
-            <>
-              <li className="flex items-start">
-                <span
-                  className={`mr-2 flex-shrink-0 ${connectionSettings.ip ? 'text-green-500' : 'text-orange-500'}`}
-                >
-                  {connectionSettings.ip ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                </span>
-                <span>
-                  Enter a <strong>default IP address</strong> for this template
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span
-                  className={`mr-2 flex-shrink-0 ${connectionSettings.port ? 'text-green-500' : 'text-orange-500'}`}
-                >
-                  {connectionSettings.port ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                </span>
-                <span>
-                  Specify the <strong>default port number</strong> for this device type
-                </span>
-              </li>
-            </>
-          ) : (
-            <>
-              <li className="flex items-start">
-                <span
-                  className={`mr-2 flex-shrink-0 ${connectionSettings.serialPort ? 'text-green-500' : 'text-orange-500'}`}
-                >
-                  {connectionSettings.serialPort ? (
-                    <CheckCircle size={16} />
-                  ) : (
-                    <AlertCircle size={16} />
-                  )}
-                </span>
-                <span>
-                  Enter the <strong>default serial port</strong> for this template
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span
-                  className={`mr-2 flex-shrink-0 ${connectionSettings.baudRate ? 'text-green-500' : 'text-orange-500'}`}
-                >
-                  {connectionSettings.baudRate ? (
-                    <CheckCircle size={16} />
-                  ) : (
-                    <AlertCircle size={16} />
-                  )}
-                </span>
-                <span>
-                  Select the <strong>default baud rate</strong> for this device type
-                </span>
-              </li>
-            </>
-          )}
           <li className="flex items-start">
             <span
-              className={`mr-2 flex-shrink-0 ${connectionSettings.slaveId ? 'text-green-500' : 'text-orange-500'}`}
+              className={`mr-2 flex-shrink-0 ${deviceBasics.model ? 'text-green-500' : 'text-orange-500'}`}
             >
-              {connectionSettings.slaveId ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+              {deviceBasics.model ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
             </span>
             <span>
-              Set the <strong>default slave ID</strong> for this device type
+              Specify the <strong>model number</strong> of the device
             </span>
           </li>
         </ul>
@@ -163,7 +95,7 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
             <span>
-              Give meaningful names to each register range in the template (e.g., "Energy
+              Give meaningful names to each register range in the device driver (e.g., "Energy
               Measurements")
             </span>
           </li>
@@ -176,7 +108,7 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
     ),
     parameters: (
       <>
-        <h4 className="mb-2 text-sm font-medium">Template Parameters Guide</h4>
+        <h4 className="mb-2 text-sm font-medium">Device Driver Parameters Guide</h4>
         <ul className="space-y-2 text-sm">
           <li className="flex items-start">
             <span
@@ -190,7 +122,7 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           </li>
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
-            <span>Parameters provide the template for interpreting register data</span>
+            <span>Parameters provide the device driver settings for interpreting register data</span>
           </li>
           <li className="flex items-start">
             <HelpCircle size={16} className="mr-2 flex-shrink-0 text-blue-500" />
@@ -207,7 +139,7 @@ const TemplateFormGuide: React.FC<{ activeTab: string }> = ({ activeTab }) => {
 
   // Progress overview
   const progressSteps = [
-    { id: 'connection', label: 'Template Info', complete: connectionComplete },
+    { id: 'connection', label: 'Device Driver Info', complete: connectionComplete },
     { id: 'registers', label: 'Registers', complete: registersComplete },
     { id: 'parameters', label: 'Parameters', complete: parametersComplete },
   ];

@@ -7,7 +7,6 @@ import {
   RegisterRange as DeviceRegisterRange,
   ParameterConfig as DeviceParameterConfig,
   DataPoint,
-  ConnectionSetting,
   Device,
 } from '../types/device.types';
 
@@ -63,6 +62,7 @@ function createDataPointFromRange(
       startAddress: range.startRegister,
       count: range.length,
       fc: range.functionCode,
+      name: range.rangeName, // Include the range name
     },
     parser: {
       // Include all the Data Reading tab info
@@ -76,36 +76,12 @@ function createDataPointFromRange(
  */
 export function convertFormToDeviceData(
   deviceBasics: any,
-  connectionSettings: any,
   registerRanges: FormRegisterRange[],
   parameters: FormParameterConfig[],
   userInfo?: any
 ): Partial<Device> {
   // Create dataPoints array from register ranges
   const dataPoints = registerRanges.map(range => createDataPointFromRange(range, parameters));
-
-  // Create connection settings object with separate TCP and RTU objects
-  const connectionSetting: ConnectionSetting = {
-    connectionType: connectionSettings.type,
-  };
-
-  // Add the appropriate connection details based on type
-  if (connectionSettings.type === 'tcp') {
-    connectionSetting.tcp = {
-      ip: connectionSettings.ip,
-      port: parseInt(connectionSettings.port),
-      slaveId: parseInt(connectionSettings.slaveId),
-    };
-  } else if (connectionSettings.type === 'rtu') {
-    connectionSetting.rtu = {
-      serialPort: connectionSettings.serialPort,
-      baudRate: parseInt(connectionSettings.baudRate),
-      dataBits: parseInt(connectionSettings.dataBits),
-      stopBits: parseInt(connectionSettings.stopBits),
-      parity: connectionSettings.parity,
-      slaveId: parseInt(connectionSettings.slaveId),
-    };
-  }
 
   // Add user information if provided
   const createdBy = userInfo
@@ -118,7 +94,6 @@ export function convertFormToDeviceData(
 
   return {
     ...deviceBasics,
-    connectionSetting, // Connection settings as a separate object
     dataPoints, // Data points array with range and parser
     createdBy, // Add user information
     isTemplate: true, // Mark this as a template
@@ -131,14 +106,12 @@ export function convertFormToDeviceData(
  */
 export function convertFormToTemplateData(
   deviceBasics: any,
-  connectionSettings: any,
   registerRanges: FormRegisterRange[],
   parameters: FormParameterConfig[],
   userInfo?: any
 ): Partial<Device> {
   return convertFormToDeviceData(
     deviceBasics,
-    connectionSettings,
     registerRanges,
     parameters,
     userInfo

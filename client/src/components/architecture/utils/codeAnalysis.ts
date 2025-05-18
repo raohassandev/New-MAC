@@ -192,8 +192,8 @@ export const analyzeSystemArchitecture = (): {
 
   addFrontendComponent(
     nodes,
-    'ConnectionSettings',
-    'client/src/components/templates/ConnectionSettings.tsx',
+    'TemplateBasicInfo',
+    'client/src/components/templates/TemplateBasicInfo.tsx',
     [
       {
         name: 'handleConnectionTypeChange',
@@ -310,9 +310,9 @@ export const analyzeSystemArchitecture = (): {
   // Frontend connections
   addEdge(edges, 'useDevices', 'DeviceService', 'call', 'API operations');
   addEdge(edges, 'DevicesSlice', 'DeviceService', 'call', 'API operations');
-  addEdge(edges, 'NewTemplateFormContainer', 'ConnectionSettings', 'compose', 'Child component');
+  addEdge(edges, 'NewTemplateFormContainer', 'TemplateBasicInfo', 'compose', 'Child component');
   addEdge(edges, 'NewTemplateFormContainer', 'TemplateFormContext', 'use', 'Form state');
-  addEdge(edges, 'ConnectionSettings', 'TemplateFormContext', 'use', 'Form state');
+  addEdge(edges, 'TemplateBasicInfo', 'TemplateFormContext', 'use', 'Form state');
   addEdge(edges, 'ApplicationRouter', 'NewTemplateFormContainer', 'route', 'Component routing');
 
   return { nodes, edges };

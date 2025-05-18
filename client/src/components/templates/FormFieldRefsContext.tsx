@@ -26,7 +26,7 @@ interface FormFieldRefsProviderProps {
 export const FormFieldRefsProvider: React.FC<FormFieldRefsProviderProps> = ({ children }) => {
   // Create refs for all form fields
   const fieldRefs: FormFieldRefs = {
-    // Template basic info
+    // Device driver basic info
     name: useRef<HTMLInputElement>(null),
     deviceType: useRef<HTMLSelectElement>(null),
     make: useRef<HTMLInputElement>(null),

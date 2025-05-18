@@ -1,5 +1,5 @@
 // client/src/components/templates/DataReaderTab.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Trash,
@@ -27,9 +27,9 @@ const TemplateInfoPanel: React.FC = () => {
       <div className="flex items-start">
         <Info className="mr-3 mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" />
         <div>
-          <h4 className="text-sm font-medium text-blue-800">About Template Parameters</h4>
+          <h4 className="text-sm font-medium text-blue-800">About Device Driver Parameters</h4>
           <p className="mt-1 text-sm text-blue-700">
-            Template parameters define how to read and interpret values from this type of device.
+            Device driver parameters define how to read and interpret values from this type of device.
             Each parameter represents a specific measurement (like voltage, current, power, etc.)
             that devices of this type provide.
           </p>
@@ -142,6 +142,34 @@ const TemplateDataReaderTab: React.FC = () => {
       (_, index) => excludeIndex === undefined || index !== excludeIndex
     );
 
+    // Check if the register range allows enough space for this data type
+    const selectedRange = state.registerRanges.find(
+      range => range.rangeName === parameter.registerRange
+    );
+    
+    if (selectedRange) {
+      const registersNeeded = getWordCount(parameter);
+      const availableRegisters = selectedRange.length;
+      const registerIndex = parameter.registerIndex || 0;
+      const bufferIndex = parameter.bufferIndex !== undefined ? parameter.bufferIndex : parameter.registerIndex * 2;
+      
+      if (registersNeeded > availableRegisters) {
+        return `Data type ${parameter.dataType} requires ${registersNeeded} registers, but range "${parameter.registerRange}" only has ${availableRegisters} registers available`;
+      }
+      
+      // Check both register index and buffer index for consistency
+      const maxRegisterIndex = availableRegisters - registersNeeded;
+      const maxBufferIndex = maxRegisterIndex * 2;
+      
+      if (registerIndex > maxRegisterIndex) {
+        return `Register index ${registerIndex} with ${parameter.dataType} exceeds range capacity. Maximum allowed index is ${maxRegisterIndex}`;
+      }
+      
+      if (bufferIndex > maxBufferIndex) {
+        return `Buffer index ${bufferIndex} with ${parameter.dataType} exceeds range capacity. Maximum allowed buffer index is ${maxBufferIndex}`;
+      }
+    }
+
     // ===================================================================
     // PART 1: Check for duplicate parameter names GLOBALLY
     // ===================================================================
@@ -220,7 +248,7 @@ const TemplateDataReaderTab: React.FC = () => {
         (bufferStart <= existingBufferEnd && bufferEnd >= existingBufferIndex) ||
         (existingBufferIndex <= bufferEnd && existingBufferEnd >= bufferStart)
       ) {
-        return `Buffer conflict in template "${parameter.registerRange}": Parameter "${parameter.name}" (buffer ${bufferStart}-${bufferEnd}) overlaps with existing parameter "${existing.name}" (buffer ${existingBufferIndex}-${existingBufferEnd})`;
+        return `Buffer conflict in device driver "${parameter.registerRange}": Parameter "${parameter.name}" (buffer ${bufferStart}-${bufferEnd}) overlaps with existing parameter "${existing.name}" (buffer ${existingBufferIndex}-${existingBufferEnd})`;
       }
     }
 
@@ -263,13 +291,48 @@ const TemplateDataReaderTab: React.FC = () => {
 
   // Check if any register ranges are configured
   const hasRegisterRanges = state.registerRanges.length > 0;
+  
+  // Revalidate all parameters when register ranges change
+  useEffect(() => {
+    // Clear validation error when register ranges change
+    setValidationError(null);
+    
+    // If we have parameters, check if they're still valid with the current register ranges
+    if (state.parameters.length > 0) {
+      const invalidParameters: string[] = [];
+      
+      state.parameters.forEach((param, index) => {
+        const error = validateParameter(param, index);
+        if (error) {
+          invalidParameters.push(`${param.name}: ${error}`);
+        }
+      });
+      
+      if (invalidParameters.length > 0) {
+        setValidationError(`The following parameters are now invalid:\n${invalidParameters.join('\n')}`);
+      }
+    }
+  }, [state.registerRanges]);
 
   return (
     <div className="space-y-6">
+      {/* Display cross-tab validation errors */}
+      {validationError && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
+          <div className="flex items-start">
+            <AlertTriangle className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+            <div>
+              <h5 className="text-sm font-medium text-red-700">Validation Error</h5>
+              <p className="mt-1 text-sm text-red-600 whitespace-pre-line">{validationError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <h3 className="text-lg font-medium text-gray-900">Template Parameters</h3>
-          <Tooltip content="Define parameters to include in this device template">
+          <h3 className="text-lg font-medium text-gray-900">Device Driver Parameters</h3>
+          <Tooltip content="Define parameters to include in this device driver">
             <HelpCircle className="ml-2 h-5 w-5 text-gray-400" />
           </Tooltip>
         </div>
@@ -288,7 +351,7 @@ const TemplateDataReaderTab: React.FC = () => {
             icon={<Plus size={16} />}
             disabled={isAddingNew || !hasRegisterRanges}
           >
-            Add Template Parameter
+            Add Device Driver Parameter
           </Button>
         </div>
       </div>
@@ -305,7 +368,7 @@ const TemplateDataReaderTab: React.FC = () => {
               <h4 className="text-sm font-medium text-amber-800">Register ranges required</h4>
               <p className="mt-1 text-sm text-amber-700">
                 You need to define at least one register range in the "Register Configuration" tab
-                before adding template parameters.
+                before adding device driver parameters.
               </p>
               <Button
                 variant="outline"

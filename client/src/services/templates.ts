@@ -63,14 +63,6 @@ export const getTemplates = async (): Promise<Template[]> => {
         make: 'CVM',
         model: 'C4 TPM30',
         tags: ['power', 'energy'],
-        connectionSetting: {
-          connectionType: 'tcp',
-          tcp: {
-            ip: '192.168.1.100',
-            port: 502,
-            slaveId: 1,
-          },
-        },
         dataPoints: [
           {
             range: {
@@ -113,17 +105,6 @@ export const getTemplates = async (): Promise<Template[]> => {
         make: 'Huawei',
         model: '110 KTL M2',
         tags: ['solar', 'energy'],
-        connectionSetting: {
-          connectionType: 'rtu',
-          rtu: {
-            serialPort: 'COM2',
-            baudRate: 9600,
-            dataBits: 8,
-            stopBits: 1,
-            parity: 'none',
-            slaveId: 1,
-          },
-        },
         dataPoints: [
           {
             range: {

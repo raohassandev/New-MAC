@@ -11,7 +11,7 @@ export interface ValidationErrors {
   isValid: boolean;
 }
 
-// Validates the template basics section
+// Validates the device driver basics section
 export const validateDeviceBasics = (
   deviceBasics: TemplateFormState['deviceBasics']
 ): Record<string, string> => {
@@ -19,9 +19,9 @@ export const validateDeviceBasics = (
 
   // Required field validation
   if (!deviceBasics.name?.trim()) {
-    errors.name = 'Template name is required';
+    errors.name = 'Device driver name is required';
   } else if (deviceBasics.name.length < 3) {
-    errors.name = 'Template name must be at least 3 characters';
+    errors.name = 'Device driver name must be at least 3 characters';
   }
 
   // Device Type is required
@@ -42,92 +42,8 @@ export const validateDeviceBasics = (
   return errors;
 };
 
-// Validates connection settings
-export const validateConnectionSettings = (
-  connectionSettings: TemplateFormState['connectionSettings']
-): Record<string, string> => {
-  const errors: Record<string, string> = {};
-
-  // Validate based on connection type
-  if (connectionSettings.type === 'tcp') {
-    // TCP validation
-    if (!connectionSettings.ip?.trim()) {
-      errors.ip = 'IP address is required for template';
-    } else {
-      // Simple IP validation (could be more comprehensive)
-      const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-      if (!ipPattern.test(connectionSettings.ip)) {
-        errors.ip = 'Please enter a valid IP address (e.g., 192.168.1.100)';
-      }
-    }
-
-    if (!connectionSettings.port) {
-      errors.port = 'Port is required for template';
-    } else {
-      const port = parseInt(connectionSettings.port, 10);
-      if (isNaN(port) || port < 1 || port > 65535) {
-        errors.port = 'Port must be a number between 1 and 65535';
-      }
-    }
-  } else if (connectionSettings.type === 'rtu') {
-    // RTU validation
-    if (!connectionSettings.serialPort?.trim()) {
-      errors.serialPort = 'Serial port is required for template';
-    }
-
-    // Baud rate validation
-    if (!connectionSettings.baudRate) {
-      errors.baudRate = 'Baud rate is required for template';
-    } else {
-      const baudRate = parseInt(connectionSettings.baudRate, 10);
-      if (isNaN(baudRate) || !isValidBaudRate(baudRate)) {
-        errors.baudRate = 'Please select a valid baud rate';
-      }
-    }
-
-    // Data bits validation
-    if (!connectionSettings.dataBits) {
-      errors.dataBits = 'Data bits is required for template';
-    } else {
-      const dataBits = parseInt(connectionSettings.dataBits, 10);
-      if (isNaN(dataBits) || dataBits < 5 || dataBits > 8) {
-        errors.dataBits = 'Data bits must be between 5 and 8';
-      }
-    }
-
-    // Stop bits validation
-    if (!connectionSettings.stopBits) {
-      errors.stopBits = 'Stop bits is required for template';
-    } else {
-      const validStopBits = ['1', '1.5', '2'];
-      if (!validStopBits.includes(connectionSettings.stopBits)) {
-        errors.stopBits = 'Please select a valid stop bits value';
-      }
-    }
-
-    // Parity validation
-    if (!connectionSettings.parity) {
-      errors.parity = 'Parity is required for template';
-    } else {
-      const validParity = ['none', 'even', 'odd'];
-      if (!validParity.includes(connectionSettings.parity)) {
-        errors.parity = 'Please select a valid parity option';
-      }
-    }
-  }
-
-  // Slave ID validation (required for both types)
-  if (!connectionSettings.slaveId) {
-    errors.slaveId = 'Slave ID is required for template';
-  } else {
-    const slaveId = parseInt(connectionSettings.slaveId, 10);
-    if (isNaN(slaveId) || slaveId < 1 || slaveId > 255) {
-      errors.slaveId = 'Slave ID must be a number between 1 and 255';
-    }
-  }
-
-  return errors;
-};
+// Connection settings validation is not used for device drivers
+// Device drivers don't need connection settings since each device instance will have its own
 
 // Validates register ranges
 export const validateRegisterRanges = (
@@ -136,7 +52,7 @@ export const validateRegisterRanges = (
   const errors: Record<string, string> = {};
 
   if (registerRanges.length === 0) {
-    errors.general = 'At least one register range is required for template';
+    errors.general = 'At least one register range is required for device driver';
     return errors;
   }
 
@@ -339,7 +255,7 @@ const validateScalingEquation = (equation: string): string | null => {
 const validateBitPosition = (dataType: string, bitPosition?: number): string | null => {
   if (['BOOLEAN', 'BIT'].includes(dataType)) {
     if (bitPosition === undefined) {
-      return 'Bit position is required for boolean/bit types in template';
+      return 'Bit position is required for boolean/bit types in device driver';
     }
 
     if (bitPosition < 0 || bitPosition > 15) {
@@ -381,7 +297,7 @@ const checkParameterOverlaps = (
     if (name && nameMap.has(name)) {
       const existingIndex = nameMap.get(name)!;
       errors[`param_${index}_name`] =
-        `Template parameter name "${param.name}" is already used by parameter #${existingIndex + 1}`;
+        `Device driver parameter name "${param.name}" is already used by parameter #${existingIndex + 1}`;
     } else {
       nameMap.set(name, index);
     }
@@ -450,7 +366,7 @@ const checkParameterOverlaps = (
               const errorKey = `param_${paramA.index}_bit_overlap`;
               if (!errors[errorKey]) {
                 errors[errorKey] =
-                  `Template parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) and bit position (${paramA.param.bitPosition}) as "${paramB.param.name}" in the same register range "${rangeName}"`;
+                  `Device driver parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) and bit position (${paramA.param.bitPosition}) as "${paramB.param.name}" in the same register range "${rangeName}"`;
               }
             }
           }
@@ -509,13 +425,13 @@ const checkParameterOverlaps = (
                 const errorKey = `param_${paramA.index}_duplicate_index`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Template parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) as "${paramB.param.name}" in register range "${rangeName}"`;
+                    `Device driver parameter "${paramA.param.name}" uses the same buffer index (${bufferIndexA}) as "${paramB.param.name}" in register range "${rangeName}"`;
                 }
               } else {
                 const errorKey = `param_${paramA.index}_overlap`;
                 if (!errors[errorKey]) {
                   errors[errorKey] =
-                    `Template parameter "${paramA.param.name}" (buffer indices ${bufferIndexA}-${bufferEndA}) overlaps with "${paramB.param.name}" (buffer indices ${bufferIndexB}-${bufferEndB}) in register range "${rangeName}"`;
+                    `Device driver parameter "${paramA.param.name}" (buffer indices ${bufferIndexA}-${bufferEndA}) overlaps with "${paramB.param.name}" (buffer indices ${bufferIndexB}-${bufferEndB}) in register range "${rangeName}"`;
                 }
               }
             }
@@ -537,15 +453,10 @@ export const validateParameters = (
 
   // Parameters are optional, but if present, they must be valid
   if (parameters.length > 0) {
-    // DEBUGGING: List all register range names for easier troubleshooting
-    console.log(
-      'Available template register ranges:',
-      registerRanges.map(r => r.rangeName)
-    );
 
     parameters.forEach((param, index) => {
       if (!param.name?.trim()) {
-        errors[`param_${index}_name`] = 'Template parameter name is required';
+        errors[`param_${index}_name`] = 'Device driver parameter name is required';
       }
 
       if (!param.dataType) {
@@ -572,11 +483,6 @@ export const validateParameters = (
 
       // Check register range validity
       if (param.registerRange) {
-        // DEBUGGING: Log the parameter's register range for troubleshooting
-        console.log(
-          `Template parameter "${param.name}" uses register range "${param.registerRange}"`
-        );
-
         const selectedRange = registerRanges.find(range => range.rangeName === param.registerRange);
 
         if (!selectedRange) {
@@ -671,7 +577,7 @@ export const validateParameters = (
 // Main validation function
 export const validateTemplateForm = (formState: TemplateFormState): ValidationErrors => {
   const basicInfoErrors = validateDeviceBasics(formState.deviceBasics);
-  const connectionErrors = validateConnectionSettings(formState.connectionSettings);
+  const connectionErrors = {}; // Empty for device drivers - no connection validation needed
   const registerErrors = validateRegisterRanges(formState.registerRanges);
   const parameterErrors = validateParameters(formState.parameters, formState.registerRanges);
 
@@ -680,13 +586,13 @@ export const validateTemplateForm = (formState: TemplateFormState): ValidationEr
 
   // Check if there are required register ranges
   if (formState.registerRanges.length === 0) {
-    generalErrors.push('At least one register range is required for the template');
+    generalErrors.push('At least one register range is required for the device driver');
   }
 
   // Check for register range and parameter compatibility
   // If we have parameters but no register ranges, add an error
   if (formState.parameters.length > 0 && formState.registerRanges.length === 0) {
-    generalErrors.push('Register ranges must be defined before adding template parameters');
+    generalErrors.push('Register ranges must be defined before adding device driver parameters');
   }
 
   return {
@@ -704,11 +610,7 @@ export const validateTemplateForm = (formState: TemplateFormState): ValidationEr
   };
 };
 
-// Helper function to validate baud rate
-function isValidBaudRate(baudRate: number): boolean {
-  const validBaudRates = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200];
-  return validBaudRates.includes(baudRate);
-}
+// Helper function removed - not used for device drivers
 
 // Function to convert validation errors to the format expected by the form state
 export const convertValidationErrorsToState = (
@@ -727,6 +629,7 @@ export const convertValidationErrorsToState = (
   Object.entries(errors.basicInfo).forEach(([field, message]) => {
     validationState.basicInfo.push({ field, message });
   });
+
 
   // Convert connection errors
   Object.entries(errors.connection).forEach(([field, message]) => {

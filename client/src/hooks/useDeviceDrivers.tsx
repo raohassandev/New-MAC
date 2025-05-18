@@ -29,7 +29,6 @@ export const useDeviceDrivers = () => {
       setDeviceDrivers(data);
     } catch (err) {
       setError(err as Error);
-      console.error('Failed to load device drivers:', err);
     } finally {
       setLoading(false);
     }
@@ -41,7 +40,6 @@ export const useDeviceDrivers = () => {
       const data = await getDeviceTypes();
       setDeviceTypes(data);
     } catch (err) {
-      console.error('Failed to load device types:', err);
     }
   }, []);
 
@@ -83,7 +81,6 @@ export const useDeviceDrivers = () => {
       return newDeviceDriver;
     } catch (err) {
       setError(err as Error);
-      console.error('Failed to add device driver:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -99,7 +96,6 @@ export const useDeviceDrivers = () => {
       return deviceDriver;
     } catch (err) {
       setError(err as Error);
-      console.error('Failed to get device driver:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -119,8 +115,7 @@ export const useDeviceDrivers = () => {
         return updatedDeviceDriver;
       } catch (err) {
         setError(err as Error);
-        console.error('Failed to update device driver:', err);
-        throw err;
+          throw err;
       } finally {
         setLoading(false);
       }
@@ -137,7 +132,6 @@ export const useDeviceDrivers = () => {
       setDeviceDrivers(prev => prev.filter(deviceDriver => deviceDriver._id !== id));
     } catch (err) {
       setError(err as Error);
-      console.error('Failed to delete device driver:', err);
       throw err;
     } finally {
       setLoading(false);

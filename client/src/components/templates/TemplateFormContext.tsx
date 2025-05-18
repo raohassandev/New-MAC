@@ -13,17 +13,6 @@ export interface TemplateFormState {
     enabled: boolean;
     tags: string[];
   };
-  connectionSettings: {
-    type: 'tcp' | 'rtu';
-    ip: string;
-    port: string;
-    slaveId: string;
-    serialPort: string;
-    baudRate: string;
-    dataBits: string;
-    stopBits: string;
-    parity: string;
-  };
   registerRanges: RegisterRange[];
   parameters: ParameterConfig[];
   uiState: {
@@ -32,6 +21,7 @@ export interface TemplateFormState {
     editingRangeIndex: number | null;
     isEditingParameter: boolean;
     editingParameterIndex: number | null;
+    hasUnsavedChanges: boolean;
   };
   validationState: {
     isValid: boolean;
@@ -46,7 +36,6 @@ export interface TemplateFormState {
 // Action types
 type TemplateFormAction =
   | { type: 'SET_DEVICE_BASICS'; payload: Partial<TemplateFormState['deviceBasics']> }
-  | { type: 'SET_CONNECTION_SETTINGS'; payload: Partial<TemplateFormState['connectionSettings']> }
   | { type: 'ADD_REGISTER_RANGE'; payload: RegisterRange }
   | { type: 'UPDATE_REGISTER_RANGE'; payload: { index: number; range: RegisterRange } }
   | { type: 'DELETE_REGISTER_RANGE'; payload: number }
@@ -54,6 +43,7 @@ type TemplateFormAction =
   | { type: 'UPDATE_PARAMETER'; payload: { index: number; parameter: ParameterConfig } }
   | { type: 'DELETE_PARAMETER'; payload: number }
   | { type: 'SET_UI_STATE'; payload: Partial<TemplateFormState['uiState']> }
+  | { type: 'SET_HAS_UNSAVED_CHANGES'; payload: boolean }
   | { type: 'SET_VALIDATION_STATE'; payload: Partial<TemplateFormState['validationState']> }
   | { type: 'RESET_FORM' }
   | { type: 'LOAD_FORM_DATA'; payload: Partial<TemplateFormState> };
@@ -69,17 +59,6 @@ const initialTemplateFormState: TemplateFormState = {
     enabled: true,
     tags: [],
   },
-  connectionSettings: {
-    type: 'tcp',
-    ip: '',
-    port: '502',
-    slaveId: '1',
-    serialPort: '',
-    baudRate: '9600',
-    dataBits: '8',
-    stopBits: '1',
-    parity: 'none',
-  },
   registerRanges: [],
   parameters: [],
   uiState: {
@@ -88,6 +67,7 @@ const initialTemplateFormState: TemplateFormState = {
     editingRangeIndex: null,
     isEditingParameter: false,
     editingParameterIndex: null,
+    hasUnsavedChanges: false,
   },
   validationState: {
     isValid: true,
@@ -112,19 +92,19 @@ const templateFormReducer = (
           ...state.deviceBasics,
           ...action.payload,
         },
-      };
-    case 'SET_CONNECTION_SETTINGS':
-      return {
-        ...state,
-        connectionSettings: {
-          ...state.connectionSettings,
-          ...action.payload,
+        uiState: {
+          ...state.uiState,
+          hasUnsavedChanges: true,
         },
       };
     case 'ADD_REGISTER_RANGE':
       return {
         ...state,
         registerRanges: [...state.registerRanges, action.payload],
+        uiState: {
+          ...state.uiState,
+          hasUnsavedChanges: true,
+        },
       };
     case 'UPDATE_REGISTER_RANGE':
       return {
@@ -142,6 +122,10 @@ const templateFormReducer = (
       return {
         ...state,
         parameters: [...state.parameters, action.payload],
+        uiState: {
+          ...state.uiState,
+          hasUnsavedChanges: true,
+        },
       };
     case 'UPDATE_PARAMETER':
       return {
@@ -178,6 +162,14 @@ const templateFormReducer = (
         ...state,
         ...action.payload,
       };
+    case 'SET_HAS_UNSAVED_CHANGES':
+      return {
+        ...state,
+        uiState: {
+          ...state.uiState,
+          hasUnsavedChanges: action.payload,
+        },
+      };
     default:
       return state;
   }
@@ -189,7 +181,6 @@ interface TemplateFormContextType {
   dispatch: Dispatch<TemplateFormAction>;
   actions: {
     setDeviceBasics: (basics: Partial<TemplateFormState['deviceBasics']>) => void;
-    setConnectionSettings: (settings: Partial<TemplateFormState['connectionSettings']>) => void;
     addRegisterRange: (range: RegisterRange) => void;
     updateRegisterRange: (index: number, range: RegisterRange) => void;
     deleteRegisterRange: (index: number) => void;
@@ -200,6 +191,7 @@ interface TemplateFormContextType {
     setValidationState: (validationState: Partial<TemplateFormState['validationState']>) => void;
     resetForm: () => void;
     loadFormData: (data: Partial<TemplateFormState>) => void;
+    setHasUnsavedChanges: (hasChanges: boolean) => void;
   };
 }
 
@@ -229,8 +221,6 @@ export const TemplateFormProvider: React.FC<TemplateFormProviderProps> = ({
   const actions = {
     setDeviceBasics: (basics: Partial<TemplateFormState['deviceBasics']>) =>
       dispatch({ type: 'SET_DEVICE_BASICS', payload: basics }),
-    setConnectionSettings: (settings: Partial<TemplateFormState['connectionSettings']>) =>
-      dispatch({ type: 'SET_CONNECTION_SETTINGS', payload: settings }),
     addRegisterRange: (range: RegisterRange) =>
       dispatch({ type: 'ADD_REGISTER_RANGE', payload: range }),
     updateRegisterRange: (index: number, range: RegisterRange) =>
@@ -249,6 +239,8 @@ export const TemplateFormProvider: React.FC<TemplateFormProviderProps> = ({
     resetForm: () => dispatch({ type: 'RESET_FORM' }),
     loadFormData: (data: Partial<TemplateFormState>) =>
       dispatch({ type: 'LOAD_FORM_DATA', payload: data }),
+    setHasUnsavedChanges: (hasChanges: boolean) =>
+      dispatch({ type: 'SET_HAS_UNSAVED_CHANGES', payload: hasChanges }),
   };
 
   return (

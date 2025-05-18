@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import NewDeviceDriverForm from '../components/templates/index';
 import { useDeviceDrivers } from '../hooks/useDeviceDrivers';
 import { Button } from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 interface DeviceDriver {
   id?: string;
@@ -22,6 +23,7 @@ const DeviceDriverManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewDeviceDriverFormOpen, setIsNewDeviceDriverFormOpen] = useState(false);
+  const [showCloseConfirmDialog, setShowCloseConfirmDialog] = useState(false);
 
   // Get deviceDrivers functions from useDeviceDrivers hook
   const {
@@ -53,10 +55,6 @@ const DeviceDriverManagement: React.FC = () => {
           : new Date().toISOString(),
       }));
 
-      console.log(
-        'Mapped device drivers with IDs:',
-        mappedDeviceDrivers.map(d => ({ name: d.name, _id: d._id, id: d.id }))
-      );
       setDeviceDrivers(mappedDeviceDrivers);
       setLoading(apiLoading);
     }
@@ -67,7 +65,6 @@ const DeviceDriverManagement: React.FC = () => {
     try {
       await refreshDeviceDrivers();
     } catch (error) {
-      console.error('Error fetching device drivers:', error);
     }
   };
 
@@ -82,7 +79,6 @@ const DeviceDriverManagement: React.FC = () => {
 
   // Add handler functions for deviceDriver form
   const onNewDeviceDriverFormSubmit = async (deviceDriverData: any) => {
-    console.log('Submitting device driver data:', deviceDriverData);
     try {
       // Add isDeviceDriver flag to ensure it's saved as a deviceDriver
       const deviceDriverWithFlags = {
@@ -95,20 +91,26 @@ const DeviceDriverManagement: React.FC = () => {
       // Refresh the deviceDrivers list
       fetchDeviceDrivers();
     } catch (error) {
-      console.error('Error adding device driver:', error);
     }
   };
 
   const onNewDeviceDriverFormClose = () => {
-    console.log('Closing device driver form');
+    setShowCloseConfirmDialog(true);
+  };
+
+  const handleConfirmClose = () => {
     setIsNewDeviceDriverFormOpen(false);
+    setShowCloseConfirmDialog(false);
+  };
+
+  const handleCancelClose = () => {
+    setShowCloseConfirmDialog(false);
   };
 
   const handleEditDeviceDriver = (deviceDriver: DeviceDriver) => {
     // Navigate to the device driver detail page
     // Use _id from the API data instead of id from the mapped data
     const driverId = deviceDriver._id || deviceDriver.id;
-    console.log('Navigating to device driver with ID:', driverId);
     navigate(`/device-drivers/${driverId}`);
   };
 
@@ -120,7 +122,6 @@ const DeviceDriverManagement: React.FC = () => {
         // No need to update state here as it will be handled by the useDeviceDrivers hook
         fetchDeviceDrivers(); // Refresh the list after deletion
       } catch (error) {
-        console.error('Error deleting device driver:', error);
       }
     }
   };
@@ -294,7 +295,6 @@ const DeviceDriverManagement: React.FC = () => {
           onClick={e => {
             // Close modal when clicking the overlay (background)
             if (e.target === e.currentTarget) {
-              console.log('Modal background clicked, closing modal');
               onNewDeviceDriverFormClose();
             }
           }}
@@ -304,7 +304,6 @@ const DeviceDriverManagement: React.FC = () => {
               <h2 className="text-xl font-semibold">Create New Device Driver</h2>
               <button
                 onClick={() => {
-                  console.log('Close button clicked');
                   onNewDeviceDriverFormClose();
                 }}
                 className="text-gray-500 hover:text-gray-700 focus:outline-none"
@@ -323,6 +322,15 @@ const DeviceDriverManagement: React.FC = () => {
       )}
 
       {/* Edit device driver modal would go here */}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCloseConfirmDialog}
+        onConfirm={handleConfirmClose}
+        onCancel={handleCancelClose}
+        title="Discard changes?"
+        message="Are you sure you want to close? Any unsaved changes will be lost."
+      />
     </div>
   );
 };
