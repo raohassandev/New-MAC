@@ -101,25 +101,27 @@ export interface IWritableRange {
 
 export interface IDevice extends Omit<Document, 'model'> {
   name: string;
-  make?: string;
-  model?: string;
+  make?: string; // Optional - can be inherited from device driver
+  model?: string; // Optional - can be inherited from device driver
   description?: string;
   enabled: boolean;
   tags?: string[];
 
-  // New structure
+  // Connection settings (device-specific override)
   connectionSetting?: IConnectionSetting;
-  dataPoints?: IDataPoint[];
   
-  // Device control capabilities
-  writableRegisters?: IWritableRange[];
-  controlParameters?: IControlParameter[];
+  // Configuration is fetched dynamically from device driver
+  // These fields are only present at runtime, not stored in DB
+  dataPoints?: IDataPoint[]; // Runtime only - populated from device driver
+  writableRegisters?: IWritableRange[]; // Runtime only - populated from device driver
+  controlParameters?: IControlParameter[]; // Runtime only - populated from device driver
+  
+  // Device control tracking
   lastControlledAt?: Date; // Timestamp of last control operation
 
   // Device driver linkage
-  deviceDriverId?: string | any; // Can be a string ID or populated object
-  // Runtime-populated device driver data (not stored in DB)
-  driverData?: any;
+  deviceDriverId?: string | any; // Reference to device driver template
+  driverData?: any; // Runtime-populated device driver data (not stored in DB)
 
   // Schedule linkage - reference to active schedule
   activeScheduleId?: mongoose.Types.ObjectId | string;
@@ -358,13 +360,14 @@ export const DeviceSchema = new Schema<IDevice>({
   enabled: { type: Boolean, default: true },
   tags: [{ type: String }],
 
-  // New structure
+  // New structure - device-specific overrides only
   connectionSetting: { type: ConnectionSettingSchema, required: false },
-  dataPoints: [DataPointSchema],
+  // Configuration is loaded from device driver - not stored here
+  // dataPoints: [DataPointSchema], // REMOVED - fetched from device driver
   
-  // Device control capabilities
-  writableRegisters: [WritableRangeSchema],
-  controlParameters: [ControlParameterSchema],
+  // Device control tracking
+  // writableRegisters: [WritableRangeSchema], // REMOVED - fetched from device driver
+  // controlParameters: [ControlParameterSchema], // REMOVED - fetched from device driver
   lastControlledAt: { type: Date },
 
   // Device driver linkage

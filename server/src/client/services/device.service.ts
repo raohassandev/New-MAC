@@ -1326,6 +1326,47 @@ export const readDeviceRegisters = async (
       throw new Error('Device is disabled');
     }
     
+    // If device has a device driver, always fetch the latest configuration
+    if (device.deviceDriverId) {
+      try {
+        console.log(`[deviceService] Device has driver ID, fetching latest driver configuration`);
+        
+        // Get device driver from AMX database
+        let deviceDriver;
+        
+        // Try to get the device driver from the templates collection
+        if (reqContext?.app?.locals?.libraryDB) {
+          const templatesCollection = reqContext.app.locals.libraryDB.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+          deviceDriver = await templatesCollection.findOne({ _id: objectId });
+        } else if (reqContext?.app?.locals?.libraryModels?.DeviceDriver) {
+          // Fallback to DeviceDriver model if available
+          const DeviceDriverModel = reqContext.app.locals.libraryModels.DeviceDriver;
+          deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+        }
+        
+        if (deviceDriver) {
+          console.log(`[deviceService] Found device driver: ${deviceDriver.name}, applying latest configuration`);
+            
+            // Always use the latest device driver configuration
+            device.dataPoints = deviceDriver.dataPoints || [];
+            device.writableRegisters = deviceDriver.writableRegisters || [];
+            device.controlParameters = deviceDriver.controlParameters || [];
+            
+            // Don't save here to avoid unnecessary writes
+            // The configuration is applied in-memory for this read operation
+          } else {
+            throw new Error(`Device driver not found: ${device.deviceDriverId}`);
+          }
+      } catch (driverError: any) {
+        console.error(`[deviceService] Error loading device driver:`, driverError);
+        throw new Error(`Failed to load device driver configuration: ${driverError.message || driverError}`);
+      }
+    } else {
+      // Device doesn't have a driver ID, which is now required
+      throw new Error('Device must be linked to a device driver');
+    }
+    
     // Read device registers
     const readings = await readDeviceRegistersData(device);
     
@@ -2323,11 +2364,49 @@ export const controlDevice = async (
       throw new Error('Device is disabled');
     }
     
+    // If device has a device driver, fetch the latest configuration
+    if (device.deviceDriverId) {
+      try {
+        console.log(`[deviceService] Device has driver ID, fetching latest driver configuration for write operation`);
+        
+        // Get device driver from AMX database
+        let deviceDriver;
+        
+        // Try to get the device driver from the templates collection
+        if (reqContext?.app?.locals?.libraryDB) {
+          const templatesCollection = reqContext.app.locals.libraryDB.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+          deviceDriver = await templatesCollection.findOne({ _id: objectId });
+        } else if (reqContext?.app?.locals?.libraryModels?.DeviceDriver) {
+          // Fallback to DeviceDriver model if available
+          const DeviceDriverModel = reqContext.app.locals.libraryModels.DeviceDriver;
+          deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+        }
+        
+        if (deviceDriver) {
+          console.log(`[deviceService] Found device driver: ${deviceDriver.name}, applying write configuration`);
+          
+          // Apply the latest device driver configuration
+          device.writableRegisters = deviceDriver.writableRegisters || [];
+          device.controlParameters = deviceDriver.controlParameters || [];
+          
+        } else {
+          throw new Error(`Device driver not found: ${device.deviceDriverId}`);
+        }
+      } catch (driverError: any) {
+        console.error(`[deviceService] Error loading device driver for write operation:`, driverError);
+        throw new Error(`Failed to load device driver configuration: ${driverError.message || driverError}`);
+      }
+    } else {
+      // Device doesn't have a driver ID, which is now required
+      throw new Error('Device must be linked to a device driver');
+    }
+    
     // Check if the device has writable registers/control parameters defined
-    // This check can be expanded based on your device schema
-    if (!device.writableRegisters && !device.controlParameters) {
-      console.warn(`[deviceService] Device ${deviceId} does not have writable registers defined`);
-      // For now, proceed anyway but log a warning
+    if (!device.writableRegisters || device.writableRegisters.length === 0) {
+      if (!device.controlParameters || device.controlParameters.length === 0) {
+        console.warn(`[deviceService] Device ${deviceId} does not have writable registers or control parameters defined`);
+      }
     }
     
     // Connect to the device

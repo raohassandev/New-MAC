@@ -4,7 +4,6 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Form } from '../ui/Form';
 import { RegisterRange } from '../../types/form.types';
-import { useTemplateForm } from './TemplateFormContext';
 
 // Custom Select component
 interface SelectOption {
@@ -55,7 +54,6 @@ const TemplateRegisterRangeEditor: React.FC<RegisterRangeEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const { state } = useTemplateForm();
   
   const [range, setRange] = useState<RegisterRange>(
     initialData || {

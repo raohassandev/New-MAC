@@ -33,6 +33,7 @@ import {
 import { useDevices } from '../hooks/useDevices';
 import { useDevicePolling } from '../hooks/useDevicePolling';
 import { useAuth } from '../context/AuthContext';
+import { useDeviceDrivers } from '../hooks/useDeviceDrivers';
 import { Device, DeviceReading } from '../types/device.types';
 import { ConnectionErrorDisplay, DeviceValidator } from '../components/ui';
 import { formatByDataType } from '../utils/modbusValueFormatter';
@@ -42,6 +43,7 @@ const DeviceDetails: React.FC = () => {
   const navigate = useNavigate();
   const { getDevice, updateDevice, deleteDevice, testConnection, readRegisters } = useDevices();
   const { user } = useAuth();
+  const { deviceDrivers, loading: driversLoading } = useDeviceDrivers();
 
   const [device, setDevice] = useState<Device | null>(null);
   const [readings, setReadings] = useState<DeviceReading[]>([]);
@@ -1173,6 +1175,16 @@ const DeviceDetails: React.FC = () => {
                       <div className="mt-1 text-gray-900">{device.model}</div>
                     </div>
                   )}
+                  {device.deviceDriverId && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Device Driver</label>
+                      <div className="mt-1 text-gray-900">
+                        <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+                          {device.driverData ? device.driverData.name : device.deviceDriverId}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {device.lastSeen && (
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Last Seen</label>
@@ -1736,6 +1748,32 @@ const DeviceDetails: React.FC = () => {
                         onChange={handleInputChange}
                         className="h-20 w-full resize-none rounded border p-2"
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">
+                        Device Driver *
+                      </label>
+                      <select
+                        name="deviceDriverId"
+                        value={editedDevice.deviceDriverId || ''}
+                        onChange={handleInputChange}
+                        className="w-full rounded border p-2"
+                        required
+                        disabled={driversLoading}
+                      >
+                        <option value="">Select a device driver</option>
+                        {deviceDrivers.map(driver => (
+                          <option key={driver._id} value={driver._id}>
+                            {driver.name} - {driver.deviceType}
+                          </option>
+                        ))}
+                      </select>
+                      {editedDevice.deviceDriverId && (
+                        <p className="mt-1 text-sm text-yellow-600">
+                          Warning: Changing the device driver will update the register configuration.
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center">

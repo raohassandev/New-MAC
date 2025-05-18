@@ -856,6 +856,14 @@ const DeviceManagement: React.FC = () => {
                     </button>
                   </Table.Head>
                   <Table.Head>
+                    <button className="flex items-center" onClick={() => handleSortChange('deviceDriverId')}>
+                      <span>Device Driver</span>
+                      {sortField === 'deviceDriverId' && (
+                        <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </Table.Head>
+                  <Table.Head>
                     <button
                       className="flex items-center"
                       onClick={() => handleSortChange('lastSeen')}
@@ -929,6 +937,15 @@ const DeviceManagement: React.FC = () => {
                       {device.make && device.model
                         ? `${device.make} ${device.model}`
                         : device.make || device.model || 'N/A'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {device.deviceDriverId ? (
+                        <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-800">
+                          {device.driverData?.name || 'Driver Linked'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">No Driver</span>
+                      )}
                     </Table.Cell>
                     <Table.Cell>{formatDate(device.lastSeen)}</Table.Cell>
                     <Table.Cell className="text-right">

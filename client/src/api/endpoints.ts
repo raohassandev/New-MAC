@@ -45,9 +45,9 @@ export const settingsApi = {
 
 // Dashboard endpoints
 export const dashboardApi = {
-  getSummary: () => api.get('/dashboard/summary'),
-  getRecentActivity: (limit: number = 5) => api.get(`/dashboard/activity?limit=${limit}`),
-  getPerformanceMetrics: (days: number = 7) => api.get(`/dashboard/performance?days=${days}`),
+  getSummary: () => api.get('/client/api/dashboard/summary'),
+  getRecentActivity: (limit: number = 5) => api.get(`/client/api/dashboard/activity?limit=${limit}`),
+  getPerformanceMetrics: (days: number = 7) => api.get(`/client/api/dashboard/performance?days=${days}`),
 };
 
 // Device endpoints

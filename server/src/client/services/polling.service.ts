@@ -238,6 +238,31 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
 
     console.log(chalk.blue(`Starting polling for device ${device.name} (${deviceId})`));
 
+    // Fetch device driver configuration if device has a deviceDriverId
+    if (device.deviceDriverId) {
+      console.log(chalk.cyan(`Fetching device driver configuration for device ${device.name}`));
+      
+      let deviceDriver;
+      
+      if (req?.app?.locals?.libraryDB) {
+        const templatesCollection = req.app.locals.libraryDB.collection('templates');
+        const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+        deviceDriver = await templatesCollection.findOne({ _id: objectId });
+      } else if (req?.app?.locals?.libraryModels?.DeviceDriver) {
+        const DeviceDriverModel = req.app.locals.libraryModels.DeviceDriver;
+        deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+      }
+      
+      if (deviceDriver) {
+        console.log(chalk.green(`Found device driver: ${deviceDriver.name}`));
+        device.dataPoints = deviceDriver.dataPoints || [];
+        device.writableRegisters = deviceDriver.writableRegisters || [];
+        device.controlParameters = deviceDriver.controlParameters || [];
+      } else {
+        console.warn(chalk.yellow(`Device driver not found: ${device.deviceDriverId}`));
+      }
+    }
+
     // Check if device has any configuration for reading
     const hasNewConfig = device.dataPoints && device.dataPoints.length > 0;
     const hasLegacyConfig = device.registers && device.registers.length > 0;

@@ -16,41 +16,22 @@ export interface RequestWithUser extends Request {
   user: RequestUser;
 }
 
-/**
- * Direct database access function for the AMX database
- */
-const getAmxDatabase = async () => {
-  try {
-    // Get the connection URI from environment variables
-    const LIBRARY_DB_URI = process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx';
-
-    // Create a direct connection to the AMX database
-    console.log(`Connecting directly to AMX database for device drivers: ${LIBRARY_DB_URI}`);
-    const client = await mongoose.connect(LIBRARY_DB_URI);
-
-    console.log(`Connected to database: ${client.connection.db.databaseName}`);
-    if (client.connection.db.databaseName !== 'amx') {
-      console.error(
-        `WARNING: Connected to wrong database: ${client.connection.db.databaseName}, expected 'amx'`,
-      );
-    }
-
-    return client.connection.db;
-  } catch (error) {
-    console.error('Error connecting to AMX database:', error);
-    throw error;
-  }
-};
+// Removed getAmxDatabase function - now using app.locals.libraryDB instead
 
 /**
  * Get all device drivers directly from the AMX database
  */
 export const getAllDeviceDrivers = async (req: Request, res: Response) => {
   try {
-    // Get AMX database connection
-    const db = await getAmxDatabase();
+    // Use the existing AMX database connection from app.locals
+    const db = req.app.locals.libraryDB;
+    
+    if (!db) {
+      console.error('AMX database not available in app.locals');
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
 
-    // Get device drivers directly from the collection
+    // Get device drivers directly from the templates collection
     const deviceDrivers = await db.collection('templates').find({}).toArray();
 
     console.log(`Retrieved ${deviceDrivers.length} device drivers from AMX database`);
@@ -73,8 +54,13 @@ export const getDeviceDriverById = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid device driver ID format' });
     }
 
-    // Get AMX database connection
-    const db = await getAmxDatabase();
+    // Use the existing AMX database connection from app.locals
+    const db = req.app.locals.libraryDB;
+    
+    if (!db) {
+      console.error('AMX database not available in app.locals');
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
 
     // Get device driver directly from the collection
     const deviceDriver = await db
@@ -103,8 +89,13 @@ export const createDeviceDriver = async (req: Request, res: Response) => {
     // Log request
     console.log('Creating device driver directly in AMX database with data:', req.body);
 
-    // Get AMX database connection
-    const db = await getAmxDatabase();
+    // Use the existing AMX database connection from app.locals
+    const db = req.app.locals.libraryDB;
+    
+    if (!db) {
+      console.error('AMX database not available in app.locals');
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
 
     // Check if there's a device driver with this name already
     const existingDeviceDriver = await db.collection('templates').findOne({
@@ -175,8 +166,13 @@ export const updateDeviceDriver = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid device driver ID format' });
     }
 
-    // Get AMX database connection
-    const db = await getAmxDatabase();
+    // Use the existing AMX database connection from app.locals
+    const db = req.app.locals.libraryDB;
+    
+    if (!db) {
+      console.error('AMX database not available in app.locals');
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
 
     // Remove connectionSetting from update data
     const updateData = { ...req.body };
@@ -197,9 +193,9 @@ export const updateDeviceDriver = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Device driver not found' });
     }
 
-    // Get the updated device driver
+    // Get the updated device driver from the templates collection
     const updatedDeviceDriver = await db
-      .collection('deviceDrivers')
+      .collection('templates')
       .findOne({ _id: new mongoose.Types.ObjectId(id) });
 
     res.status(200).json(updatedDeviceDriver);
@@ -229,8 +225,13 @@ export const deleteDeviceDriver = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid device driver ID format' });
     }
 
-    // Get AMX database connection
-    const db = await getAmxDatabase();
+    // Use the existing AMX database connection from app.locals
+    const db = req.app.locals.libraryDB;
+    
+    if (!db) {
+      console.error('AMX database not available in app.locals');
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
 
     // Delete device driver directly from collection
     const result = await db

@@ -14,8 +14,7 @@ export const DeviceDriverModel = new mongoose.Schema(
     enabled: { type: Boolean, default: true },
     tags: [{ type: String }],
 
-
-    // Data points
+    // Data points - stores the register configuration
     dataPoints: [
       {
         type: mongoose.Schema.Types.Mixed,
@@ -32,15 +31,8 @@ export const DeviceDriverModel = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    visibility: {
-      type: String,
-      enum: ['public', 'private', 'organization'],
-      default: 'private',
-    },
+    
+    // Audit fields
     createdBy: {
       userId: {
         type: String,
@@ -53,24 +45,6 @@ export const DeviceDriverModel = new mongoose.Schema(
       email: {
         type: String,
         required: false,
-      },
-      organization: {
-        type: String,
-        default: '',
-      },
-    },
-    usageCount: {
-      type: Number,
-      default: 0,
-    },
-    rating: {
-      average: {
-        type: Number,
-        default: 0,
-      },
-      count: {
-        type: Number,
-        default: 0,
       },
     },
   },

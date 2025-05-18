@@ -15,6 +15,10 @@ async function main() {
     const deviceTypes = await amxConnection.collection('devicetypes').find({}).toArray();
     console.log(`Found ${deviceTypes.length} device types in AMX database:`);
     console.log(deviceTypes.map(type => ({ id: type._id, name: type.name })));
+    
+    // Note: This script should be updated to create device drivers instead of devices
+    // Device drivers are now the templates that devices reference
+    console.log('⚠️  Note: This script should create device drivers, not devices with embedded configuration');
 
     // Create device schema
     const deviceSchema = new Schema({

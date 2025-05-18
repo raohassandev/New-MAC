@@ -293,6 +293,14 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
       }));
     }
 
+    // Ensure boolean types have a bit position
+    if (['BOOLEAN', 'BIT'].includes(parameter.dataType) && parameter.bitPosition === undefined) {
+      setParameter(prev => ({
+        ...prev,
+        bitPosition: 0, // Default to bit 0
+      }));
+    }
+
     // If this is a new parameter or the data type is changed, auto-increment buffer index
     if (!initialData || (initialData && initialData.dataType !== parameter.dataType)) {
       const nextBufferIndex = calculateNextBufferIndex();
@@ -1000,7 +1008,7 @@ const TemplateParameterEditor: React.FC<ParameterEditorProps> = ({
             type="number"
             min="0"
             max="15"
-            value={parameter.bitPosition || 0}
+            value={parameter.bitPosition ?? 0}
             onChange={handleInputChange}
             error={touched.bitPosition ? errors.bitPosition : undefined}
           />

@@ -20,6 +20,7 @@ export interface Device {
 
   // Device driver linkage
   deviceDriverId?: string; // Reference to the template/driver this device is based on
+  driverData?: any; // Populated device driver data when fetching device details
 
   // Metadata fields
   usage?: string; // Usage category

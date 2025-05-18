@@ -4,6 +4,7 @@
  */
 
 import ModbusRTU from 'modbus-serial';
+import mongoose from 'mongoose';
 import { getDeviceModel } from './device.service';
 import ScheduleService from './schedule.service';
 import { Request } from 'express';
@@ -92,6 +93,26 @@ export class ScheduleProcessorService {
     
     if (!device) {
       throw new Error('Device not found');
+    }
+    
+    // If device has a device driver, fetch the latest configuration
+    if (device.deviceDriverId) {
+      let deviceDriver;
+      
+      if (req?.app?.locals?.libraryDB) {
+        const templatesCollection = req.app.locals.libraryDB.collection('templates');
+        const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+        deviceDriver = await templatesCollection.findOne({ _id: objectId });
+      } else if (req?.app?.locals?.libraryModels?.DeviceDriver) {
+        const DeviceDriverModel = req.app.locals.libraryModels.DeviceDriver;
+        deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+      }
+      
+      if (deviceDriver) {
+        device.dataPoints = deviceDriver.dataPoints || [];
+        device.writableRegisters = deviceDriver.writableRegisters || [];
+        device.controlParameters = deviceDriver.controlParameters || [];
+      }
     }
     
     // Determine the value to set

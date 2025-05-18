@@ -59,6 +59,7 @@ async function main() {
     const Device = _model('Device', deviceSchema, 'devices');
 
     // Create a test device - Siemens PLC
+    // Note: Configuration is now fetched from device drivers, not stored in device
     const testDevice = {
       name: 'Test Siemens S7 PLC',
       description: 'Test device for development',
@@ -73,33 +74,9 @@ async function main() {
           slaveId: 1,
         },
       },
-      dataPoints: [
-        {
-          range: {
-            startAddress: 0,
-            count: 10,
-            fc: 3,
-          },
-          parser: {
-            parameters: [
-              {
-                name: 'Temperature',
-                dataType: 'FLOAT',
-                registerIndex: 0,
-                scalingFactor: 0.1,
-                unit: '°C',
-              },
-              {
-                name: 'Pressure',
-                dataType: 'FLOAT',
-                registerIndex: 2,
-                scalingFactor: 0.01,
-                unit: 'Bar',
-              },
-            ],
-          },
-        },
-      ],
+      // dataPoints are now fetched from device driver, not stored here
+      // You would need to create a device driver first and link it via deviceDriverId
+      // deviceDriverId: '65f8a9b2c3d4e5f6789abcde', // Example device driver ID
       lastSeen: new Date(),
     };
 

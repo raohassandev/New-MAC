@@ -440,8 +440,43 @@ export const getDevices = async (req: AuthRequest, res: Response) => {
       `[deviceController] Retrieved ${devices.length} devices from ${DeviceModel.db?.name || 'unknown'} database (total: ${totalDevices})`,
     );
 
+    // Fetch latest configurations from device drivers if applicable
+    const devicesWithDriverConfig = await Promise.all(
+      devices.map(async (device) => {
+        if (device.deviceDriverId) {
+          try {
+            let deviceDriver;
+            
+            // Try to get device driver from templates collection in AMX database
+            if (req.app.locals.libraryDB) {
+              const templatesCollection = req.app.locals.libraryDB.collection('templates');
+              const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+              deviceDriver = await templatesCollection.findOne({ _id: objectId });
+            } else if (req.app.locals.libraryModels && req.app.locals.libraryModels.DeviceDriver) {
+              const DeviceDriver = req.app.locals.libraryModels.DeviceDriver;
+              deviceDriver = await DeviceDriver.findById(device.deviceDriverId);
+            }
+            
+            if (deviceDriver) {
+              // Replace device configuration with latest from device driver
+              return {
+                ...device,
+                dataPoints: deviceDriver.dataPoints || [],
+                writableRegisters: deviceDriver.writableRegisters || [],
+                controlParameters: deviceDriver.controlParameters || [],
+              };
+            }
+          } catch (error) {
+            console.warn(`Could not fetch device driver for device ${device.name}:`, error);
+          }
+        }
+        // Return device as is if no driver or fetch failed
+        return device;
+      })
+    );
+
     return res.json({
-      devices,
+      devices: devicesWithDriverConfig,
       pagination: {
         total: totalDevices,
         page,
@@ -540,78 +575,68 @@ export const getDeviceById = async (req: AuthRequest, res: Response) => {
     );
     console.log(`[deviceController] Looking for device with ID: ${req.params.id}`);
 
-    // Check if we should populate the device driver data
-    const populateDriver = req.query.includeDriver === 'true';
+    // Get the device
+    const device = await DeviceModel.findById(req.params.id);
 
-    // Use separate approach for population to avoid TypeScript errors
-    if (populateDriver && mongoose.models.DeviceDriver) {
-      // First get the device
-      const device = await DeviceModel.findById(req.params.id);
+    if (!device) {
+      console.warn(
+        `[deviceController] Device with ID ${req.params.id} not found in database ${dbName}`,
+      );
+      return res.status(404).json({ message: 'Device not found' });
+    }
 
-      if (!device) {
-        console.warn(
-          `[deviceController] Device with ID ${req.params.id} not found in database ${dbName}`,
-        );
-        return res.status(404).json({ message: 'Device not found' });
-      }
+    console.log(`[deviceController] Found device: ${device.name}`);
 
-      console.log(`[deviceController] Found device: ${device.name}`);
-
-      // Then manually populate if there's a deviceDriverId
-      if (device.deviceDriverId) {
-        try {
-          // Get DeviceDriver model from AMX models
-          let DeviceDriver;
-          if (req.app.locals.libraryModels && req.app.locals.libraryModels.DeviceDriver) {
-            DeviceDriver = req.app.locals.libraryModels.DeviceDriver;
-            console.log('[deviceController] Using AMX-specific DeviceDriver model');
-          } else {
-            try {
-              DeviceDriver = mongoose.model('DeviceDriver') as mongoose.Model<any>;
-              console.warn(
-                '[deviceController] AMX-specific DeviceDriver model not found, using default',
-              );
-            } catch (modelError) {
-              console.error('[deviceController] Error: DeviceDriver model not found:', modelError);
-              return res
-                .status(500)
-                .json({ message: 'Server error', error: 'DeviceDriver model not available' });
-            }
-          }
-
-          const deviceDriver = await DeviceDriver.findById(device.deviceDriverId);
-          console.log(
-            `[deviceController] Populated device driver: ${deviceDriver?.name || 'Not found'}`,
-          );
-
-          // Create a response object with the populated data
-          const populatedDevice = device.toObject();
-          // Add the device driver data using the property defined in our interface
-          populatedDevice.driverData = deviceDriver;
-
-          return res.json(populatedDevice);
-        } catch (populateError) {
-          // If population fails, just return the device without population
-          console.warn('Could not populate device driver:', populateError);
+    // If device has a deviceDriverId, always fetch latest configuration from device driver
+    if (device.deviceDriverId) {
+      try {
+        let deviceDriver;
+        
+        // Try to get device driver from templates collection in AMX database
+        if (req.app.locals.libraryDB) {
+          const templatesCollection = req.app.locals.libraryDB.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+          deviceDriver = await templatesCollection.findOne({ _id: objectId });
+          console.log('[deviceController] Using templates collection from AMX database');
+        } else if (req.app.locals.libraryModels && req.app.locals.libraryModels.DeviceDriver) {
+          const DeviceDriver = req.app.locals.libraryModels.DeviceDriver;
+          deviceDriver = await DeviceDriver.findById(device.deviceDriverId);
+          console.log('[deviceController] Using AMX-specific DeviceDriver model');
+        } else {
+          console.error('[deviceController] No AMX database connection available');
           return res.json(device);
         }
-      } else {
-        // No deviceDriverId to populate
+        
+        if (deviceDriver) {
+          console.log(
+            `[deviceController] Fetching latest configuration from device driver: ${deviceDriver.name}`,
+          );
+
+          // Create a response object with the device data
+          const deviceWithDriverConfig = device.toObject();
+          
+          // Replace device configuration with latest from device driver
+          deviceWithDriverConfig.dataPoints = deviceDriver.dataPoints || [];
+          deviceWithDriverConfig.writableRegisters = deviceDriver.writableRegisters || [];
+          deviceWithDriverConfig.controlParameters = deviceDriver.controlParameters || [];
+          
+          // Include the device driver data for reference
+          if (req.query.includeDriver === 'true') {
+            deviceWithDriverConfig.driverData = deviceDriver;
+          }
+
+          return res.json(deviceWithDriverConfig);
+        } else {
+          console.warn(`[deviceController] Device driver ${device.deviceDriverId} not found, using device's stored configuration`);
+          return res.json(device);
+        }
+      } catch (populateError) {
+        // If population fails, just return the device with stored configuration
+        console.warn('Could not fetch device driver:', populateError);
         return res.json(device);
       }
     } else {
-      // No population needed, just get and return the device
-      // DeviceModel was already checked for null above
-      const device = await DeviceModel.findById(req.params.id);
-
-      if (!device) {
-        console.warn(
-          `[deviceController] Device with ID ${req.params.id} not found in database ${dbName}`,
-        );
-        return res.status(404).json({ message: 'Device not found' });
-      }
-
-      console.log(`[deviceController] Found device: ${device.name}`);
+      // No deviceDriverId, return device as is
       return res.json(device);
     }
   } catch (error: any) {
@@ -779,6 +804,48 @@ export const createDevice = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // If device driver ID is provided, populate configuration from device driver
+    if (req.body.deviceDriverId) {
+      try {
+        console.log(`[deviceController] Looking up device driver: ${req.body.deviceDriverId}`);
+        
+        // Get device driver from AMX database
+        const amxConnection = req.app.locals.libraryDB;
+        let deviceDriver;
+        
+        if (amxConnection) {
+          const templatesCollection = amxConnection.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(req.body.deviceDriverId);
+          deviceDriver = await templatesCollection.findOne({ _id: objectId });
+        }
+        
+        if (deviceDriver) {
+          console.log(`[deviceController] Found device driver: ${deviceDriver.name}`);
+          
+          // Don't copy data points - they will be fetched dynamically
+          // req.body.dataPoints = deviceDriver.dataPoints;
+          // req.body.controlParameters = deviceDriver.controlParameters;
+          // req.body.writableRegisters = deviceDriver.writableRegisters;
+          
+          // Don't override connection settings if provided by user
+          if (!req.body.connectionSetting) {
+            req.body.connectionSetting = deviceDriver.connectionSetting;
+          }
+          
+          // Copy make and model if not provided
+          if (!req.body.make) req.body.make = deviceDriver.make;
+          if (!req.body.model) req.body.model = deviceDriver.model;
+          
+          console.log(`[deviceController] Applied device driver configuration to new device`);
+        } else {
+          console.warn(`[deviceController] Device driver not found: ${req.body.deviceDriverId}`);
+        }
+      } catch (driverError) {
+        console.error(`[deviceController] Error loading device driver:`, driverError);
+        // Continue creating device even if driver lookup fails
+      }
+    }
+
     console.log(
       `[deviceController] Creating device in database: ${DeviceModel.db?.name || 'unknown'}`,
     );
@@ -911,6 +978,46 @@ export const updateDevice = async (req: AuthRequest, res: Response) => {
     // This prevents accidental removal of schedule associations
     if (req.body.activeScheduleId === undefined && device.activeScheduleId) {
       req.body.activeScheduleId = device.activeScheduleId;
+    }
+    
+    // Handle device driver updates
+    if (req.body.deviceDriverId !== undefined) {
+      // If device driver is being changed or set
+      if (req.body.deviceDriverId && req.body.deviceDriverId !== device.deviceDriverId) {
+        try {
+          console.log(`[deviceController] Device driver changed to: ${req.body.deviceDriverId}`);
+          
+          // Verify the new device driver exists
+          const amxConnection = req.app.locals.libraryDB;
+          if (amxConnection) {
+            const templatesCollection = amxConnection.collection('templates');
+            const objectId = new mongoose.Types.ObjectId(req.body.deviceDriverId);
+            const deviceDriver = await templatesCollection.findOne({ _id: objectId });
+            
+            if (deviceDriver) {
+              console.log(`[deviceController] Verified new device driver exists: ${deviceDriver.name}`);
+              // Don't copy data - configuration will be fetched dynamically
+            } else {
+              return res.status(400).json({ 
+                message: 'Device driver not found',
+                error: `Invalid device driver ID: ${req.body.deviceDriverId}`
+              });
+            }
+          }
+        } catch (driverError: any) {
+          console.error(`[deviceController] Error verifying device driver:`, driverError);
+          return res.status(400).json({ 
+            message: 'Error verifying device driver',
+            error: driverError.message 
+          });
+        }
+      } else if (!req.body.deviceDriverId) {
+        // Device driver is being removed - not allowed in new architecture
+        return res.status(400).json({ 
+          message: 'Device driver is required',
+          error: 'Cannot remove device driver from device' 
+        });
+      }
     }
 
     // Fix connection settings based on connection type if they are being updated

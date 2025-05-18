@@ -2,10 +2,11 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  ArrowDown,
   ArrowUp,
   Clock,
   Sliders,
+  AlertOctagon,
+  Info,
 } from 'lucide-react';
 import {
   CartesianGrid,
@@ -38,6 +39,19 @@ interface DashboardSummary {
   uptime: string;
   activeAlerts: number;
   todayLogs: number;
+  devices?: {
+    total: number;
+    online: number;
+    enabled: number;
+    disabled: number;
+  };
+  systemInfo?: {
+    totalMemory: number;
+    usedMemory: number;
+    freeMemory: number;
+    cpuCount: number;
+    loadAverage: number[];
+  };
 }
 
 interface PerformanceData {
@@ -49,29 +63,29 @@ interface PerformanceData {
 
 interface RecentActivity {
   id: string;
-  type: 'alert' | 'info' | 'warning' | 'error';
+  type: 'alert' | 'warning' | 'info' | 'error';
   message: string;
   timestamp: string;
 }
 
-const Dashboard = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
-  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
-
-  // Get configuration values from siteConfiguration
+function Dashboard() {
   const systemRefreshInterval = useAppSelector(selectSystemMonitorRefreshInterval);
   const realTimeUpdatesEnabled = useAppSelector(selectRealTimeUpdatesEnabled);
 
-  // Timer reference for auto-refresh
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
+
   const refreshTimerRef = useRef<number | null>(null);
 
   // Function to fetch dashboard data - memoized with useCallback
   const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
+      setError(null);
 
       // Fetch dashboard summary
       const summaryResponse = await dashboardApi.getSummary();
@@ -87,6 +101,7 @@ const Dashboard = () => {
       setRecentActivities(activityResponse.data);
     } catch (error) {
       console.error('Error fetching dashboard data', error);
+      setError('Failed to load dashboard data. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +109,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [timeframe]);
+  }, [fetchDashboardData]);
 
   // Set up auto-refresh based on configuration
   useEffect(() => {
@@ -118,70 +133,29 @@ const Dashboard = () => {
         window.clearInterval(refreshTimerRef.current);
       }
     };
-  }, [systemRefreshInterval, realTimeUpdatesEnabled]);
-
-  // Sample data (in case the API is not available yet)
-  const samplePerformanceData = [
-    { date: '2025-04-24', cpu: 45, memory: 32, network: 18 },
-    { date: '2025-04-25', cpu: 52, memory: 38, network: 22 },
-    { date: '2025-04-26', cpu: 48, memory: 35, network: 20 },
-    { date: '2025-04-27', cpu: 70, memory: 42, network: 28 },
-    { date: '2025-04-28', cpu: 55, memory: 40, network: 25 },
-    { date: '2025-04-29', cpu: 60, memory: 45, network: 30 },
-    { date: '2025-04-30', cpu: 58, memory: 43, network: 27 },
-  ];
-
-  const sampleSummary = {
-    systemStatus: 'online' as const,
-    cpuUsage: 58,
-    memoryUsage: 43,
-    uptime: '7d 12h 35m',
-    activeAlerts: 2,
-    todayLogs: 142,
-  };
-
-  const sampleActivities = [
-    {
-      id: '1',
-      type: 'alert' as const,
-      message: 'System alert: High CPU usage detected (85%)',
-      timestamp: '2025-04-30T14:25:00Z',
-    },
-    {
-      id: '2',
-      type: 'warning' as const,
-      message: 'Memory usage over 70% for more than 30 minutes',
-      timestamp: '2025-04-30T13:45:00Z',
-    },
-    {
-      id: '3',
-      type: 'info' as const,
-      message: 'System maintenance scheduled for May 5, 2025',
-      timestamp: '2025-04-30T11:30:00Z',
-    },
-    {
-      id: '4',
-      type: 'info' as const,
-      message: 'Software update version 1.2.5 installed successfully',
-      timestamp: '2025-04-29T16:15:00Z',
-    },
-    {
-      id: '5',
-      type: 'error' as const,
-      message: 'Database connection failed - automatic retry successful',
-      timestamp: '2025-04-29T10:05:00Z',
-    },
-  ];
-
-  // Use sample data when real data is not available
-  const displayData = performanceData.length > 0 ? performanceData : samplePerformanceData;
-  const displaySummary = summary || sampleSummary;
-  const displayActivities = recentActivities.length > 0 ? recentActivities : sampleActivities;
+  }, [systemRefreshInterval, realTimeUpdatesEnabled, fetchDashboardData]);
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+          <p className="text-lg text-gray-700">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-4 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -206,224 +180,241 @@ const Dashboard = () => {
       case 'warning':
         return <AlertTriangle size={16} className="text-yellow-500" />;
       case 'error':
-        return <AlertCircle size={16} className="text-red-500" />;
-      case 'info':
+        return <AlertOctagon size={16} className="text-red-600" />;
       default:
-        return <Clock size={16} className="text-blue-500" />;
+        return <Info size={16} className="text-blue-500" />;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'MMM dd, HH:mm');
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatTimeAgo = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-  // Fix for the charAt and slice error in the original code
-  const formatName = (name: string) => {
-    if (typeof name === 'string') {
-      return name.charAt(0).toUpperCase() + name.slice(1);
-    }
-    return String(name);
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
+    return format(date, 'MMM d, yyyy');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="h-full space-y-6 overflow-y-auto p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          {realTimeUpdatesEnabled && (
-            <p className="text-xs text-green-600">
-              Auto-refreshing every {systemRefreshInterval / 1000} seconds
-            </p>
-          )}
+        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <button
+          onClick={fetchDashboardData}
+          className="flex items-center gap-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+        >
+          <ArrowUp size={16} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* System Status */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">System Status</p>
+              <p className="text-lg font-semibold capitalize">{summary?.systemStatus || 'Unknown'}</p>
+            </div>
+            <div
+              className={`h-3 w-3 rounded-full ${getStatusColor(summary?.systemStatus || 'offline')}`}
+            />
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => (window.location.href = '/system-configuration')}
-            className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            <Sliders size={16} />
-            Configure Refresh
-          </button>
-          <div className="ml-2 flex items-center">
-            <span className="text-sm text-gray-600">Timeframe:</span>
-            <select
-              value={timeframe}
-              onChange={e => setTimeframe(e.target.value as 'day' | 'week' | 'month')}
-              className="ml-2 rounded-md border border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-            >
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
+
+        {/* CPU Usage */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">CPU Usage</p>
+              <p className="text-lg font-semibold">{summary?.cpuUsage || 0}%</p>
+              {summary?.systemInfo && (
+                <p className="text-xs text-gray-600">
+                  Load: {summary.systemInfo.loadAverage[0].toFixed(2)} ({summary.systemInfo.cpuCount} cores)
+                </p>
+              )}
+            </div>
+            <Activity className={(summary?.cpuUsage || 0) > 70 ? 'text-red-500' : 'text-green-500'} />
+          </div>
+        </div>
+
+        {/* Memory Usage */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Memory Usage</p>
+              <p className="text-lg font-semibold">{summary?.memoryUsage || 0}%</p>
+              {summary?.systemInfo && (
+                <p className="text-xs text-gray-600">
+                  {((summary.systemInfo.usedMemory) / (1024 * 1024 * 1024)).toFixed(1)} / 
+                  {((summary.systemInfo.totalMemory) / (1024 * 1024 * 1024)).toFixed(1)} GB
+                </p>
+              )}
+            </div>
+            <Sliders className={(summary?.memoryUsage || 0) > 70 ? 'text-red-500' : 'text-green-500'} />
+          </div>
+        </div>
+
+        {/* Uptime */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">System Uptime</p>
+              <p className="text-lg font-semibold">{summary?.uptime || 'N/A'}</p>
+            </div>
+            <Clock className="text-blue-500" />
           </div>
         </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg bg-white p-6 shadow-md">
+      {/* Second Row Cards */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Total Devices */}
+        <div className="rounded-lg bg-white p-6 shadow">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-700">System Status</h2>
-            <div
-              className={`h-3 w-3 rounded-full ${getStatusColor(displaySummary.systemStatus)}`}
-            ></div>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-bold text-gray-800">
-              {displaySummary.systemStatus.toUpperCase()}
-            </div>
-            <div className="mt-2 text-sm text-gray-600">Uptime: {displaySummary.uptime}</div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-700">CPU Usage</h2>
-            <Activity size={20} className="text-blue-500" />
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-bold text-gray-800">{displaySummary.cpuUsage}%</div>
-            <div className="mt-3 h-2 w-full rounded-full bg-gray-200">
-              <div
-                className={`h-full rounded-full ${
-                  displaySummary.cpuUsage > 80
-                    ? 'bg-red-500'
-                    : displaySummary.cpuUsage > 60
-                      ? 'bg-yellow-500'
-                      : 'bg-green-500'
-                }`}
-                style={{ width: `${displaySummary.cpuUsage}%` }}
-              ></div>
+            <div>
+              <p className="text-sm text-gray-500">Total Devices</p>
+              <p className="text-lg font-semibold">{summary?.devices?.total || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg bg-white p-6 shadow-md">
+        {/* Online Devices */}
+        <div className="rounded-lg bg-white p-6 shadow">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-700">Memory Usage</h2>
-            <Activity size={20} className="text-blue-500" />
+            <div>
+              <p className="text-sm text-gray-500">Online Devices</p>
+              <p className="text-lg font-semibold">{summary?.devices?.online || 0}</p>
+            </div>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-bold text-gray-800">{displaySummary.memoryUsage}%</div>
-            <div className="mt-3 h-2 w-full rounded-full bg-gray-200">
-              <div
-                className={`h-full rounded-full ${
-                  displaySummary.memoryUsage > 80
-                    ? 'bg-red-500'
-                    : displaySummary.memoryUsage > 60
-                      ? 'bg-yellow-500'
-                      : 'bg-green-500'
-                }`}
-                style={{ width: `${displaySummary.memoryUsage}%` }}
-              ></div>
+        </div>
+
+        {/* Active Alerts */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Active Alerts (24h)</p>
+              <p className="text-lg font-semibold">{summary?.activeAlerts || 0}</p>
+            </div>
+            <AlertCircle className={(summary?.activeAlerts || 0) > 0 ? 'text-red-500' : 'text-gray-400'} />
+          </div>
+        </div>
+
+        {/* Today's Logs */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Today's Logs</p>
+              <p className="text-lg font-semibold">{summary?.todayLogs || 0}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Performance Chart */}
-      <div className="rounded-lg bg-white p-6 shadow-md">
-        <h2 className="mb-4 text-lg font-semibold text-gray-700">System Performance</h2>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={displayData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={value => {
-                  const date = new Date(value);
-                  return format(date, 'MMM dd');
-                }}
-              />
-              <YAxis />
-              <Tooltip
-                formatter={(value, name) => [`${value}%`, formatName(name as string)]}
-                labelFormatter={label => format(new Date(label), 'MMMM dd, yyyy')}
-              />
-              <Line type="monotone" dataKey="cpu" stroke="#3b82f6" strokeWidth={2} name="CPU" />
-              <Line
-                type="monotone"
-                dataKey="memory"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Memory"
-              />
-              <Line
-                type="monotone"
-                dataKey="network"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                name="Network"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+      <div className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Performance Metrics</h2>
+          <div className="flex space-x-2">
+            <button
+              className={`rounded px-3 py-1 text-sm ${
+                timeframe === 'day' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+              }`}
+              onClick={() => setTimeframe('day')}
+            >
+              Day
+            </button>
+            <button
+              className={`rounded px-3 py-1 text-sm ${
+                timeframe === 'week' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+              }`}
+              onClick={() => setTimeframe('week')}
+            >
+              Week
+            </button>
+            <button
+              className={`rounded px-3 py-1 text-sm ${
+                timeframe === 'month' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+              }`}
+              onClick={() => setTimeframe('month')}
+            >
+              Month
+            </button>
+          </div>
         </div>
+
+        {performanceData.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="cpu"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  name="CPU %"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="memory"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="Memory %"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="network"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  name="Network %"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex h-64 items-center justify-center text-gray-500">
+            <div className="text-center">
+              <Activity className="mx-auto mb-2 h-12 w-12 text-gray-400" />
+              <p>No performance data available</p>
+              <p className="text-sm">Start monitoring devices to see metrics</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Activity */}
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          <h2 className="mb-4 text-lg font-semibold text-gray-700">Recent Activity</h2>
+      {/* Recent Activity */}
+      <div className="rounded-lg bg-white p-6 shadow">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Activity</h2>
+        {recentActivities.length > 0 ? (
           <div className="space-y-4">
-            {displayActivities.map(activity => (
-              <div key={activity.id} className="flex items-start rounded-md p-3 hover:bg-gray-50">
-                <div className="mt-1 flex-shrink-0">{getActivityIcon(activity.type)}</div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm text-gray-700">{activity.message}</p>
-                  <p className="mt-1 text-xs text-gray-500">{formatDate(activity.timestamp)}</p>
+            {recentActivities.map((activity) => (
+              <div key={activity.id} className="flex items-start space-x-3">
+                <div className="flex-shrink-0">{getActivityIcon(activity.type)}</div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900">{activity.message}</p>
+                  <p className="text-xs text-gray-500">{formatTimeAgo(activity.timestamp)}</p>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 text-center">
-            <a href="/activity" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-              View all activity
-            </a>
-          </div>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          <h2 className="mb-4 text-lg font-semibold text-gray-700">System Summary</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center rounded-md bg-gray-50 p-4">
-              <AlertTriangle size={20} className="text-yellow-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Active Alerts</p>
-                <p className="text-xl font-semibold">{displaySummary.activeAlerts}</p>
-              </div>
-            </div>
-            <div className="flex items-center rounded-md bg-gray-50 p-4">
-              <Clock size={20} className="text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Today's Logs</p>
-                <p className="text-xl font-semibold">{displaySummary.todayLogs}</p>
-              </div>
-            </div>
-            <div className="flex items-center rounded-md bg-gray-50 p-4">
-              <ArrowUp size={20} className="text-green-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Upload Speed</p>
-                <p className="text-xl font-semibold">45 Mbps</p>
-              </div>
-            </div>
-            <div className="flex items-center rounded-md bg-gray-50 p-4">
-              <ArrowDown size={20} className="text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Download Speed</p>
-                <p className="text-xl font-semibold">87 Mbps</p>
-              </div>
+        ) : (
+          <div className="flex h-32 items-center justify-center text-gray-500">
+            <div className="text-center">
+              <Info className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+              <p>No recent activities</p>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
-};
+}
 
 export default Dashboard;

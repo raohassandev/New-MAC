@@ -529,6 +529,24 @@ export class ScheduleService {
     try {
       console.log(`Checking schedule bit for device ${device.name}`);
       
+      // First, fetch device driver configuration if device has a deviceDriverId
+      if (device.deviceDriverId) {
+        let deviceDriver;
+        
+        if (req?.app?.locals?.libraryDB) {
+          const templatesCollection = req.app.locals.libraryDB.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+          deviceDriver = await templatesCollection.findOne({ _id: objectId });
+        } else if (req?.app?.locals?.libraryModels?.DeviceDriver) {
+          const DeviceDriverModel = req.app.locals.libraryModels.DeviceDriver;
+          deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+        }
+        
+        if (deviceDriver) {
+          device.dataPoints = deviceDriver.dataPoints || [];
+        }
+      }
+      
       // Look for Schedule parameter in dataPoints structure
       const dataPoints = device.dataPoints || [];
       let scheduleParameterFound = false;

@@ -9,6 +9,9 @@ import { Form } from '../../components/ui/Form';
 import { Tabs } from '../../components/ui/Tabs';
 import { Switch } from '../../components/ui/Switch';
 
+// Import device driver hooks
+import { useDeviceDrivers } from '../../hooks/useDeviceDrivers';
+
 interface DeviceFormProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,6 +29,9 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
   title = 'Add New Device',
   isEditing = false,
 }) => {
+  // Hook to fetch device drivers
+  const { deviceDrivers, loading: loadingDrivers } = useDeviceDrivers();
+  
   const [activeTab, setActiveTab] = useState('basic');
   const [deviceData, setDeviceData] = useState({
     name: '',
@@ -40,6 +46,7 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
     connectionType: 'tcp',
     serialPort: '',
     baudRate: '9600',
+    deviceDriverId: '', // Add device driver reference
   });
   const [newTag, setNewTag] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,6 +60,7 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
         port: initialData.port?.toString() || '502',
         slaveId: initialData.slaveId?.toString() || '1',
         baudRate: initialData.baudRate?.toString() || '9600',
+        deviceDriverId: initialData.deviceDriverId || '',
       });
     }
   }, [initialData]);
@@ -99,6 +107,10 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
 
     if (!deviceData.name.trim()) {
       newErrors.name = 'Device name is required';
+    }
+    
+    if (!deviceData.deviceDriverId) {
+      newErrors.deviceDriverId = 'Device driver is required';
     }
 
     if (deviceData.connectionType === 'tcp') {
@@ -181,6 +193,27 @@ const DeviceForm: React.FC<DeviceFormProps> = ({
                     onChange={handleInputChange}
                     placeholder="Enter device name"
                     error={errors.name}
+                  />
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label htmlFor="deviceDriverId" required>
+                    Device Driver
+                  </Form.Label>
+                  <Form.Select
+                    id="deviceDriverId"
+                    name="deviceDriverId"
+                    value={deviceData.deviceDriverId}
+                    onChange={handleInputChange}
+                    error={errors.deviceDriverId}
+                    disabled={loadingDrivers}
+                    options={[
+                      { value: '', label: loadingDrivers ? 'Loading...' : 'Select a device driver' },
+                      ...(deviceDrivers || []).map((driver) => ({
+                        value: driver._id,
+                        label: `${driver.name} - ${driver.make} ${driver.model}`,
+                      })),
+                    ]}
                   />
                 </Form.Group>
 
