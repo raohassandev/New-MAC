@@ -18,6 +18,7 @@ export const clientRouter: Router = express.Router();
 // Mount routes
 clientRouter.use('/auth', authRoutes);
 clientRouter.use('/devices', deviceRoutes, pollingRoutes, realtimeDataRoutes, historicalDataRoutes, coilControlRoutes , controlDeviceRoutes);
+clientRouter.use('/data', realtimeDataRoutes); // Direct data routes for bulk operations
 clientRouter.use('/monitoring', eventLogRoutes); // Event logging routes
 clientRouter.use('/schedules', scheduleRoutes);
 clientRouter.use('/dashboard', dashboardRouter); // Dashboard routes

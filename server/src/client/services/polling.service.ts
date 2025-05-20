@@ -94,6 +94,9 @@ async function readInputRegistersWithRetries(
 // Import the specific types from modbus-serial
 import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU';
 
+// Import database models from index model
+import { RealtimeData, HistoricalData } from '../models/index.model';
+
 // Define Modbus response types
 type ModbusResponse = ReadRegisterResult | ReadCoilResult;
 
@@ -141,9 +144,6 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
       const readResult = await deviceService.readDeviceRegisters(deviceId, req);
       console.log(chalk.green(`Successfully read registers using device service: ${readResult.readings.length} readings`));
       
-      // Debug log the actual readings
-      console.log(chalk.cyan('Readings from deviceService:'), readResult.readings);
-      
       // If successful, convert the result to our DeviceReading format
       if (readResult && readResult.readings && readResult.readings.length > 0) {
         const deviceReading: DeviceReading = {
@@ -167,11 +167,11 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
         
         // Store in realtime database
         // Don't await this call to avoid blocking - just let it run in the background
-        storeRealtimeData(deviceId, deviceReading)
+        storeRealtimeData(deviceId, deviceReading, req)
           .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
         
         // Store in history database
-        await storeHistoricalData(deviceReading);
+        await storeHistoricalData(deviceReading, req);
         
         return deviceReading;
       } else {
@@ -238,9 +238,10 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
 
     console.log(chalk.blue(`Starting polling for device ${device.name} (${deviceId})`));
 
-    // Fetch device driver configuration if device has a deviceDriverId
+    // Always fetch fresh device driver configuration if device has a deviceDriverId
+    // This ensures we get the latest configuration changes
     if (device.deviceDriverId) {
-      console.log(chalk.cyan(`Fetching device driver configuration for device ${device.name}`));
+      console.log(chalk.cyan(`Fetching latest device driver configuration for device ${device.name}`));
       
       let deviceDriver;
       
@@ -251,15 +252,41 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
       } else if (req?.app?.locals?.libraryModels?.DeviceDriver) {
         const DeviceDriverModel = req.app.locals.libraryModels.DeviceDriver;
         deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);
+      } else {
+        // Try to get the AMX database models directly
+        try {
+          const amxDb = require('../../config/database').getAmxConnection();
+          if (amxDb && amxDb.readyState === 1) {
+            console.log(chalk.cyan(`Using templates collection from direct AMX connection`));
+            const templatesCollection = amxDb.collection('templates');
+            const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+            deviceDriver = await templatesCollection.findOne({ _id: objectId });
+          }
+        } catch (directError) {
+          console.error(chalk.red(`Failed to get device driver directly: ${directError}`));
+        }
       }
       
       if (deviceDriver) {
-        console.log(chalk.green(`Found device driver: ${deviceDriver.name}`));
+        console.log(chalk.green(`Found device driver: ${deviceDriver.name} (updated: ${deviceDriver.updatedAt || 'unknown'})`));
+        
+        // Always use fresh configuration from device driver
+        // This ensures any updates to the driver are reflected immediately
         device.dataPoints = deviceDriver.dataPoints || [];
         device.writableRegisters = deviceDriver.writableRegisters || [];
         device.controlParameters = deviceDriver.controlParameters || [];
+        
+        console.log(chalk.cyan(`Applied fresh configuration: ${device.dataPoints.length} data points`));
       } else {
         console.warn(chalk.yellow(`Device driver not found: ${device.deviceDriverId}`));
+        
+        // If device driver was deleted, clear the cached configuration
+        if (device.dataPoints && device.dataPoints.length > 0) {
+          console.warn(chalk.yellow(`Clearing cached configuration as driver was not found`));
+          device.dataPoints = [];
+          device.writableRegisters = [];
+          device.controlParameters = [];
+        }
       }
     }
 
@@ -271,7 +298,35 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
       console.warn(
         chalk.yellow(`⚠ No data points or registers configured for device ${deviceId}`),
       );
-      return null;
+      
+      // Instead of returning null, try to create a default configuration
+      // This allows polling to attempt reading from common addresses
+      console.log(chalk.cyan(`Attempting to poll device ${device.name} with default configuration`));
+      
+      // Create a default data point configuration for testing common addresses
+      const defaultAddress = device.make?.toLowerCase().includes('energy') || 
+                           device.make?.toLowerCase().includes('meter') ? 1 : 1;
+      
+      device.dataPoints = [{
+        range: {
+          startAddress: defaultAddress,
+          count: 2,  // Read 2 registers by default
+          fc: 3      // Use FC3 (holding registers) by default
+        },
+        parser: {
+          parameters: [{
+            name: 'DefaultValue',
+            registerIndex: defaultAddress,
+            dataType: 'UINT16',
+            byteOrder: 'AB',
+            unit: '',
+            scalingFactor: 1,
+            decimalPoint: 0
+          }]
+        }
+      }];
+      
+      console.log(chalk.yellow(`Created default configuration for device ${device.name} at address ${defaultAddress}`));
     }
 
     // Get connection settings (support both new and legacy format)
@@ -740,7 +795,31 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
               `❌ Error reading range FC=${dataPoint.range.fc} (${rangeStart}-${rangeEnd}): ${rangeError.message}`,
             ),
           );
-          // Continue to next range - don't process data or parameters if the modbus read operation failed
+          
+          // Store error information in readings for this range
+          if (dataPoint.parser && dataPoint.parser.parameters) {
+            for (const param of dataPoint.parser.parameters) {
+              readings.push({
+                name: param.name,
+                registerIndex: param.registerIndex,
+                value: null,
+                unit: param.unit || '',
+                dataType: param.dataType,
+                error: `Failed to read range: ${rangeError.message}`
+              });
+            }
+          } else {
+            // If no parameters defined, create a generic error reading
+            readings.push({
+              name: `Range_${rangeStart}_${rangeEnd}`,
+              registerIndex: rangeStart,
+              value: null,
+              unit: '',
+              error: `Failed to read range: ${rangeError.message}`
+            });
+          }
+          
+          // Continue to next range after storing error
         }
       }
     }
@@ -821,12 +900,12 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
 
     // Store in realtime database 
     // Don't await this call to avoid blocking - just let it run in the background
-    storeRealtimeData(deviceId, deviceReading)
+    storeRealtimeData(deviceId, deviceReading, req)
       .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
 
     // Store in history database only if we have valid readings
     if (validReadings.length > 0) {
-      await storeHistoricalData(deviceReading);
+      await storeHistoricalData(deviceReading, req);
       console.log(
         chalk.green(`✓ Successfully polled device ${device.name} with ${validReadings.length} valid readings`),
       );
@@ -940,36 +1019,103 @@ export function getRealtimeData(deviceId: string): DeviceReading | null {
 }
 
 /**
+ * Get RealtimeData model with the same approach as getDeviceModel
+ */
+async function getRealtimeDataModel(reqContext: any): Promise<mongoose.Model<any> | null> {
+  // Try to get from app.locals
+  if (reqContext?.app?.locals?.clientModels?.RealtimeData) {
+    const RealtimeDataModel = reqContext.app.locals.clientModels.RealtimeData;
+    
+    // Verify the connection is ready (readyState 1 means connected)
+    if (RealtimeDataModel.db?.readyState === 1) {
+      return RealtimeDataModel;
+    }
+  }
+
+  // Try to get from getClientModels as another option
+  const clientModels = getClientModels();
+  if (clientModels && clientModels.RealtimeData) {
+    if (clientModels.RealtimeData.db?.readyState === 1) {
+      return clientModels.RealtimeData;
+    }
+  }
+
+  // Use the default RealtimeData model as fallback
+  // But first, check if the default model's connection is ready (readyState 1 means connected)
+  if (RealtimeData && RealtimeData.db?.readyState === 1) {
+    return RealtimeData;
+  }
+  
+  // Try mongoose.model as last resort
+  try {
+    const ModelFromMongoose = mongoose.model('RealtimeData');
+    if (ModelFromMongoose.db?.readyState === 1) {
+      return ModelFromMongoose;
+    }
+  } catch (error) {
+    // Silently handle error
+  }
+  
+  // If we get here, no valid model available
+  return null;
+}
+
+/**
+ * Get HistoricalData model with the same approach as getDeviceModel
+ */
+async function getHistoricalDataModel(reqContext: any): Promise<mongoose.Model<any> | null> {
+  // Try to get from app.locals
+  if (reqContext?.app?.locals?.clientModels?.HistoricalData) {
+    const HistoricalDataModel = reqContext.app.locals.clientModels.HistoricalData;
+    
+    // Verify the connection is ready (readyState 1 means connected)
+    if (HistoricalDataModel.db?.readyState === 1) {
+      return HistoricalDataModel;
+    }
+  }
+
+  // Try to get from getClientModels as another option
+  const clientModels = getClientModels();
+  if (clientModels && clientModels.HistoricalData) {
+    if (clientModels.HistoricalData.db?.readyState === 1) {
+      return clientModels.HistoricalData;
+    }
+  }
+
+  // Use the default HistoricalData model as fallback
+  // But first, check if the default model's connection is ready (readyState 1 means connected)
+  if (HistoricalData && HistoricalData.db?.readyState === 1) {
+    return HistoricalData;
+  }
+  
+  // Try mongoose.model as last resort
+  try {
+    const ModelFromMongoose = mongoose.model('HistoricalData');
+    if (ModelFromMongoose.db?.readyState === 1) {
+      return ModelFromMongoose;
+    }
+  } catch (error) {
+    // Silently handle error
+  }
+  
+  // If we get here, no valid model available
+  return null;
+}
+
+/**
  * Store real-time data for a device in the cache and database
  * This allows external systems like the auto-polling service to share data
  */
-export async function storeRealtimeData(deviceId: string, data: DeviceReading): Promise<void> {
+export async function storeRealtimeData(deviceId: string, data: DeviceReading, req?: any): Promise<void> {
   if (data) {
-    // Update in-memory cache
+    // Update in-memory cache immediately
     realtimeDataCache.set(deviceId, data);
     console.log(chalk.blue(`Updated real-time cache for device ${data.deviceName} from external source`));
     
     // Try to store in database as well
     try {
-      // Try multiple approaches to get the RealtimeData model for resilience
-      let RealtimeDataModel;
-      
-      // First try with getClientModels
-      const clientModels = getClientModels();
-      if (clientModels && clientModels.RealtimeData) {
-        RealtimeDataModel = clientModels.RealtimeData;
-      }
-      
-      // If that failed, try with mongoose.model directly as a fallback
-      if (!RealtimeDataModel) {
-        try {
-          console.log(chalk.yellow(`Trying to get RealtimeData model with mongoose.model`));
-          RealtimeDataModel = mongoose.model('RealtimeData');
-        } catch (error) {
-          const modelError = error as Error;
-          console.warn(chalk.yellow(`Failed to get RealtimeData model: ${modelError?.message || String(error)}`));
-        }
-      }
+      // Get RealtimeData model using the same approach as device service
+      const RealtimeDataModel = await getRealtimeDataModel(req);
       
       // If we still don't have a model, skip database storage
       if (!RealtimeDataModel) {
@@ -977,8 +1123,13 @@ export async function storeRealtimeData(deviceId: string, data: DeviceReading): 
         return; // Skip database storage instead of throwing an error
       }
       
+      // Use a shorter timeout for database operations
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database operation timeout')), 3000)
+      );
+      
       // Use findOneAndUpdate with upsert instead of findOne + save to avoid version conflicts
-      const updateResult = await RealtimeDataModel.findOneAndUpdate(
+      const updatePromise = RealtimeDataModel.findOneAndUpdate(
         { deviceId },
         { 
           $set: {
@@ -991,18 +1142,29 @@ export async function storeRealtimeData(deviceId: string, data: DeviceReading): 
         { 
           upsert: true, // Create document if it doesn't exist
           new: true,    // Return the updated document
-          runValidators: true // Ensure data meets schema validation
+          runValidators: true, // Ensure data meets schema validation
+          maxTimeMS: 3000 // MongoDB timeout
         }
       );
       
-      if (updateResult) {
-        console.log(chalk.green(`✅ Updated realtime database entry for device ${data.deviceName}`));
-      } else {
-        console.log(chalk.yellow(`⚠️ Could not update realtime database entry for device ${data.deviceName}`));
+      try {
+        const updateResult = await Promise.race([updatePromise, timeoutPromise]);
+        
+        if (updateResult) {
+          console.log(chalk.green(`✅ Updated realtime database entry for device ${data.deviceName}`));
+        } else {
+          console.log(chalk.yellow(`⚠️ Could not update realtime database entry for device ${data.deviceName}`));
+        }
+      } catch (timeoutError) {
+        console.warn(chalk.yellow(`⚠ Database operation timed out for device ${data.deviceName}, but cache was updated`));
       }
     } catch (error) {
       // Log error but don't throw - we still want the in-memory cache to be updated
-      console.error(chalk.red(`❌ Error storing realtime data in database: ${error instanceof Error ? error.message : String(error)}`));
+      if (error instanceof Error && error.message.includes('buffering timed out')) {
+        console.warn(chalk.yellow(`⚠ Database is not available (buffering timeout) for device ${data.deviceName}, but cache was updated`));
+      } else {
+        console.error(chalk.red(`❌ Error storing realtime data in database: ${error instanceof Error ? error.message : String(error)}`));
+      }
     }
   }
 }
@@ -1020,35 +1182,18 @@ export function isDevicePollingActive(deviceId: string): boolean {
  * Store device reading in historical database
  * @param deviceReading The device reading to store
  */
-async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> {
+async function storeHistoricalData(deviceReading: DeviceReading, req?: any): Promise<void> {
   try {
     // Get the HistoricalData model from client connection
     console.log(
       chalk.blue(`Preparing to store historical data for device ${deviceReading.deviceName}`),
     );
 
-    // Try multiple approaches to get the HistoricalData model for resilience
-    let HistoricalData;
-    
-    // First try with getClientModels
-    const clientModels = getClientModels();
-    if (clientModels && clientModels.HistoricalData) {
-      HistoricalData = clientModels.HistoricalData;
-    }
-    
-    // If that failed, try with mongoose.model directly as a fallback
-    if (!HistoricalData) {
-      try {
-        console.log(chalk.yellow(`Trying to get HistoricalData model with mongoose.model`));
-        HistoricalData = mongoose.model('HistoricalData');
-      } catch (error) {
-        const modelError = error as Error;
-        console.warn(chalk.yellow(`Failed to get HistoricalData model: ${modelError?.message || String(error)}`));
-      }
-    }
+    // Get HistoricalData model using the same approach as device service
+    const HistoricalDataModel = await getHistoricalDataModel(req);
     
     // If we still don't have a model, skip historical data storage
-    if (!HistoricalData) {
+    if (!HistoricalDataModel) {
       console.warn(
         chalk.yellow(`⚠ HistoricalData model not available, skipping historical data storage`),
       );
@@ -1078,13 +1223,31 @@ async function storeHistoricalData(deviceReading: DeviceReading): Promise<void> 
 
     // Insert historical data if there are valid entries
     if (historyEntries.length > 0) {
-      await HistoricalData.insertMany(historyEntries);
-      console.log(
-        chalk.green(`✓ Successfully stored ${historyEntries.length} historical data points`),
+      // Use a timeout for the database operation
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database operation timeout')), 3000)
       );
+      
+      const insertPromise = HistoricalDataModel.insertMany(historyEntries, { 
+        ordered: false // Continue inserting even if some fail
+      });
+      
+      try {
+        await Promise.race([insertPromise, timeoutPromise]);
+        console.log(
+          chalk.green(`✓ Successfully stored ${historyEntries.length} historical data points`),
+        );
+      } catch (timeoutError) {
+        console.warn(chalk.yellow(`⚠ Database operation timed out for historical data, but realtime cache was updated`));
+      }
     }
   } catch (error: any) {
-    console.error(chalk.red(`❌ Error storing historical data: ${error.message || error}`));
+    // Handle specific database errors more gracefully
+    if (error.message && error.message.includes('buffering timed out')) {
+      console.warn(chalk.yellow(`⚠ Database is not available (buffering timeout) for historical data`));
+    } else {
+      console.error(chalk.red(`❌ Error storing historical data: ${error.message || error}`));
+    }
   }
 }
 

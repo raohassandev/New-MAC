@@ -1687,14 +1687,64 @@ export const testConnection = async (
     }
     
     // Try to read a register from first dataPoint or legacy register
-    let address = 0;
+    let address = 1; // Default to safer address 1 instead of 0
     let functionCode = 3; // Default to readHoldingRegisters
     
+    // Check if device has data points configured locally
     if (device.dataPoints && device.dataPoints.length > 0) {
       address = device.dataPoints[0].range.startAddress;
       functionCode = device.dataPoints[0].range.fc;
+      console.log(chalk.cyan(`[deviceService] Using first data point: address ${address}, FC${functionCode}`));
     } else if (device.registers && device.registers.length > 0) {
       address = device.registers[0].address;
+      console.log(chalk.cyan(`[deviceService] Using first register: address ${address}`));
+    } else if (device.deviceDriverId) {
+      // If device has a driver ID but no local config, try to fetch from driver
+      console.log(chalk.yellow(`[deviceService] Device has driver ID but no data points configured locally`));
+      
+      // Try to fetch configuration from device driver in AMX database
+      try {
+        if (reqContext?.app?.locals?.libraryDB) {
+          const templatesCollection = reqContext.app.locals.libraryDB.collection('templates');
+          const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
+          const deviceDriver = await templatesCollection.findOne({ _id: objectId });
+          
+          if (deviceDriver?.dataPoints?.length > 0) {
+            address = deviceDriver.dataPoints[0].range.startAddress;
+            functionCode = deviceDriver.dataPoints[0].range.fc;
+            console.log(chalk.green(`[deviceService] Found config from device driver: address ${address}, FC${functionCode}`));
+          } else {
+            console.log(chalk.yellow(`[deviceService] Device driver found but has no data points`));
+          }
+        }
+      } catch (driverError) {
+        console.warn(`[deviceService] Could not fetch device driver config:`, driverError);
+      }
+    } else {
+      // If no data points configured at all, use safer default addresses based on device type
+      console.log(chalk.yellow(`[deviceService] No data points configured, using default test address`));
+      
+      // Use common safe addresses for different device types
+      if (device.make?.toLowerCase().includes('modbus') || device.make?.toLowerCase().includes('gateway')) {
+        address = 1; // For gateways, use address 1 (40001 notation = address 0, but 0 often fails)
+      } else if (device.make?.toLowerCase().includes('energy') || device.make?.toLowerCase().includes('meter')) {
+        address = 1; // Energy meters often start at address 1
+      } else {
+        address = 1; // Safe default, most devices support this
+      }
+      console.log(chalk.yellow(`[deviceService] Using default test address ${address} for device type: ${device.make || 'unknown'}`));
+    }
+    
+    // Handle Modbus addressing convention (40001 = address 0, 40002 = address 1, etc.)
+    if (address >= 40001 && address <= 49999) {
+      const originalAddress = address;
+      address = address - 40001; // Convert to actual Modbus address
+      console.log(chalk.cyan(`[deviceService] Converted Modbus address ${originalAddress} to actual address ${address}`));
+    } else if (address >= 30001 && address <= 39999) {
+      const originalAddress = address;
+      address = address - 30001; // Input registers
+      functionCode = 4; // Change to read input registers
+      console.log(chalk.cyan(`[deviceService] Converted input register ${originalAddress} to address ${address}, using FC4`));
     }
     
     console.log(
@@ -1827,8 +1877,14 @@ export const testConnection = async (
       troubleshooting = 'Please check:\n• The device documentation for supported Modbus function codes\n• Verify the correct function code is being used for this device\n• Some devices only support a subset of Modbus functions';
     } else if (modbusError.message.includes('Illegal data address')) {
       errorType = 'ILLEGAL_ADDRESS';
-      errorMessage = 'The register address requested does not exist on this device.';
-      troubleshooting = 'Please check:\n• The register address map documentation for your device\n• Address mapping (e.g., some devices start at 0, others at 1)\n• Address offsets and ranges for this specific device model';
+      errorMessage = `The register address ${(device?.dataPoints?.[0]?.range?.startAddress || device?.registers?.[0]?.address || 'unknown')} does not exist on this device.`;
+      troubleshooting = 'Please check:\n• The register address map documentation for your device\n• Address mapping (e.g., some devices start at 0, others at 1)\n• Address offsets and ranges for this specific device model\n• Configure the device with proper data points or select a device driver';
+      
+      // Add hint for unconfigured devices
+      if (!device?.dataPoints?.length && !device?.registers?.length) {
+        errorMessage += ' No data points are configured for this device.';
+        troubleshooting += '\n• IMPORTANT: This device has no data points configured. Please add data points or select a device driver template.';
+      }
     } else if (modbusError.message.includes('Port Not Open')) {
       errorType = 'PORT_NOT_OPEN';
       errorMessage = 'The connection was lost during communication.';

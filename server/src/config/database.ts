@@ -4,6 +4,7 @@ import { createDeviceModel } from '../client/models/device.model';
 import { createDeviceDriverModel } from '../amx/models/deviceDriver.model';
 import { createDeviceTypeModel } from '../amx/models/deviceType.model';
 import HistoricalData from '../client/models/historicalData.model';
+import RealtimeData from '../client/models/realtimeData.model';
 import { createScheduleModels } from '../client/models/schedule.model';
 import EventLog from '../client/models/eventLog.model';
 import dotenv from 'dotenv';
@@ -35,6 +36,13 @@ export const initializeDatabases = async () => {
       minPoolSize: 5,
       maxIdleTimeMS: 30000,
     });
+    
+    // Wait for client connection to be ready
+    if (clientConnection.readyState !== 1) {
+      await new Promise((resolve) => {
+        clientConnection!.once('open', resolve);
+      });
+    }
     console.log('Client database connected successfully');
 
     // Connect to AMX library database with timeout and connection options
@@ -48,29 +56,22 @@ export const initializeDatabases = async () => {
       minPoolSize: 5,
       maxIdleTimeMS: 30000,
     });
+    
+    // Wait for AMX connection to be ready
+    if (amxConnection.readyState !== 1) {
+      await new Promise((resolve) => {
+        amxConnection!.once('open', resolve);
+      });
+    }
     console.log('AMX library database connected successfully');
 
-    // Initialize client models with client connection
-    const scheduleModels = createScheduleModels(clientConnection);
-    
-    clientModels = {
-      Device: createDeviceModel(clientConnection),
-      // Create HistoricalData model with the client connection
-      HistoricalData: clientConnection.model('HistoricalData', HistoricalData.schema),
-      // Create EventLog model with the client connection
-      EventLog: clientConnection.model('EventLog', EventLog.schema),
-      // Add schedule models
-      ScheduleTemplate: scheduleModels.ScheduleTemplate,
-      DeviceSchedule: scheduleModels.DeviceSchedule,
-      // Add other client models here
-    };
+    // Initialize client models using the clientModels function from index.model.ts
+    const { clientModels: createClientModels } = await import('../client/models/index.model');
+    clientModels = createClientModels(clientConnection);
 
     // Initialize AMX models with AMX connection
-    amxModels = {
-      DeviceDriver: createDeviceDriverModel(amxConnection),
-      DeviceType: createDeviceTypeModel(amxConnection),
-      // Add other AMX models here
-    };
+    const { amxModels: createAmxModels } = await import('../amx/models/index.model');
+    amxModels = createAmxModels(amxConnection);
 
     return { clientConnection, amxConnection, clientModels, amxModels };
   } catch (error) {

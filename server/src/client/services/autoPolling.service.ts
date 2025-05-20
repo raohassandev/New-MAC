@@ -17,14 +17,28 @@ const pollingStats = {
   startTime: null as Date | null,
   // New field to track last poll time per device
   deviceLastPollTime: new Map<string, Date>(),
+  // Track consecutive errors per device
+  deviceErrorCount: new Map<string, number>(),
+  // Track last error time per device
+  deviceLastErrorTime: new Map<string, Date>(),
 };
+
+// Store the global default polling interval
+let globalDefaultPollingInterval = 60000; // Default to 60 seconds
 
 /**
  * Start automatic polling for all enabled devices
+ * @param defaultIntervalSeconds Optional default polling interval in seconds (defaults to 60)
  */
-export async function startAutoPollingService(): Promise<void> {
+export async function startAutoPollingService(defaultIntervalSeconds?: number): Promise<void> {
   try {
-    console.log(chalk.magenta('🔄 Starting automatic device polling service...'));
+    // If interval is provided, update the global default (convert seconds to milliseconds)
+    if (defaultIntervalSeconds !== undefined && defaultIntervalSeconds > 0) {
+      globalDefaultPollingInterval = defaultIntervalSeconds * 1000;
+      console.log(chalk.magenta(`🔄 Starting automatic device polling service with default interval: ${defaultIntervalSeconds} seconds`));
+    } else {
+      console.log(chalk.magenta(`🔄 Starting automatic device polling service with default interval: ${globalDefaultPollingInterval / 1000} seconds`));
+    }
     
     // Only start if not already running
     if (pollingStats.isPollingActive) {
@@ -106,7 +120,7 @@ export async function pollAllEnabledDevices(): Promise<void> {
         }
         
         // Determine polling interval for this device
-        let pollingInterval = 60000; // Default to 60 seconds
+        let pollingInterval = globalDefaultPollingInterval; // Use global default
         
         // First try device-specific polling interval
         if (device.pollingInterval) {
@@ -122,14 +136,26 @@ export async function pollAllEnabledDevices(): Promise<void> {
         
         // For offline devices or devices that might have connection issues, 
         // use a longer minimum interval to prevent flooding logs with errors
-        // This checks if the device IP is a placeholder or if it's a known problematic device
         const deviceId = device._id.toString();
         
         // Check for connection issues on previous polls
-        if (deviceId === '681be2e94525b07963a3a3c6') {
-          // This is the device with connection issues - increase minimum polling interval
-          console.log(chalk.yellow(`⚠️ Using extended polling interval for problematic device ${device.name}`));
-          pollingInterval = Math.max(pollingInterval, 5 * 60000); // At least 5 minutes
+        const errorCount = pollingStats.deviceErrorCount.get(deviceId) || 0;
+        const lastErrorTime = pollingStats.deviceLastErrorTime.get(deviceId);
+        
+        if (errorCount > 3) {
+          // If device has had multiple consecutive errors, increase polling interval
+          const minutes = Math.min(errorCount, 10); // Cap at 10 minutes
+          const extendedInterval = minutes * 60000;
+          
+          console.log(chalk.yellow(`⚠️ Device ${device.name} has ${errorCount} consecutive errors, extending interval to ${minutes} minutes`));
+          pollingInterval = Math.max(pollingInterval, extendedInterval);
+        } else if (lastErrorTime) {
+          // If device had recent error, use a moderate extension
+          const minutesSinceError = (Date.now() - lastErrorTime.getTime()) / 60000;
+          if (minutesSinceError < 5) {
+            console.log(chalk.yellow(`⚠️ Device ${device.name} had recent error, using 2 minute interval`));
+            pollingInterval = Math.max(pollingInterval, 2 * 60000);
+          }
         }
         
         // Schedule immediate polling for this device
@@ -163,13 +189,24 @@ export function scheduleDevicePolling(deviceId: string, deviceName: string, poll
   // Execute immediate poll
   console.log(chalk.blue(`📡 Polling device: ${deviceName} (${deviceId})`));
   
-  pollingService.pollDevice(deviceId)
+  // Create a mock request with app locals from global store
+  const req = {
+    app: {
+      locals: (global as any).appLocals || {}
+    }
+  };
+  
+  pollingService.pollDevice(deviceId, req)
     .then(result => {
       console.log(chalk.green(`✅ Successfully polled device ${deviceName}`));
       pollingStats.successfulPolls++;
       
       // Update the last poll time for this device
       pollingStats.deviceLastPollTime.set(deviceId, new Date());
+      
+      // Reset error count on successful poll
+      pollingStats.deviceErrorCount.delete(deviceId);
+      pollingStats.deviceLastErrorTime.delete(deviceId);
       
       // Make the result available to the polling.service cache and database
       // This ensures both services can share the same data
@@ -193,6 +230,14 @@ export function scheduleDevicePolling(deviceId: string, deviceName: string, poll
     })
     .catch(error => {
       const errorMessage = String(error);
+      
+      // Track consecutive errors
+      const currentErrorCount = (pollingStats.deviceErrorCount.get(deviceId) || 0) + 1;
+      pollingStats.deviceErrorCount.set(deviceId, currentErrorCount);
+      pollingStats.deviceLastErrorTime.set(deviceId, new Date());
+      pollingStats.failedPolls++;
+      
+      console.error(chalk.red(`❌ Error polling device ${deviceName} (error #${currentErrorCount}): ${errorMessage}`));
       
       // Check for MongoDB timeout errors
       if (errorMessage.includes('buffering timed out after') || 
@@ -230,8 +275,7 @@ export function scheduleDevicePolling(deviceId: string, deviceName: string, poll
       }
       // Generic error handling
       else {
-        console.error(chalk.red(`❌ Error polling device ${deviceName}: ${errorMessage}`));
-        pollingStats.failedPolls++;
+        // Error already logged above with count
         
         // Even if polling fails, schedule next attempt
         if (pollingStats.isPollingActive) {

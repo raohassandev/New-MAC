@@ -6,11 +6,18 @@ import * as autoPollingService from '../services/autoPolling.service';
 // @access  Private (Admin)
 export const startAutoPolling = async (req: Request, res: Response) => {
   try {
-    await autoPollingService.startAutoPollingService();
+    // Get interval from request body (in seconds)
+    const { intervalSeconds } = req.body;
+    
+    // Start the service with optional interval
+    await autoPollingService.startAutoPollingService(intervalSeconds);
     
     res.status(200).json({
       success: true,
-      message: 'Auto-polling service started successfully',
+      message: intervalSeconds 
+        ? `Auto-polling service started successfully with ${intervalSeconds} seconds interval`
+        : 'Auto-polling service started successfully with default interval',
+      intervalSeconds: intervalSeconds || 60
     });
   } catch (error: any) {
     console.error('Error starting auto-polling service:', error);

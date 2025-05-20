@@ -122,6 +122,9 @@ const startServer = async () => {
     app.locals.libraryDB = amxConnection;
     app.locals.clientModels = clientModels;
     app.locals.libraryModels = amxModels;
+    
+    // Store app.locals globally for polling service access
+    (global as any).appLocals = app.locals;
 
     // Add middleware to ensure device model is always available
     app.use((req, res, next) => {
@@ -202,10 +205,18 @@ const startServer = async () => {
         // Import the auto-polling service
         const { startAutoPollingService } = require('./client/services/autoPolling.service');
 
-        // Start the auto-polling service
-        await startAutoPollingService();
+        // Start the auto-polling service with default 60 seconds interval
+        // You can customize the interval by passing a parameter (in seconds)
+        // Start with default 60 seconds
+  await startAutoPollingService();
+
+  // // Start with 30 seconds interval
+  // await startAutoPollingService(30);
+
+  // // Start with 5 minutes interval
+  // await startAutoPollingService(300);
         console.log(
-          '✅ Auto-polling service started - all enabled devices will be polled automatically',
+          '✅ Auto-polling service can be started via API - all enabled devices will be polled automatically',
         );
       } catch (pollingError) {
         console.warn('⚠️ Failed to start auto-polling service:', pollingError);
