@@ -567,8 +567,19 @@ export const processValidRegistersAsFloat = (
       console.log(`[processValidRegistersAsFloat] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
     }
     
-    // Create buffer to store the values
+    // Create buffer to store the values (4 bytes needed for a float32)
     const buffer = Buffer.alloc(4);
+    
+    // Extract the individual bytes from each register
+    // Each register is 16 bits (2 bytes)
+    // reg1 = [byte1, byte2]
+    // reg2 = [byte3, byte4]
+    const byte1 = (validReg1 >> 8) & 0xFF;  // High byte of reg1
+    const byte2 = validReg1 & 0xFF;         // Low byte of reg1
+    const byte3 = (validReg2 >> 8) & 0xFF;  // High byte of reg2
+    const byte4 = validReg2 & 0xFF;         // Low byte of reg2
+    
+    console.log(`[processValidRegistersAsFloat] Extracted bytes: [${byte1.toString(16)}, ${byte2.toString(16)}, ${byte3.toString(16)}, ${byte4.toString(16)}]`);
     
     // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
@@ -584,62 +595,57 @@ export const processValidRegistersAsFloat = (
     
     console.log(`[processValidRegistersAsFloat] Using byte order: ${mappedByteOrder}`);
     
-    // Write the registers to buffer based on byte order
-    // We use explicit logic for each byte ordering pattern to ensure correctness
+    // Arrange bytes in the buffer according to the byte order
     if (mappedByteOrder === 'ABCD') {
-      // ABCD: High word first, high byte first (Big-endian)
-      // Reg1: bytes 0-1, Reg2: bytes 2-3
-      buffer.writeUInt16BE(validReg1, 0);
-      buffer.writeUInt16BE(validReg2, 2);
-      console.log(`[processValidRegistersAsFloat] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // ABCD: [byte1, byte2, byte3, byte4]
+      buffer[0] = byte1;
+      buffer[1] = byte2;
+      buffer[2] = byte3;
+      buffer[3] = byte4;
     } else if (mappedByteOrder === 'CDAB') {
-      // CDAB: Low word first, high byte first (Mixed-endian)
-      // Reg2: bytes 0-1, Reg1: bytes 2-3
-      buffer.writeUInt16BE(validReg2, 0);
-      buffer.writeUInt16BE(validReg1, 2);
-      console.log(`[processValidRegistersAsFloat] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // CDAB: [byte3, byte4, byte1, byte2]
+      buffer[0] = byte3;
+      buffer[1] = byte4;
+      buffer[2] = byte1;
+      buffer[3] = byte2;
     } else if (mappedByteOrder === 'BADC') {
-      // BADC: High word first, low byte first (Mixed-endian)
-      // Reg1 with bytes swapped: bytes 0-1, Reg2 with bytes swapped: bytes 2-3
-      buffer.writeUInt16LE(validReg1, 0);
-      buffer.writeUInt16LE(validReg2, 2);
-      console.log(`[processValidRegistersAsFloat] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // BADC: [byte2, byte1, byte4, byte3]
+      buffer[0] = byte2;
+      buffer[1] = byte1;
+      buffer[2] = byte4;
+      buffer[3] = byte3;
     } else if (mappedByteOrder === 'DCBA') {
-      // DCBA: Low word first, low byte first (Little-endian)
-      // Reg2 with bytes swapped: bytes 0-1, Reg1 with bytes swapped: bytes 2-3
-      buffer.writeUInt16LE(validReg2, 0);
-      buffer.writeUInt16LE(validReg1, 2);
-      console.log(`[processValidRegistersAsFloat] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // DCBA: [byte4, byte3, byte2, byte1]
+      buffer[0] = byte4;
+      buffer[1] = byte3;
+      buffer[2] = byte2;
+      buffer[3] = byte1;
     }
     
     // Log the buffer content in hexadecimal
     console.log(`[processValidRegistersAsFloat] Buffer hex: ${buffer.toString('hex')}`);
     
-    // Reading the float depends on the overall endianness pattern
+    // Read the float value using the standard readFloatBE/LE methods
+    // The float value is always interpreted as a whole 32-bit entity
+    // For IEEE 754 floating-point, the correct interpretation depends on endianness
     let value: number;
     
-    // For ABCD and CDAB, the bytes within each 16-bit word are in big-endian order,
-    // so we should read the entire 32-bits as big-endian
+    // ABCD and CDAB are big-endian formats for the overall 32-bit value
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readFloatBE(0);
       console.log(`[processValidRegistersAsFloat] Reading as BigEndian float: ${value}`);
     } 
-    // For BADC and DCBA, the bytes within each 16-bit word are in little-endian order,
-    // so we should read the entire 32-bits as little-endian
+    // BADC and DCBA are little-endian formats for the overall 32-bit value
     else {
       value = buffer.readFloatLE(0);
       console.log(`[processValidRegistersAsFloat] Reading as LittleEndian float: ${value}`);
     }
     
-    // Check for NaN, Infinity, or extremely small values close to zero
+    // Check for NaN or Infinity
     if (!isFinite(value)) {
       console.log(`[processValidRegistersAsFloat] Value is not finite (${value}), returning 0`);
       return 0; // Return 0 instead of null for invalid values
     }
-    
-    // We're not checking for small values anymore - the problem was with the threshold
-    // being too aggressive (1e-30), which caused normal readings to be incorrectly
-    // converted to 0. Let's trust the register values as they are.
     
     // Round to 6 decimal places to avoid potential JSON serialization issues
     // For most industrial sensors, 6 decimal places is more than enough precision
@@ -675,7 +681,19 @@ export const processValidRegistersAsInt32 = (
       console.log(`[processValidRegistersAsInt32] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
     }
     
+    // Create buffer to store the values (4 bytes needed for an int32)
     const buffer = Buffer.alloc(4);
+    
+    // Extract the individual bytes from each register
+    // Each register is 16 bits (2 bytes)
+    // reg1 = [byte1, byte2]
+    // reg2 = [byte3, byte4]
+    const byte1 = (validReg1 >> 8) & 0xFF;  // High byte of reg1
+    const byte2 = validReg1 & 0xFF;         // Low byte of reg1
+    const byte3 = (validReg2 >> 8) & 0xFF;  // High byte of reg2
+    const byte4 = validReg2 & 0xFF;         // Low byte of reg2
+    
+    console.log(`[processValidRegistersAsInt32] Extracted bytes: [${byte1.toString(16)}, ${byte2.toString(16)}, ${byte3.toString(16)}, ${byte4.toString(16)}]`);
     
     // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
@@ -691,42 +709,46 @@ export const processValidRegistersAsInt32 = (
     
     console.log(`[processValidRegistersAsInt32] Using byte order: ${mappedByteOrder}`);
     
-    // Write the registers to buffer based on byte order
-    // We use explicit logic for each byte ordering pattern to ensure correctness
+    // Arrange bytes in the buffer according to the byte order
     if (mappedByteOrder === 'ABCD') {
-      // ABCD: High word first, high byte first (Big-endian)
-      buffer.writeUInt16BE(validReg1, 0);
-      buffer.writeUInt16BE(validReg2, 2);
-      console.log(`[processValidRegistersAsInt32] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // ABCD: [byte1, byte2, byte3, byte4]
+      buffer[0] = byte1;
+      buffer[1] = byte2;
+      buffer[2] = byte3;
+      buffer[3] = byte4;
     } else if (mappedByteOrder === 'CDAB') {
-      // CDAB: Low word first, high byte first (Mixed-endian)
-      buffer.writeUInt16BE(validReg2, 0);
-      buffer.writeUInt16BE(validReg1, 2);
-      console.log(`[processValidRegistersAsInt32] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // CDAB: [byte3, byte4, byte1, byte2]
+      buffer[0] = byte3;
+      buffer[1] = byte4;
+      buffer[2] = byte1;
+      buffer[3] = byte2;
     } else if (mappedByteOrder === 'BADC') {
-      // BADC: High word first, low byte first (Mixed-endian)
-      buffer.writeUInt16LE(validReg1, 0);
-      buffer.writeUInt16LE(validReg2, 2);
-      console.log(`[processValidRegistersAsInt32] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // BADC: [byte2, byte1, byte4, byte3]
+      buffer[0] = byte2;
+      buffer[1] = byte1;
+      buffer[2] = byte4;
+      buffer[3] = byte3;
     } else if (mappedByteOrder === 'DCBA') {
-      // DCBA: Low word first, low byte first (Little-endian)
-      buffer.writeUInt16LE(validReg2, 0);
-      buffer.writeUInt16LE(validReg1, 2);
-      console.log(`[processValidRegistersAsInt32] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // DCBA: [byte4, byte3, byte2, byte1]
+      buffer[0] = byte4;
+      buffer[1] = byte3;
+      buffer[2] = byte2;
+      buffer[3] = byte1;
     }
     
     // Log the buffer content in hexadecimal
     console.log(`[processValidRegistersAsInt32] Buffer hex: ${buffer.toString('hex')}`);
     
-    // Reading the int32 depends on the overall endianness pattern
+    // Read the int32 value using the standard readInt32BE/LE methods
+    // The int32 value is always interpreted as a whole 32-bit entity
     let value: number;
     
-    // For ABCD and CDAB, read as big-endian
+    // ABCD and CDAB are big-endian formats for the overall 32-bit value
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readInt32BE(0);
       console.log(`[processValidRegistersAsInt32] Reading as BigEndian Int32: ${value}`);
     } 
-    // For BADC and DCBA, read as little-endian
+    // BADC and DCBA are little-endian formats for the overall 32-bit value
     else {
       value = buffer.readInt32LE(0);
       console.log(`[processValidRegistersAsInt32] Reading as LittleEndian Int32: ${value}`);
@@ -762,7 +784,19 @@ export const processValidRegistersAsUInt32 = (
       console.log(`[processValidRegistersAsUInt32] Adjusted register values: reg1=${reg1}->${validReg1}, reg2=${reg2}->${validReg2}`);
     }
     
+    // Create buffer to store the values (4 bytes needed for a uint32)
     const buffer = Buffer.alloc(4);
+    
+    // Extract the individual bytes from each register
+    // Each register is 16 bits (2 bytes)
+    // reg1 = [byte1, byte2]
+    // reg2 = [byte3, byte4]
+    const byte1 = (validReg1 >> 8) & 0xFF;  // High byte of reg1
+    const byte2 = validReg1 & 0xFF;         // Low byte of reg1
+    const byte3 = (validReg2 >> 8) & 0xFF;  // High byte of reg2
+    const byte4 = validReg2 & 0xFF;         // Low byte of reg2
+    
+    console.log(`[processValidRegistersAsUInt32] Extracted bytes: [${byte1.toString(16)}, ${byte2.toString(16)}, ${byte3.toString(16)}, ${byte4.toString(16)}]`);
     
     // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
@@ -778,42 +812,46 @@ export const processValidRegistersAsUInt32 = (
     
     console.log(`[processValidRegistersAsUInt32] Using byte order: ${mappedByteOrder}`);
     
-    // Write the registers to buffer based on byte order
-    // We use explicit logic for each byte ordering pattern to ensure correctness
+    // Arrange bytes in the buffer according to the byte order
     if (mappedByteOrder === 'ABCD') {
-      // ABCD: High word first, high byte first (Big-endian)
-      buffer.writeUInt16BE(validReg1, 0);
-      buffer.writeUInt16BE(validReg2, 2);
-      console.log(`[processValidRegistersAsUInt32] ABCD: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // ABCD: [byte1, byte2, byte3, byte4]
+      buffer[0] = byte1;
+      buffer[1] = byte2;
+      buffer[2] = byte3;
+      buffer[3] = byte4;
     } else if (mappedByteOrder === 'CDAB') {
-      // CDAB: Low word first, high byte first (Mixed-endian)
-      buffer.writeUInt16BE(validReg2, 0);
-      buffer.writeUInt16BE(validReg1, 2);
-      console.log(`[processValidRegistersAsUInt32] CDAB: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) at bytes 2-3`);
+      // CDAB: [byte3, byte4, byte1, byte2]
+      buffer[0] = byte3;
+      buffer[1] = byte4;
+      buffer[2] = byte1;
+      buffer[3] = byte2;
     } else if (mappedByteOrder === 'BADC') {
-      // BADC: High word first, low byte first (Mixed-endian)
-      buffer.writeUInt16LE(validReg1, 0);
-      buffer.writeUInt16LE(validReg2, 2);
-      console.log(`[processValidRegistersAsUInt32] BADC: Written reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // BADC: [byte2, byte1, byte4, byte3]
+      buffer[0] = byte2;
+      buffer[1] = byte1;
+      buffer[2] = byte4;
+      buffer[3] = byte3;
     } else if (mappedByteOrder === 'DCBA') {
-      // DCBA: Low word first, low byte first (Little-endian)
-      buffer.writeUInt16LE(validReg2, 0);
-      buffer.writeUInt16LE(validReg1, 2);
-      console.log(`[processValidRegistersAsUInt32] DCBA: Written reg2(0x${validReg2.toString(16).padStart(4, '0')}) byte-swapped at bytes 0-1, reg1(0x${validReg1.toString(16).padStart(4, '0')}) byte-swapped at bytes 2-3`);
+      // DCBA: [byte4, byte3, byte2, byte1]
+      buffer[0] = byte4;
+      buffer[1] = byte3;
+      buffer[2] = byte2;
+      buffer[3] = byte1;
     }
     
     // Log the buffer content in hexadecimal
     console.log(`[processValidRegistersAsUInt32] Buffer hex: ${buffer.toString('hex')}`);
     
-    // Reading the uint32 depends on the overall endianness pattern
+    // Read the uint32 value using the standard readUInt32BE/LE methods
+    // The uint32 value is always interpreted as a whole 32-bit entity
     let value: number;
     
-    // For ABCD and CDAB, read as big-endian
+    // ABCD and CDAB are big-endian formats for the overall 32-bit value
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readUInt32BE(0);
       console.log(`[processValidRegistersAsUInt32] Reading as BigEndian UInt32: ${value}`);
     } 
-    // For BADC and DCBA, read as little-endian
+    // BADC and DCBA are little-endian formats for the overall 32-bit value
     else {
       value = buffer.readUInt32LE(0);
       console.log(`[processValidRegistersAsUInt32] Reading as LittleEndian UInt32: ${value}`);

@@ -1,24 +1,71 @@
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+// Custom plugin to handle absolute Windows paths
+function fixWindowsPathsPlugin(): Plugin {
+  return {
+    name: 'fix-windows-paths',
+    // Priority is important - we want to run this before other resolvers
+    enforce: 'pre',
+    
+    resolveId(id, importer) {
+      // Handle absolute Windows paths
+      if (id.match(/^[A-Z]:\\/) || id.match(/^[A-Z]:\//)) {
+        console.log(`[fix-windows-paths] Converting Windows path: ${id}`);
+        
+        // Normalize the path first (convert backslashes to forward slashes)
+        const normalizedId = id.replace(/\\/g, '/');
+        
+        // Check if it's a dashboard import - handle different formats
+        if (normalizedId.match(/D:\/dashboard/i)) {
+          console.log(`[fix-windows-paths] Resolved dashboard to local file`);
+          return path.resolve(__dirname, './src/pages/Dashboard.tsx');
+        }
+        
+        // We can add more mappings here if needed
+      }
+      
+      // Special case for direct "dashboard" imports
+      if (id === 'dashboard') {
+        console.log(`[fix-windows-paths] Resolved 'dashboard' to local file`);
+        return path.resolve(__dirname, './src/pages/Dashboard.tsx');
+      }
+      
+      return null; // Let Vite handle other imports
+    }
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [
+    fixWindowsPathsPlugin(), // Add our custom plugin first
+    react(), 
+    tsconfigPaths()
+  ],
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, './src'),
-      '~/components': path.resolve(__dirname, './src/components'),
-      '~/services': path.resolve(__dirname, './src/services'),
-      '~/hooks': path.resolve(__dirname, './src/hooks'),
-      '~/utils': path.resolve(__dirname, './src/utils'),
-      '~/types': path.resolve(__dirname, './src/types'),
-      '~/context': path.resolve(__dirname, './src/context'),
-      '~/layouts': path.resolve(__dirname, './src/layouts'),
-      '~/pages': path.resolve(__dirname, './src/pages'),
-      '~/api': path.resolve(__dirname, './src/api'),
-    },
+    alias: [
+      { find: /^~\//, replacement: path.resolve(__dirname, './src/') + '/' },
+      { find: '~/components', replacement: path.resolve(__dirname, './src/components') },
+      { find: '~/services', replacement: path.resolve(__dirname, './src/services') },
+      { find: '~/hooks', replacement: path.resolve(__dirname, './src/hooks') },
+      { find: '~/utils', replacement: path.resolve(__dirname, './src/utils') },
+      { find: '~/types', replacement: path.resolve(__dirname, './src/types') },
+      { find: '~/context', replacement: path.resolve(__dirname, './src/context') },
+      { find: '~/layouts', replacement: path.resolve(__dirname, './src/layouts') },
+      { find: '~/pages', replacement: path.resolve(__dirname, './src/pages') },
+      { find: '~/api', replacement: path.resolve(__dirname, './src/api') },
+      // Fix Windows absolute path issues (with regex for case-insensitive matching)
+      { find: /^D:\\dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+      { find: /^D:\/dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+      { find: /^D:\\\\dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+      { find: /^dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+      // Explicitly handle the Dashboard file
+      { find: './pages/Dashboard', replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+      { find: '/pages/Dashboard', replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
+    ],
   },
   server: {
     port: 5173,

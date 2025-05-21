@@ -208,7 +208,7 @@ const startServer = async () => {
         // Start the auto-polling service with default 60 seconds interval
         // You can customize the interval by passing a parameter (in seconds)
         // Start with default 60 seconds
-  await startAutoPollingService();
+  // await startAutoPollingService();
 
   // // Start with 30 seconds interval
   // await startAutoPollingService(30);
@@ -225,8 +225,15 @@ const startServer = async () => {
         );
       }
 
-      // Initialize the schedule processor service
+      // Initialize the setpoint management and schedule processor services
       try {
+        // Import the setpoint management service first
+        const setpointManagement = require('./client/services/setpointManagement.service');
+        
+        // Initialize the transition updater for gradual setpoint changes
+        setpointManagement.initializeTransitionUpdater();
+        console.log('✅ Setpoint management service initialized - setpoint transitions will be handled automatically');
+        
         // Import the schedule processor service
         const { ScheduleProcessorService } = require('./client/services/scheduleProcessor.service');
 

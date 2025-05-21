@@ -10,4 +10,10 @@
 ## In (eng pannel) outside click close form make disbale. and popup for confrimation        //DONE
 ## in device driver form when we change the ranage it cannot check realtime validation      //DONE
 ## Remove the Registers Tab in /devices/:id page            
-## Realtime data from db collection in devices cards at /devices page
+## Realtime data from db collection in devices cards at /devices page                       //DONE
+## Add decimal to parameters like power , energy 
+## Add The poolling configuration setting
+
+
+# client
+## add the schedule in device/:page

@@ -8,6 +8,9 @@ import mongoose from 'mongoose';
 import { getDeviceModel } from './device.service';
 import ScheduleService from './schedule.service';
 import { Request } from 'express';
+import { getDeviceControlStatus } from '../utils/controlBitHelper';
+import { getScheduleBitStatus } from '../utils/scheduleBitHelper';
+import * as setpointManagement from './setpointManagement.service';
 
 export class ScheduleProcessorService {
   private static isProcessing = false;
@@ -95,6 +98,25 @@ export class ScheduleProcessorService {
       throw new Error('Device not found');
     }
     
+    // Check both control bit and schedule switch status
+    const { isControlCentral, isScheduleOn } = await getDeviceControlStatus(schedule.deviceId.toString(), req);
+    
+    // Skip if control is not central
+    if (!isControlCentral) {
+      console.log(`[ScheduleProcessor] Skipping schedule for device ${device.name} (${schedule.deviceId}) - device is in LOCAL control mode`);
+      return;
+    }
+    
+    // Also skip if schedule switch is OFF
+    const scheduleOn = await getScheduleBitStatus(schedule.deviceId.toString(), req);
+    if (!scheduleOn) {
+      console.log(`[ScheduleProcessor] Skipping schedule for device ${device.name} (${schedule.deviceId}) - schedule switch is OFF`);
+      return;
+    }
+    
+    console.log(`[ScheduleProcessor] Device ${device.name} is in CENTRAL control mode with schedule ON, proceeding with schedule`);
+    
+    
     // If device has a device driver, fetch the latest configuration
     if (device.deviceDriverId) {
       let deviceDriver;
@@ -115,21 +137,23 @@ export class ScheduleProcessorService {
       }
     }
     
-    // Determine the value to set
-    const valueToSet = action === 'start' ? rule.setpoint : (rule.defaultSetpoint || 0);
+    // Determine the value to set from the schedule
+    const scheduleSetpoint = action === 'start' ? rule.setpoint : (rule.defaultSetpoint || null);
     
-    // Find the SetPoint parameter in device dataPoints
+    // Find the parameter information from device dataPoints
     let setpointInfo = null;
     for (const dataPoint of device.dataPoints || []) {
       if (dataPoint.parser && dataPoint.parser.parameters) {
         const setpointParam = dataPoint.parser.parameters.find((param: any) => 
-          param.name && param.name.toLowerCase() === 'setpoint'
+          param.name && param.name.toLowerCase() === rule.parameter?.toLowerCase() || param.name?.toLowerCase() === 'setpoint'
         );
         if (setpointParam) {
           setpointInfo = {
             address: dataPoint.range.startAddress,
             functionCode: dataPoint.range.fc || 3,
-            dataType: setpointParam.dataType || 'FLOAT32'
+            dataType: setpointParam.dataType || 'FLOAT32',
+            name: setpointParam.name || 'Setpoint',
+            defaultValue: (setpointParam as any).defaultValue !== undefined ? (setpointParam as any).defaultValue : 0
           };
           break;
         }
@@ -137,74 +161,39 @@ export class ScheduleProcessorService {
     }
     
     if (!setpointInfo) {
-      throw new Error('SetPoint parameter not found on device');
+      throw new Error(`Parameter "${rule.parameter || 'Setpoint'}" not found on device`);
     }
     
-    // Write to the device using Modbus
-    const client = new ModbusRTU();
+    console.log(`[ScheduleProcessor] Found parameter ${setpointInfo.name} at address ${setpointInfo.address}`);
     
+    // Use the new setpoint management service to handle the setpoint logic
     try {
-      // Check if connection settings exist
-      if (!device.connectionSetting) {
-        throw new Error('Device connection settings not found');
+      console.log(`[ScheduleProcessor] Using setpoint management service for ${action} action`);
+      
+      // Get the manual setpoint to use as fallback
+      const manualSetpoint = setpointInfo.defaultValue || 0;
+      
+      // Apply the setpoint using our setpoint management service
+      // This handles selection between schedule and manual setpoints based on control mode
+      const result = await setpointManagement.applySetpoint(
+        schedule.deviceId.toString(),
+        setpointInfo.address,
+        scheduleSetpoint, // Schedule setpoint - can be null for end action
+        manualSetpoint,   // Manual setpoint as fallback
+        req,
+        true             // Use gradual transition for comfort parameters
+      );
+      
+      console.log(`[ScheduleProcessor] Setpoint management result: ${JSON.stringify(result)}`);
+      
+      if (!result.success) {
+        throw new Error(`Failed to apply setpoint: ${result.message}`);
       }
       
-      // Connect to device
-      if (device.connectionSetting.connectionType === 'tcp') {
-        const tcpSettings = device.connectionSetting.tcp;
-        if (!tcpSettings) {
-          throw new Error('TCP connection settings not found');
-        }
-        // Add timeout to TCP connection to prevent hanging
-        const connectPromise = client.connectTCP(
-          tcpSettings.ip,
-          { port: tcpSettings.port }
-        );
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
-        );
-        
-        try {
-          await Promise.race([connectPromise, timeoutPromise]);
-        } catch (error) {
-          console.error(`[scheduleProcessor] TCP connection failed: ${error}`);
-          throw error;
-        }
-        client.setID(tcpSettings.slaveId);
-      } else {
-        const rtuSettings = device.connectionSetting.rtu;
-        if (!rtuSettings) {
-          throw new Error('RTU connection settings not found');
-        }
-        const { connectRTUBuffered } = await import('../utils/modbusHelper');
-        await connectRTUBuffered(client, rtuSettings.serialPort, {
-          baudRate: rtuSettings.baudRate,
-          dataBits: rtuSettings.dataBits as 5 | 6 | 7 | 8,
-          stopBits: rtuSettings.stopBits as 1 | 2,
-          parity: rtuSettings.parity as 'none' | 'even' | 'odd'
-        });
-        client.setID(rtuSettings.slaveId);
-      }
+      console.log(`[ScheduleProcessor] Successfully applied ${result.source} setpoint: ${result.value}`);
       
-      // Write the value
-      console.log(`[ScheduleProcessor] Writing value ${valueToSet} to address ${setpointInfo.address}`);
-      
-      // For FLOAT32, we need to write two registers
-      if (setpointInfo.dataType === 'FLOAT32') {
-        // Convert float to two 16-bit registers
-        const buffer = Buffer.allocUnsafe(4);
-        buffer.writeFloatBE(valueToSet, 0);
-        const registers = [
-          buffer.readUInt16BE(0),
-          buffer.readUInt16BE(2)
-        ];
-        
-        // Write multiple registers (FC16)
-        await client.writeRegisters(setpointInfo.address, registers);
-      } else {
-        // Write single register (FC6)
-        await client.writeRegister(setpointInfo.address, valueToSet);
-      }
+      // The value being used (which might be schedule or manual depending on mode)
+      const valueToSet = result.value;
       
       // Update the schedule's last applied time
       await ScheduleService.updateDeviceSchedule(
@@ -226,7 +215,7 @@ export class ScheduleProcessorService {
       console.log(`[ScheduleProcessor] Successfully applied ${action} rule for device ${device.name}`);
       
     } finally {
-      client.close();
+      // No client to close here - it's managed inside the services
     }
   }
 }

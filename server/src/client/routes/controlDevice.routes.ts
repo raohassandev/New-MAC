@@ -9,6 +9,9 @@ router.post('/:id/control', deviceControlController.controlDevice as express.Req
 router.put('/:id/setpoint/:parameter', deviceControlController.setDeviceParameter as express.RequestHandler);
 router.post('/batch-control', deviceControlController.batchControlDevices as express.RequestHandler);
 
+// Add a new schedule status check endpoint
+router.get('/:id/schedule-status', deviceControlController.checkScheduleStatus as express.RequestHandler);
+
 
 
 

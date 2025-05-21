@@ -131,6 +131,9 @@ const realtimeDataCache = new Map<string, DeviceReading>();
 // Import the one that works correctly with the read endpoint
 import * as deviceService from './device.service';
 
+// Cache for control bit states to ensure consistency across polling cycles
+const controlBitStateCache = new Map<string, {controlValue: boolean, scheduleValue: boolean}>();
+
 export async function pollDevice(deviceId: string, req?: any): Promise<DeviceReading | null> {
   let client = null;
 
@@ -1108,6 +1111,88 @@ async function getHistoricalDataModel(reqContext: any): Promise<mongoose.Model<a
  */
 export async function storeRealtimeData(deviceId: string, data: DeviceReading, req?: any): Promise<void> {
   if (data) {
+    // CRITICAL: Synchronize control bit and schedule bit values before storing
+    // Rule: If control bit is OFF, schedule bit must also be OFF
+    try {
+      if (data.readings && Array.isArray(data.readings)) {
+        // Find control bit (looking for any variation of "control" in the name, case insensitive)
+        const controlBitReading = data.readings.find(r => 
+          r.name && typeof r.name === 'string' && 
+          r.name.toLowerCase().includes('control')
+        );
+        
+        // Find schedule bit (looking for any variation of "schedule" in the name, case insensitive)
+        const scheduleBitReading = data.readings.find(r => 
+          r.name && typeof r.name === 'string' && 
+          r.name.toLowerCase().includes('schedule')
+        );
+        
+        // If we found both control and schedule bits, enforce the rule:
+        // If control bit is OFF (false), schedule bit MUST be OFF (false) too
+        if (controlBitReading && scheduleBitReading) {
+          console.log(chalk.cyan(
+            `[pollingService] Found control bit (${controlBitReading.value}) and ` +
+            `schedule bit (${scheduleBitReading.value})`
+          ));
+          
+          // Cache the current state for reference
+          controlBitStateCache.set(deviceId, {
+            controlValue: Boolean(controlBitReading.value),
+            scheduleValue: Boolean(scheduleBitReading.value)
+          });
+          
+          // Force schedule bit to OFF if control bit is OFF
+          if (controlBitReading.value === false && scheduleBitReading.value === true) {
+            console.log(chalk.yellow(
+              `[pollingService] ⚠️ INCONSISTENCY DETECTED: Control bit is OFF but schedule bit is ON. ` +
+              `Forcing schedule bit to OFF for consistency.`
+            ));
+            scheduleBitReading.value = false;
+            
+            // Update the cache
+            controlBitStateCache.set(deviceId, {
+              controlValue: false,
+              scheduleValue: false
+            });
+            
+            // Also attempt a physical device write to ensure consistency
+            // This is done asynchronously and we don't wait for it
+            try {
+              // Dynamically import to avoid circular dependencies
+              import('./coilControl.service').then(coilControlService => {
+                const scheduleAddress = 
+                  typeof scheduleBitReading.address === 'number' ? 
+                  scheduleBitReading.address : 
+                  (typeof scheduleBitReading.registerIndex === 'number' ? 
+                  scheduleBitReading.registerIndex : null);
+                  
+                if (scheduleAddress !== null) {
+                  console.log(chalk.cyan(`[pollingService] Writing schedule bit OFF to device at address ${scheduleAddress}`));
+                  coilControlService.controlCoilRegister(
+                    deviceId,
+                    scheduleAddress,
+                    false,
+                    req,
+                    'schedule'
+                  ).catch(writeError => {
+                    console.error(chalk.red(`[pollingService] Error writing schedule bit: ${writeError}`));
+                  });
+                }
+              }).catch(importError => {
+                console.error(chalk.red(`[pollingService] Error importing coilControl service: ${importError}`));
+              });
+            } catch (syncError) {
+              console.error(chalk.red(`[pollingService] Error during control/schedule sync: ${syncError}`));
+              // Continue anyway - we've already fixed the in-memory value
+            }
+          }
+        }
+      }
+    } catch (syncError) {
+      console.error(chalk.red(`[pollingService] Error synchronizing control/schedule bits: ${syncError}`));
+      // Continue with storage - don't let this prevent the data being stored
+    }
+    
     // Update in-memory cache immediately
     realtimeDataCache.set(deviceId, data);
     console.log(chalk.blue(`Updated real-time cache for device ${data.deviceName} from external source`));

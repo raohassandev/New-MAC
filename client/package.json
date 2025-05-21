@@ -3,6 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "exports": {
+    "./dashboard": "./src/pages/Dashboard.tsx",
+    "D:/dashboard": "./src/pages/Dashboard.tsx",
+    "D:\\dashboard": "./src/pages/Dashboard.tsx"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import chalk from 'chalk';
 
 import * as coilControlService from '../services/coilControl.service';
+import * as realtimeDataService from '../services/realtimeData.service';
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {
@@ -110,6 +111,27 @@ export const controlDeviceCoil = async (req: AuthRequest, res: Response) => {
       );
       
       console.log(chalk.green(`[coilControlController] Coil control operation completed successfully`));
+      
+      // Update realtime data immediately after successful control operation
+      try {
+        console.log(chalk.cyan(`[coilControlController] Updating realtime data for device ${deviceId}`));
+        
+        // Async update (don't wait for completion to avoid delaying response)
+        realtimeDataService.updateRealtimeDataAfterControl(deviceId, req)
+          .then(updateResult => {
+            if (updateResult.success) {
+              console.log(chalk.green(`[coilControlController] Realtime data updated: ${updateResult.message}`));
+            } else {
+              console.warn(chalk.yellow(`[coilControlController] Realtime data update warning: ${updateResult.message}`));
+            }
+          })
+          .catch(updateError => {
+            console.error(chalk.red(`[coilControlController] Realtime data update error: ${updateError}`));
+          });
+      } catch (updateError) {
+        console.error(chalk.red(`[coilControlController] Error initiating realtime data update: ${updateError}`));
+        // Don't prevent response if realtime update fails
+      }
       
       // Return the result
       return res.status(200).json({
@@ -256,6 +278,27 @@ export const batchControlDeviceCoils = async (req: AuthRequest, res: Response) =
       );
       
       console.log(chalk.green(`[coilControlController] Batch coil control operation completed successfully`));
+      
+      // Update realtime data immediately after successful batch control operation
+      try {
+        console.log(chalk.cyan(`[coilControlController] Updating realtime data for device ${deviceId} after batch operation`));
+        
+        // Async update (don't wait for completion to avoid delaying response)
+        realtimeDataService.updateRealtimeDataAfterControl(deviceId, req)
+          .then(updateResult => {
+            if (updateResult.success) {
+              console.log(chalk.green(`[coilControlController] Realtime data updated after batch: ${updateResult.message}`));
+            } else {
+              console.warn(chalk.yellow(`[coilControlController] Realtime data update warning after batch: ${updateResult.message}`));
+            }
+          })
+          .catch(updateError => {
+            console.error(chalk.red(`[coilControlController] Realtime data update error after batch: ${updateError}`));
+          });
+      } catch (updateError) {
+        console.error(chalk.red(`[coilControlController] Error initiating realtime data update after batch: ${updateError}`));
+        // Don't prevent response if realtime update fails
+      }
       
       // Return the result
       return res.status(200).json({

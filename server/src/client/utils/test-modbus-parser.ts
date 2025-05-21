@@ -13,20 +13,20 @@ import {
 const float32TestCases = [
   {
     description: 'Simple positive value (123.456)',
-    registers: [16968, 17096], // Hex: 0x4237, 0x42C8 (for ABCD order)
-    expectedValue: 123.456,
+    registers: [16968, 17096], // Hex: 0x4248, 0x42C8 (for ABCD order)
+    expectedValue: 50.065216,  // This is the actual value represented by these registers
     byteOrder: 'ABCD'
   },
   {
     description: 'Simple negative value (-123.456)',
-    registers: [49736, 17096], // Hex: 0xC237, 0x42C8 (for ABCD order)
-    expectedValue: -123.456,
+    registers: [49736, 17096], // Hex: 0xC248, 0x42C8 (for ABCD order)
+    expectedValue: -50.065216, // This is the actual value represented by these registers
     byteOrder: 'ABCD'
   },
   {
     description: 'Small positive value (0.123)',
-    registers: [15795, 53052], // Hex: 0x3DF3, 0xCF5C (for ABCD order)
-    expectedValue: 0.123,
+    registers: [15795, 53052], // Hex: 0x3DB3, 0xCF3C (for ABCD order)
+    expectedValue: 0.087798,   // This is the actual value represented by these registers
     byteOrder: 'ABCD'
   },
   {
@@ -37,15 +37,15 @@ const float32TestCases = [
   },
   {
     description: 'Temperature (25.5 degrees C)',
-    registers: [16755, 0], // Hex: 0x41CC, 0x0000 (for ABCD order)
-    expectedValue: 25.5,
+    registers: [16755, 0],    // Hex: 0x4173, 0x0000 (for ABCD order)
+    expectedValue: 15.1875,   // This is the actual value represented by these registers
     byteOrder: 'ABCD'
   },
   // Test CDAB byte order (commonly used in some devices)
   {
-    description: 'CDAB byte order (123.456)',
-    registers: [17096, 16968], // Swapped from ABCD
-    expectedValue: 123.456,
+    description: 'CDAB byte order (50.065)',
+    registers: [17096, 16968], // Hex: 0x42C8, 0x4248 (for CDAB order)
+    expectedValue: 50.065216,  // This is the actual value represented by these registers
     byteOrder: 'CDAB'
   }
 ];
@@ -59,9 +59,9 @@ const int32TestCases = [
     byteOrder: 'ABCD'
   },
   {
-    description: 'Negative 32-bit integer (-123456)',
+    description: 'Negative 32-bit integer (-57921)',
     registers: [65535, 7615], // 0xFFFF, 0x1DBF in ABCD order
-    expectedValue: -123456,
+    expectedValue: -57921,    // This is the actual value represented by these registers
     byteOrder: 'ABCD'
   },
   {

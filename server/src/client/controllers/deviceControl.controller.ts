@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import chalk from 'chalk';
 
 import * as deviceService from '../services/device.service';
+import * as setpointManagement from '../services/setpointManagement.service';
 
 // Define a custom request type that includes user information
 interface AuthRequest extends Request {
@@ -212,6 +213,23 @@ export const setDeviceParameter = async (req: AuthRequest, res: Response) => {
       dataType,
       byteOrder
     };
+    
+    // Check if a schedule is active for this device and prevent manual setpoint changes
+    try {
+      const isScheduleActive = await setpointManagement.isScheduleModeActive(deviceId.toString(), req);
+      
+      if (isScheduleActive) {
+        console.log(chalk.yellow(`[deviceController] Rejecting setpoint change because schedule is active for device ${deviceId}`));
+        return res.status(403).json({
+          success: false,
+          message: 'Cannot modify setpoint while schedule is active. Disable schedule first to make manual changes.',
+          isScheduleActive: true
+        });
+      }
+    } catch (scheduleCheckError) {
+      console.warn(chalk.yellow(`[deviceController] Error checking schedule status: ${scheduleCheckError}`));
+      // Continue with the operation even if we couldn't check schedule status
+    }
     
     console.log(chalk.cyan(`[deviceController] Setting parameter "${parameterName}" to ${value} for device ${deviceId}`));
     
@@ -426,6 +444,78 @@ export const batchControlDevices = async (req: AuthRequest, res: Response) => {
       success: false,
       message: 'Server error processing the batch control request',
       error: error.message
+    });
+  }
+};
+
+// New endpoint: Check if schedule is active for a device
+// @desc    Check if a device has an active schedule
+// @route   GET /api/devices/:id/schedule-status
+// @access  Private (any authenticated user)
+export const checkScheduleStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    console.log(chalk.bgYellow.black('[deviceControlController] Checking schedule status'));
+    
+    const deviceId = req.params.id;
+    
+    if (!deviceId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Device ID is required',
+        isScheduleActive: false 
+      });
+    }
+    
+    // Check if deviceId is in the correct format
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      console.error(`[deviceControlController] Invalid device ID format: ${deviceId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid device ID format',
+        isScheduleActive: false
+      });
+    }
+    
+    // Get schedule status from setpointManagement service
+    try {
+      const isScheduleActive = await setpointManagement.isScheduleModeActive(deviceId.toString(), req);
+      
+      console.log(chalk.cyan(`[deviceControlController] Schedule status for device ${deviceId}: ${isScheduleActive ? 'ACTIVE' : 'INACTIVE'}`));
+      
+      // Return the schedule status
+      return res.status(200).json({
+        success: true,
+        deviceId,
+        isScheduleActive,
+        timestamp: new Date()
+      });
+    } catch (scheduleCheckError: any) {
+      console.warn(chalk.yellow(`[deviceControlController] Error checking schedule status: ${scheduleCheckError}`));
+      
+      // If we can't determine the schedule status, assume it's not active for safety
+      return res.status(200).json({
+        success: true,
+        deviceId,
+        isScheduleActive: false,
+        warning: 'Could not accurately determine schedule status',
+        timestamp: new Date()
+      });
+    }
+  } catch (error: any) {
+    // This is a catch-all for unexpected errors
+    console.error(chalk.bgRed.white('[deviceControlController] Critical error checking schedule status:'), error);
+    
+    // Log the stack trace
+    if (error.stack) {
+      console.error(chalk.red(`[deviceControlController] Error stack: ${error.stack}`));
+    }
+    
+    // Return a generic error response
+    return res.status(500).json({
+      success: false,
+      message: 'Server error checking schedule status',
+      error: error.message,
+      isScheduleActive: false // Default to not active for safety
     });
   }
 };
