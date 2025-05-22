@@ -12,7 +12,6 @@ import {
   Settings,
   Activity,
   FileText,
-  List,
   Save,
   Zap,
   Clock,
@@ -66,7 +65,7 @@ const DeviceDetails: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedDevice, setEditedDevice] = useState<Device | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'details' | 'registers' | 'readings' | 'advanced' | 'edit'
+    'details' | 'readings' | 'advanced' | 'edit'
   >('details');
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
 
@@ -1071,19 +1070,6 @@ const DeviceDetails: React.FC = () => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('registers')}
-              className={`whitespace-nowrap border-b-2 px-6 py-4 text-sm font-medium ${
-                activeTab === 'registers'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              <div className="flex items-center">
-                <List size={16} className="mr-2" />
-                Registers
-              </div>
-            </button>
-            <button
               onClick={() => setActiveTab('readings')}
               className={`whitespace-nowrap border-b-2 px-6 py-4 text-sm font-medium ${
                 activeTab === 'readings'
@@ -1333,111 +1319,6 @@ const DeviceDetails: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'registers' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-700">Register Configuration</h3>
-                {canEditDevices && (
-                  <button
-                    onClick={handleEdit}
-                    className="flex items-center gap-1 rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
-                  >
-                    <Edit size={14} />
-                    Edit Registers
-                  </button>
-                )}
-              </div>
-
-              {device.registers && device.registers.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Name
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Address
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Function Code
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Length
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Scale Factor
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-                        >
-                          Unit
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {device.registers.map((register, index) => (
-                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                            {register.name}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {register.address}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {register.functionCode || '3'}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {register.length}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {register.scaleFactor || '1'}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {register.unit || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-gray-50 p-8 text-center">
-                  <FileText size={32} className="mx-auto mb-4 text-gray-400" />
-                  <h3 className="mb-2 text-lg font-medium text-gray-700">
-                    No Registers Configured
-                  </h3>
-                  <p className="mb-4 text-gray-500">
-                    This device doesn't have any registers configured yet.
-                  </p>
-                  {canEditDevices && (
-                    <button
-                      onClick={handleEdit}
-                      className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-                    >
-                      Configure Registers
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           {activeTab === 'readings' && (
             <div className="space-y-4">

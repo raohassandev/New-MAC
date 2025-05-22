@@ -9,11 +9,11 @@
 ## In (eng pannel) Deivce Driver rename tempalate to Device drivers                         //DONE
 ## In (eng pannel) outside click close form make disbale. and popup for confrimation        //DONE
 ## in device driver form when we change the ranage it cannot check realtime validation      //DONE
-## Remove the Registers Tab in /devices/:id page            
+## Remove the Registers Tab in /devices/:id page                                            //DONE
 ## Realtime data from db collection in devices cards at /devices page                       //DONE
-## Add decimal to parameters like power , energy 
+## Add decimal to parameters like power , energy                                            //DONE
 ## Add The poolling configuration setting
 
 
 # client
-## add the schedule in device/:page
+## add the schedule in device/:page                                                         //DONE

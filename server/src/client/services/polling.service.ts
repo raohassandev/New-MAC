@@ -761,10 +761,11 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
                   }
                 }
 
-                // Format decimal places if defined
+                // Format decimal places if defined - don't truncate decimals when decimalPoint is undefined or 0
                 if (param.decimalPoint && param.decimalPoint > 0 && typeof value === 'number') {
                   value = parseFloat(value.toFixed(param.decimalPoint));
                 }
+                // Preserve original decimal values when decimalPoint is 0 or undefined
 
                 const reading = {
                   name: param.name,
@@ -853,10 +854,11 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
             value = value / register.scaleFactor;
           }
 
-          // Format decimal places if defined
+          // Format decimal places if defined - don't truncate decimals when decimalPoint is undefined or 0
           if (register.decimalPoint && register.decimalPoint > 0) {
             value = parseFloat(value.toFixed(register.decimalPoint));
           }
+          // Preserve original decimal values when decimalPoint is 0 or undefined
 
           readings.push({
             name: register.name,

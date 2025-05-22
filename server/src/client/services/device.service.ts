@@ -557,10 +557,11 @@ export const processValidRegistersAsFloat = (
     console.log(`[processValidRegistersAsFloat] Processing registers: reg1=${reg1} (0x${reg1.toString(16).padStart(4, '0')}), reg2=${reg2} (0x${reg2.toString(16).padStart(4, '0')}), byteOrder=${byteOrder}`);
     
     // Ensure the registers are valid numbers between 0-65535 (16-bit values)
+    // Fixed: Removed Math.floor() to preserve decimal precision for FLOAT32 processing
     const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+      Math.max(0, Math.min(65535, reg1)) : 0;
     const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+      Math.max(0, Math.min(65535, reg2)) : 0;
     
     // Report if we had to adjust the register values
     if (validReg1 !== reg1 || validReg2 !== reg2) {
@@ -647,10 +648,10 @@ export const processValidRegistersAsFloat = (
       return 0; // Return 0 instead of null for invalid values
     }
     
-    // Round to 6 decimal places to avoid potential JSON serialization issues
-    // For most industrial sensors, 6 decimal places is more than enough precision
-    const roundedValue = Number(value.toFixed(6));
-    console.log(`[processValidRegistersAsFloat] Final rounded value (6 decimals): ${roundedValue}`);
+    // Round to 2 decimal places for better readability (e.g., 16.54 instead of 16.54123423)
+    // This provides sufficient precision for most industrial applications
+    const roundedValue = Number(value.toFixed(2));
+    console.log(`[processValidRegistersAsFloat] Final rounded value (2 decimals): ${roundedValue}`);
     return roundedValue;
   } catch (error) {
     console.error('[deviceService] Buffer operation error:', error);
@@ -672,9 +673,9 @@ export const processValidRegistersAsInt32 = (
     
     // Ensure the registers are valid numbers between 0-65535 (16-bit values)
     const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+      Math.max(0, Math.min(65535, reg1)) : 0;
     const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+      Math.max(0, Math.min(65535, reg2)) : 0;
     
     // Report if we had to adjust the register values
     if (validReg1 !== reg1 || validReg2 !== reg2) {
@@ -775,9 +776,9 @@ export const processValidRegistersAsUInt32 = (
     
     // Ensure the registers are valid numbers between 0-65535 (16-bit values)
     const validReg1 = typeof reg1 === 'number' && isFinite(reg1) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg1))) : 0;
+      Math.max(0, Math.min(65535, reg1)) : 0;
     const validReg2 = typeof reg2 === 'number' && isFinite(reg2) ? 
-      Math.max(0, Math.min(65535, Math.floor(reg2))) : 0;
+      Math.max(0, Math.min(65535, reg2)) : 0;
     
     // Report if we had to adjust the register values
     if (validReg1 !== reg1 || validReg2 !== reg2) {
@@ -963,7 +964,8 @@ export const processAndFormatValue = (
       originalValue = value;
       const decimalPoints = Number(param.decimalPoint);
       
-      if (!isNaN(decimalPoints) && isFinite(decimalPoints) && decimalPoints >= 0) {
+      // Fixed: Changed from >= 0 to > 0 to preserve decimal values when decimalPoint is 0
+      if (!isNaN(decimalPoints) && isFinite(decimalPoints) && decimalPoints > 0) {
         // Check if value is extremely small before formatting
         if (Math.abs(value) < Math.pow(10, -decimalPoints)) {
           // For very small values, preserve scientific notation or original value
