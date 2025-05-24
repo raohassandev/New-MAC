@@ -33,10 +33,6 @@
       "~/layouts/*": ["layouts/*"],
       "~/pages/*": ["pages/*"],
       "~/api/*": ["api/*"],
-      /* Handle problematic Windows path */
-      "D:/dashboard": ["pages/Dashboard.tsx"],
-      "D:\\dashboard": ["pages/Dashboard.tsx"],
-      "dashboard": ["pages/Dashboard.tsx"]
     }
   },
   "include": ["src"],

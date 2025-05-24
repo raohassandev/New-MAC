@@ -56,7 +56,7 @@ function createDataPointFromRange(
 ): DataPoint {
   // Find all parameters associated with this range (case-insensitive match)
   const rangeParameters = parameters.filter(param => 
-    param.registerRange.toLowerCase() === range.rangeName.toLowerCase()
+    param.registerRange?.toLowerCase() === range.rangeName.toLowerCase()
   );
 
   return {

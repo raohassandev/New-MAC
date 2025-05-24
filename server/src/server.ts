@@ -211,7 +211,7 @@ const startServer = async () => {
   // await startAutoPollingService();
 
   // // Start with 30 seconds interval
-  // await startAutoPollingService(30);
+  await startAutoPollingService(30);
 
   // // Start with 5 minutes interval
   // await startAutoPollingService(300);

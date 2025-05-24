@@ -371,13 +371,13 @@ const DeviceDriverDetails: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
           <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6">
             <button
-              onClick={handleCancelEdit}
+              onClick={handleCancel}
               className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-600"
             >
               ×
             </button>
             <NewDeviceDriverForm
-              onClose={handleCancelEdit}
+              onClose={handleCancel}
               onSubmit={handleUpdateDeviceDriver}
               initialData={deviceDriver}
               isEditing={true}

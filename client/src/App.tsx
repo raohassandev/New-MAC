@@ -4,7 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { DeviceProvider } from './context/DeviceContext';
-import Dashboard from '~/pages/Dashboard'; // Use the path alias instead of relative path
+import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
 import DeviceDriverDetails from './pages/DeviceDriverDetails';
 import DeviceDriverManagement from './pages/DeviceDriverManagement';

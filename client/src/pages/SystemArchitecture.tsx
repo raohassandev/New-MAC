@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Tabs, Tab, Typography, Paper } from '@mui/material';
-import SystemArchitectureDiagram from '../components/architecture/SystemArchitectureDiagram';
+import SystemArchitectureDiagramImproved from '../components/architecture/SystemArchitectureDiagramImproved';
 import UpgradePlanner from '../components/architecture/UpgradePlanner';
 import 'reactflow/dist/style.css';
 
@@ -65,7 +65,7 @@ const SystemArchitecture: React.FC = () => {
       </Paper>
 
       <TabPanel value={tabValue} index={0}>
-        <SystemArchitectureDiagram />
+        <SystemArchitectureDiagramImproved />
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
         <UpgradePlanner />

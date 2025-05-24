@@ -17,6 +17,7 @@ import {
   Server,
   Sliders,
   Trash,
+  Upload,
   X,
 } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
@@ -27,6 +28,7 @@ import {
   selectDeviceRefreshInterval,
   selectDevicePollingEnabled,
 } from '../redux/features/siteConfiguration';
+import * as Papa from 'papaparse';
 
 // Define useAppSelector to avoid circular dependencies
 const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
@@ -107,6 +109,21 @@ const DeviceManagement: React.FC = () => {
     success: boolean;
     message: string;
   } | null>(null);
+  
+  // Import-related state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importProgress, setImportProgress] = useState<{
+    current: number;
+    total: number;
+    status: 'idle' | 'parsing' | 'importing' | 'completed' | 'error';
+    message: string;
+  }>({ current: 0, total: 0, status: 'idle', message: '' });
+  const [importResults, setImportResults] = useState<{
+    successful: number;
+    failed: number;
+    errors: Array<{ row: number; device: string; error: string }>;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Extract all tags and device types from devices
   useEffect(() => {
@@ -380,36 +397,89 @@ const DeviceManagement: React.FC = () => {
     }
   };
 
-  // Export devices to CSV
+  // Export devices to CSV with ALL properties for complete recreation
   const handleExportDevices = () => {
     if (!filteredDevices.length) return;
 
-    // Create CSV content
+    // Helper function to escape CSV values and handle JSON serialization
+    const escapeCSV = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'object') {
+        // Serialize complex objects as JSON strings
+        return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
+      }
+      const stringValue = String(value);
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    // Enhanced headers for complete device recreation
     const headers = [
-      'Name',
-      'IP Address',
-      'Port',
-      'Status',
-      'Slave ID',
-      'Last Seen',
-      'Make',
-      'Model',
-      'Tags',
+      'name',
+      'enabled',
+      'deviceType',
+      'isTemplate',
+      'isDeviceDriver', 
+      'make',
+      'model',
+      'description',
+      'tags',
+      'deviceDriverId',
+      'usage',
+      'usageNotes',
+      'location',
+      'pollingInterval',
+      'connectionSetting',
+      'dataPoints',
+      'advancedSettings',
+      'registerRanges',
+      'parameterConfigs',
+      'connectionType',
+      'ip',
+      'port',
+      'slaveId',
+      'serialPort',
+      'baudRate',
+      'dataBits',
+      'stopBits',
+      'parity',
+      'createdBy'
     ].join(',');
 
-    const rows = filteredDevices.map(device =>
-      [
-        device.name,
-        device.connectionSetting?.tcp?.ip || device.connectionSetting?.rtu?.serialPort || '',
-        device.connectionSetting?.tcp?.port || device.connectionSetting?.rtu?.baudRate || '',
-        device.enabled ? 'Enabled' : 'Disabled',
-        device.connectionSetting?.tcp?.slaveId || device.connectionSetting?.rtu?.slaveId || '',
-        device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never',
-        device.make || '',
-        device.model || '',
-        device.tags ? device.tags.join(';') : '',
-      ].join(',')
-    );
+    const rows = filteredDevices.map(device => [
+      escapeCSV(device.name),
+      escapeCSV(device.enabled),
+      escapeCSV(device.deviceType),
+      escapeCSV(device.isTemplate),
+      escapeCSV(device.isDeviceDriver),
+      escapeCSV(device.make),
+      escapeCSV(device.model),
+      escapeCSV(device.description),
+      escapeCSV(device.tags ? device.tags.join(';') : ''),
+      escapeCSV(device.deviceDriverId),
+      escapeCSV(device.usage),
+      escapeCSV(device.usageNotes),
+      escapeCSV(device.location),
+      escapeCSV(device.pollingInterval),
+      escapeCSV(device.connectionSetting),
+      escapeCSV(device.dataPoints),
+      escapeCSV(device.advancedSettings),
+      escapeCSV(device.registerRanges),
+      escapeCSV(device.parameterConfigs),
+      escapeCSV(device.connectionType),
+      escapeCSV(device.ip),
+      escapeCSV(device.port),
+      escapeCSV(device.slaveId),
+      escapeCSV(device.serialPort),
+      escapeCSV(device.baudRate),
+      escapeCSV(device.dataBits),
+      escapeCSV(device.stopBits),
+      escapeCSV(device.parity),
+      escapeCSV(device.createdBy)
+    ].join(','));
 
     const csvContent = [headers, ...rows].join('\n');
 
@@ -418,10 +488,215 @@ const DeviceManagement: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `devices_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `devices_complete_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast.success(`Exported ${filteredDevices.length} devices to CSV`);
+  };
+
+  // Import devices from CSV
+  const handleImportDevices = () => {
+    setIsImportModalOpen(true);
+    setImportProgress({ current: 0, total: 0, status: 'idle', message: '' });
+    setImportResults(null);
+  };
+
+  // Process CSV file for import
+  const processImportFile = (file: File) => {
+    setImportProgress({ current: 0, total: 0, status: 'parsing', message: 'Parsing CSV file...' });
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        if (results.errors.length > 0) {
+          setImportProgress({
+            current: 0,
+            total: 0,
+            status: 'error',
+            message: `CSV parsing errors: ${results.errors.map(e => e.message).join(', ')}`
+          });
+          return;
+        }
+
+        const deviceRows = results.data as any[];
+        if (deviceRows.length === 0) {
+          setImportProgress({
+            current: 0,
+            total: 0,
+            status: 'error',
+            message: 'No device data found in CSV file'
+          });
+          return;
+        }
+
+        setImportProgress({
+          current: 0,
+          total: deviceRows.length,
+          status: 'importing',
+          message: `Starting import of ${deviceRows.length} devices...`
+        });
+
+        await importDevicesFromParsedData(deviceRows);
+      },
+      error: (error) => {
+        setImportProgress({
+          current: 0,
+          total: 0,
+          status: 'error',
+          message: `Failed to parse CSV: ${error.message}`
+        });
+      }
+    });
+  };
+
+  // Import devices from parsed CSV data
+  const importDevicesFromParsedData = async (deviceRows: any[]) => {
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: [] as Array<{ row: number; device: string; error: string }>
+    };
+
+    for (let i = 0; i < deviceRows.length; i++) {
+      const row = deviceRows[i];
+      const rowNumber = i + 2; // +1 for 0-based index, +1 for header row
+
+      try {
+        setImportProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          message: `Importing device ${i + 1} of ${deviceRows.length}: ${row.name || 'Unknown'}`
+        }));
+
+        // Transform CSV row back to Device object
+        const deviceData = transformCSVRowToDevice(row);
+
+        // Validate required fields
+        if (!deviceData.name) {
+          throw new Error('Device name is required');
+        }
+
+        // Check if device with same name already exists
+        const existingDevice = devices?.find(d => d.name === deviceData.name);
+        if (existingDevice) {
+          throw new Error(`Device with name "${deviceData.name}" already exists`);
+        }
+
+        // Create the device
+        await addDevice(deviceData);
+        results.successful++;
+
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push({
+          row: rowNumber,
+          device: row.name || `Row ${rowNumber}`,
+          error: error.message || 'Unknown error'
+        });
+      }
+    }
+
+    setImportResults(results);
+    setImportProgress({
+      current: deviceRows.length,
+      total: deviceRows.length,
+      status: 'completed',
+      message: `Import completed: ${results.successful} successful, ${results.failed} failed`
+    });
+
+    // Refresh devices to show newly imported ones
+    await refreshDevices();
+
+    // Show summary toast
+    if (results.successful > 0) {
+      toast.success(`Successfully imported ${results.successful} devices`);
+    }
+    if (results.failed > 0) {
+      toast.error(`Failed to import ${results.failed} devices. Check import results for details.`);
+    }
+  };
+
+  // Transform CSV row back to Device object
+  const transformCSVRowToDevice = (row: any): any => {
+    // Helper function to parse JSON strings safely
+    const parseJSON = (value: string) => {
+      if (!value || value === '') return undefined;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return undefined;
+      }
+    };
+
+    // Helper function to parse boolean values
+    const parseBoolean = (value: string) => {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      return undefined;
+    };
+
+    // Helper function to parse numbers
+    const parseNumber = (value: string) => {
+      if (!value || value === '') return undefined;
+      const num = Number(value);
+      return isNaN(num) ? undefined : num;
+    };
+
+    // Build the device object
+    const device: any = {
+      name: row.name,
+      enabled: parseBoolean(row.enabled) ?? true,
+      deviceType: row.deviceType || undefined,
+      isTemplate: parseBoolean(row.isTemplate) ?? false,
+      isDeviceDriver: parseBoolean(row.isDeviceDriver) ?? false,
+      make: row.make || undefined,
+      model: row.model || undefined,
+      description: row.description || undefined,
+      tags: row.tags ? row.tags.split(';').filter((tag: string) => tag.trim()) : [],
+      deviceDriverId: row.deviceDriverId || undefined,
+      usage: row.usage || undefined,
+      usageNotes: row.usageNotes || undefined,
+      location: row.location || undefined,
+      pollingInterval: parseNumber(row.pollingInterval),
+      connectionSetting: parseJSON(row.connectionSetting),
+      dataPoints: parseJSON(row.dataPoints),
+      advancedSettings: parseJSON(row.advancedSettings),
+      registerRanges: parseJSON(row.registerRanges),
+      parameterConfigs: parseJSON(row.parameterConfigs),
+      // Legacy connection fields for backward compatibility
+      connectionType: row.connectionType || undefined,
+      ip: row.ip || undefined,
+      port: parseNumber(row.port),
+      slaveId: parseNumber(row.slaveId),
+      serialPort: row.serialPort || undefined,
+      baudRate: parseNumber(row.baudRate),
+      dataBits: parseNumber(row.dataBits),
+      stopBits: parseNumber(row.stopBits),
+      parity: row.parity || undefined,
+      createdBy: parseJSON(row.createdBy)
+    };
+
+    // Remove undefined values to clean up the object
+    Object.keys(device).forEach(key => {
+      if (device[key] === undefined) {
+        delete device[key];
+      }
+    });
+
+    return device;
+  };
+
+  // Handle file selection for import
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'text/csv') {
+      processImportFile(file);
+    } else {
+      toast.error('Please select a valid CSV file');
+    }
   };
 
   // Toggle tag selection
@@ -497,16 +772,26 @@ const DeviceManagement: React.FC = () => {
               Add New Device
             </Button>
           </div>
-          {filteredDevices.length > 0 && (
+          <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={handleExportDevices}
+              onClick={handleImportDevices}
               className="flex items-center gap-2"
             >
-              <Download size={16} />
-              Export
+              <Upload size={16} />
+              Import
             </Button>
-          )}
+            {filteredDevices.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleExportDevices}
+                className="flex items-center gap-2"
+              >
+                <Download size={16} />
+                Export
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1162,6 +1447,157 @@ const DeviceManagement: React.FC = () => {
                 Delete
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50">
+          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+            <h2 className="mb-4 text-xl font-semibold">Import Devices from CSV</h2>
+            
+            {importProgress.status === 'idle' && (
+              <div>
+                <p className="mb-4 text-gray-600">
+                  Select a CSV file to import devices. The file should be in the same format as our export.
+                </p>
+                <div className="mb-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsImportModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {(importProgress.status === 'parsing' || importProgress.status === 'importing') && (
+              <div>
+                <div className="mb-4">
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span>{importProgress.message}</span>
+                    <span>{importProgress.current} / {importProgress.total}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-gray-200">
+                    <div
+                      className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                      style={{
+                        width: importProgress.total > 0 
+                          ? `${(importProgress.current / importProgress.total) * 100}%` 
+                          : '0%'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {importProgress.status === 'error' && (
+              <div>
+                <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+                  <div className="flex items-start">
+                    <AlertCircle size={20} className="mr-3 mt-0.5 text-red-500" />
+                    <div>
+                      <p className="font-medium text-red-800">Import Error</p>
+                      <p className="text-red-700">{importProgress.message}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsImportModalOpen(false);
+                      setImportProgress({ current: 0, total: 0, status: 'idle', message: '' });
+                    }}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      setImportProgress({ current: 0, total: 0, status: 'idle', message: '' });
+                      setImportResults(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {importProgress.status === 'completed' && importResults && (
+              <div>
+                <div className="mb-4">
+                  <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-4">
+                    <div className="flex items-start">
+                      <CheckCircle size={20} className="mr-3 mt-0.5 text-green-500" />
+                      <div>
+                        <p className="font-medium text-green-800">Import Completed</p>
+                        <p className="text-green-700">
+                          Successfully imported {importResults.successful} devices.
+                          {importResults.failed > 0 && ` ${importResults.failed} devices failed to import.`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {importResults.errors.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="mb-2 font-medium text-gray-900">Import Errors:</h3>
+                      <div className="max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-gray-50 p-3">
+                        {importResults.errors.map((error, index) => (
+                          <div key={index} className="mb-2 text-sm">
+                            <span className="font-medium text-red-600">Row {error.row}</span>
+                            <span className="text-gray-600"> ({error.device}): </span>
+                            <span className="text-gray-800">{error.error}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsImportModalOpen(false);
+                      setImportProgress({ current: 0, total: 0, status: 'idle', message: '' });
+                      setImportResults(null);
+                    }}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      setImportProgress({ current: 0, total: 0, status: 'idle', message: '' });
+                      setImportResults(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                  >
+                    Import Another File
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

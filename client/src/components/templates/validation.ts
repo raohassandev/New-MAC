@@ -484,7 +484,7 @@ export const validateParameters = (
       // Check register range validity
       if (param.registerRange) {
         const selectedRange = registerRanges.find(range => 
-          range.rangeName.toLowerCase() === param.registerRange.toLowerCase()
+          range.rangeName.toLowerCase() === param.registerRange?.toLowerCase()
         );
 
         if (!selectedRange) {

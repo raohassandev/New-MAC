@@ -18,20 +18,10 @@ function fixWindowsPathsPlugin(): Plugin {
         // Normalize the path first (convert backslashes to forward slashes)
         const normalizedId = id.replace(/\\/g, '/');
         
-        // Check if it's a dashboard import - handle different formats
-        if (normalizedId.match(/D:\/dashboard/i)) {
-          console.log(`[fix-windows-paths] Resolved dashboard to local file`);
-          return path.resolve(__dirname, './src/pages/Dashboard.tsx');
-        }
         
         // We can add more mappings here if needed
       }
       
-      // Special case for direct "dashboard" imports
-      if (id === 'dashboard') {
-        console.log(`[fix-windows-paths] Resolved 'dashboard' to local file`);
-        return path.resolve(__dirname, './src/pages/Dashboard.tsx');
-      }
       
       return null; // Let Vite handle other imports
     }
@@ -57,14 +47,6 @@ export default defineConfig({
       { find: '~/layouts', replacement: path.resolve(__dirname, './src/layouts') },
       { find: '~/pages', replacement: path.resolve(__dirname, './src/pages') },
       { find: '~/api', replacement: path.resolve(__dirname, './src/api') },
-      // Fix Windows absolute path issues (with regex for case-insensitive matching)
-      { find: /^D:\\dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
-      { find: /^D:\/dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
-      { find: /^D:\\\\dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
-      { find: /^dashboard$/i, replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
-      // Explicitly handle the Dashboard file
-      { find: './pages/Dashboard', replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
-      { find: '/pages/Dashboard', replacement: path.resolve(__dirname, './src/pages/Dashboard.tsx') },
     ],
   },
   server: {

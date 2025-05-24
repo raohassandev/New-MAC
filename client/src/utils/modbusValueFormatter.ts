@@ -19,9 +19,14 @@ export function formatModbusValue(
     return 'N/A';
   }
   
-  // If it's already a string, return it
+  // If it's already a string, return it as-is if it looks formatted, otherwise try to parse and format
   if (typeof value === 'string') {
-    return value;
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      return value; // Return original string if not numeric
+    }
+    // Format the parsed numeric string consistently
+    return formatModbusValue(parsed, decimalPlaces, preserveSmallValues);
   }
   
   // Convert to number if it's not already
@@ -34,7 +39,7 @@ export function formatModbusValue(
   
   // Handle extremely small values (values near zero that are likely noise or floating point errors)
   if (Math.abs(numValue) < 1e-30) {
-    return '0';
+    return '0.00';
   }
   
   // Handle very small values specially (but not too small)
@@ -43,8 +48,16 @@ export function formatModbusValue(
     return numValue.toExponential(decimalPlaces);
   }
   
-  // For normal values, format with fixed decimal places
-  return numValue.toFixed(decimalPlaces);
+  // For normal values, always format with exactly 2 decimal places for consistency
+  // Remove trailing zeros only if the value is a whole number
+  const formatted = numValue.toFixed(decimalPlaces);
+  
+  // If decimalPlaces is 2, ensure we always show 2 decimals (16.39, not 16.4)
+  if (decimalPlaces === 2) {
+    return formatted; // Always keep exactly 2 decimal places
+  }
+  
+  return formatted;
 }
 
 /**
@@ -65,15 +78,7 @@ export function formatByDataType(
   switch (dataType) {
     case 'FLOAT32':
     case 'FLOAT':
-      // For floating point values, properly handle scientific notation
-      const floatVal = typeof value === 'string' ? parseFloat(value) : value as number;
-      
-      // Handle non-zero extremely small values with scientific notation
-      if (Math.abs(floatVal) < 1e-20 && floatVal !== 0) {
-        return floatVal.toExponential(2); // Use scientific notation with 2 decimal places
-      }
-      
-      // Handle normal float values
+      // For floating point values, always use 2 decimal places for consistency
       return formatModbusValue(value, 2, true);
     case 'INT16':
     case 'INT-16':

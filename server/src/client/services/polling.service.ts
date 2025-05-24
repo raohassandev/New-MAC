@@ -761,11 +761,13 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
                   }
                 }
 
-                // Format decimal places if defined - don't truncate decimals when decimalPoint is undefined or 0
-                if (param.decimalPoint && param.decimalPoint > 0 && typeof value === 'number') {
-                  value = parseFloat(value.toFixed(param.decimalPoint));
+                // Apply consistent 2-decimal formatting for all numeric values
+                // This ensures consistent precision for storage and display
+                if (typeof value === 'number' && isFinite(value)) {
+                  // Use custom decimal point if specified, otherwise default to 2
+                  const decimalPlaces = (param.decimalPoint !== undefined && param.decimalPoint >= 0) ? param.decimalPoint : 2;
+                  value = parseFloat(value.toFixed(decimalPlaces));
                 }
-                // Preserve original decimal values when decimalPoint is 0 or undefined
 
                 const reading = {
                   name: param.name,

@@ -1,5 +1,5 @@
 // Pages
-import Dashboard from '~/pages/Dashboard'; // Use the path alias instead of relative path
+import Dashboard from './pages/Dashboard';
 import DeviceDetails from './pages/DeviceDetails';
 import DeviceDriverDetails from './pages/DeviceDriverDetails';
 import DeviceDriverManagement from './pages/DeviceDriverManagement';
