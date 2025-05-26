@@ -82,6 +82,29 @@ export const controlCoilRegister = async (
       value,
       message: `Successfully set ${coilType} coil at address ${coilAddress} to ${value}`
     };
+
+    // Emit WebSocket event for real-time updates
+    try {
+      const io = (global as any).io;
+      if (io) {
+        const eventData = {
+          deviceId,
+          deviceName,
+          coilAddress,
+          coilType,
+          value,
+          timestamp: result.timestamp
+        };
+        
+        // Emit to all clients and device-specific room
+        io.emit('coilUpdate', eventData);
+        io.to(`device-${deviceId}`).emit('deviceCoilUpdate', eventData);
+        
+        console.log(chalk.green(`[WebSocket] Emitted coil update for device ${deviceId}, coil ${coilAddress}`));
+      }
+    } catch (wsError) {
+      console.warn(chalk.yellow('[WebSocket] Failed to emit coil update:', wsError));
+    }
     
     // Create event log entry
     try {

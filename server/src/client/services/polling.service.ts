@@ -1241,6 +1241,27 @@ export async function storeRealtimeData(deviceId: string, data: DeviceReading, r
         
         if (updateResult) {
           console.log(chalk.green(`✅ Updated realtime database entry for device ${data.deviceName}`));
+          
+          // Emit WebSocket event for real-time data updates
+          try {
+            const io = (global as any).io;
+            if (io) {
+              const eventData = {
+                deviceId: deviceId,
+                deviceName: data.deviceName,
+                timestamp: data.timestamp,
+                readings: data.readings
+              };
+              
+              // Emit to all clients and device-specific room
+              io.emit('realtimeDataUpdate', eventData);
+              io.to(`device-${deviceId}`).emit('deviceDataUpdate', eventData);
+              
+              console.log(chalk.green(`[WebSocket] Emitted realtime data update for device ${data.deviceName}`));
+            }
+          } catch (wsError) {
+            console.warn(chalk.yellow('[WebSocket] Failed to emit realtime data update:', wsError));
+          }
         } else {
           console.log(chalk.yellow(`⚠️ Could not update realtime database entry for device ${data.deviceName}`));
         }

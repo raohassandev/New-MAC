@@ -6,6 +6,8 @@ import path from 'path';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes/index.routes';
 import { amxRouter } from './amx/routes/index.routes';
@@ -190,8 +192,40 @@ const startServer = async () => {
     // Add error tracking middleware last
     app.use(errorHandler);
 
+    // Create HTTP server and WebSocket server
+    const httpServer = createServer(app);
+    const io = new SocketIOServer(httpServer, {
+      cors: {
+        origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+        credentials: true
+      }
+    });
+
+    // Store io instance globally for use in services
+    (global as any).io = io;
+
+    // WebSocket connection handling
+    io.on('connection', (socket) => {
+      console.log(`🔌 WebSocket client connected: ${socket.id}`);
+      
+      socket.on('disconnect', () => {
+        console.log(`🔌 WebSocket client disconnected: ${socket.id}`);
+      });
+      
+      // Handle room subscriptions for device-specific updates
+      socket.on('subscribe-device', (deviceId: string) => {
+        socket.join(`device-${deviceId}`);
+        console.log(`🔌 Client ${socket.id} subscribed to device ${deviceId}`);
+      });
+      
+      socket.on('unsubscribe-device', (deviceId: string) => {
+        socket.leave(`device-${deviceId}`);
+        console.log(`🔌 Client ${socket.id} unsubscribed from device ${deviceId}`);
+      });
+    });
+
     // Start server
-    const server = app.listen(PORT, async () => {
+    const server = httpServer.listen(PORT, async () => {
       console.log(`MACSYS Backend running on port ${PORT}`);
       console.log(
         `- Client DB: connected (${process.env.MONGO_URI || 'mongodb://localhost:27017/client'})`,
