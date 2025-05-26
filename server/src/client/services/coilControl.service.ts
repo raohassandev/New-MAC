@@ -11,10 +11,10 @@ import {
   safeCloseModbusClient, 
   writeCoilWithTimeout, 
   writeMultipleCoilsWithTimeout,
-  readCoilsWithTimeout,
-  connectRTUBuffered
+  readCoilsWithTimeout
 } from '../utils/modbusHelper';
-import { getDeviceModel } from './device.service';
+import { DatabaseModelManager } from '../utils/databaseModelManager';
+import { ModbusConnectionManager } from '../utils/modbusConnectionManager';
 
 /**
  * Control coil register for a device
@@ -32,7 +32,7 @@ export const controlCoilRegister = async (
   requestContext: any,
   coilType: 'control' | 'schedule' | 'status' = 'control'
 ) => {
-  const client: ModbusRTU | null = new ModbusRTU();
+  let connection: any = null;
   let deviceName = '';
   
   try {
@@ -45,7 +45,7 @@ export const controlCoilRegister = async (
     }
     
     // Use the helper to get the correct device model
-    const DeviceModel = await getDeviceModel(requestContext);
+    const DeviceModel = await DatabaseModelManager.getDeviceModel(requestContext);
     
     // Find the device
     const device = await DeviceModel.findById(deviceId);
@@ -60,86 +60,9 @@ export const controlCoilRegister = async (
       throw new Error(`Device "${deviceName}" is currently disabled`);
     }
     
-    // Get connection settings
-    let connectionType: string | undefined;
-    let connectionParams: any = {};
-    
-    // Try the new structure first
-    if (device.connectionSetting) {
-      const connSetting = device.connectionSetting as IConnectionSetting;
-      connectionType = connSetting.connectionType;
-      
-      if (connectionType === 'tcp' && connSetting.tcp) {
-        connectionParams = connSetting.tcp;
-      } else if (connectionType === 'rtu' && connSetting.rtu) {
-        connectionParams = connSetting.rtu;
-      }
-    } 
-    // Fall back to legacy fields if needed
-    else {
-      connectionType = device.connectionType;
-      connectionParams = {
-        ip: device.ip,
-        port: device.port,
-        slaveId: device.slaveId,
-        serialPort: device.serialPort,
-        baudRate: device.baudRate,
-        dataBits: device.dataBits,
-        stopBits: device.stopBits,
-        parity: device.parity
-      };
-    }
-    
-    if (!connectionType) {
-      throw new Error(`Device "${deviceName}" has no connection type defined`);
-    }
-    
-    // Set up connection based on type
-    if (connectionType === 'rtu') {
-      // RTU Connection
-      const { serialPort, baudRate, dataBits, stopBits, parity, slaveId } = connectionParams;
-      
-      if (!serialPort) {
-        throw new Error(`Device "${deviceName}" has no serial port defined`);
-      }
-      
-      // Connect to the device with RTU
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via RTU on port ${serialPort}`));
-      
-      await connectRTUBuffered(client, serialPort as string, {
-        baudRate: parseInt(baudRate as string, 10) || 9600,
-        dataBits: parseInt(dataBits as string, 10) as 5 | 6 | 7 | 8 || 8,
-        stopBits: parseInt(stopBits as string, 10) as 1 | 2 || 1,
-        parity: parity as 'none' | 'even' | 'odd' || 'none',
-        unitId: parseInt(slaveId as string, 10) || 1,
-      });
-    } else if (connectionType === 'tcp') {
-      // TCP Connection
-      const { ip, port, slaveId } = connectionParams;
-      
-      if (!ip || !port) {
-        throw new Error(`Device "${deviceName}" has incomplete TCP connection settings`);
-      }
-      
-      // Connect to the device with TCP
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
-      
-      // Add timeout to TCP connection to prevent hanging
-      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
-      );
-      
-      try {
-        await Promise.race([connectPromise, timeoutPromise]);
-        client.setID(parseInt(slaveId as string, 10) || 1);
-      } catch (error) {
-        console.error(`[coilControlService] TCP connection failed: ${error}`);
-        throw error;
-      }
-    } else {
-      throw new Error(`Unknown connection type: ${connectionType}`);
-    }
+    // Use the unified connection manager
+    connection = await ModbusConnectionManager.connectLegacy(device);
+    const client = connection.client;
     
     // Write to the coil
     const success = await writeCoilWithTimeout(client, coilAddress, value);
@@ -245,23 +168,12 @@ export const controlCoilRegister = async (
     
     throw errorResult;
   } finally {
-    // Always close the client with timeout
-    if (client) {
+    // Always close the connection
+    if (connection) {
       try {
-        // Add a timeout to prevent hanging on close
-        const closePromise = safeCloseModbusClient(client);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
-        );
-        
-        await Promise.race([closePromise, timeoutPromise]);
+        await ModbusConnectionManager.disconnect(connection);
       } catch (closeError) {
-        // Force close if safe close fails or times out
-        try {
-          client.close();
-        } catch (forceCloseError) {
-          // Silently ignore force close errors
-        }
+        console.error('Error closing connection:', closeError);
       }
     }
   }
@@ -283,7 +195,7 @@ export const controlMultipleCoilRegisters = async (
   }>,
   requestContext: any
 ) => {
-  const client: ModbusRTU | null = new ModbusRTU();
+  let connection: any = null;
   let deviceName = '';
   
   try {
@@ -300,7 +212,7 @@ export const controlMultipleCoilRegisters = async (
     }
     
     // Use the helper to get the correct device model
-    const DeviceModel = await getDeviceModel(requestContext);
+    const DeviceModel = await DatabaseModelManager.getDeviceModel(requestContext);
     
     // Find the device
     const device = await DeviceModel.findById(deviceId);
@@ -315,86 +227,9 @@ export const controlMultipleCoilRegisters = async (
       throw new Error(`Device "${deviceName}" is currently disabled`);
     }
     
-    // Get connection settings
-    let connectionType: string | undefined;
-    let connectionParams: any = {};
-    
-    // Try the new structure first
-    if (device.connectionSetting) {
-      const connSetting = device.connectionSetting as IConnectionSetting;
-      connectionType = connSetting.connectionType;
-      
-      if (connectionType === 'tcp' && connSetting.tcp) {
-        connectionParams = connSetting.tcp;
-      } else if (connectionType === 'rtu' && connSetting.rtu) {
-        connectionParams = connSetting.rtu;
-      }
-    } 
-    // Fall back to legacy fields if needed
-    else {
-      connectionType = device.connectionType;
-      connectionParams = {
-        ip: device.ip,
-        port: device.port,
-        slaveId: device.slaveId,
-        serialPort: device.serialPort,
-        baudRate: device.baudRate,
-        dataBits: device.dataBits,
-        stopBits: device.stopBits,
-        parity: device.parity
-      };
-    }
-    
-    if (!connectionType) {
-      throw new Error(`Device "${deviceName}" has no connection type defined`);
-    }
-    
-    // Set up connection based on type
-    if (connectionType === 'rtu') {
-      // RTU Connection
-      const { serialPort, baudRate, dataBits, stopBits, parity, slaveId } = connectionParams;
-      
-      if (!serialPort) {
-        throw new Error(`Device "${deviceName}" has no serial port defined`);
-      }
-      
-      // Connect to the device with RTU
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via RTU on port ${serialPort}`));
-      
-      await connectRTUBuffered(client, serialPort as string, {
-        baudRate: parseInt(baudRate as string, 10) || 9600,
-        dataBits: parseInt(dataBits as string, 10) as 5 | 6 | 7 | 8 || 8,
-        stopBits: parseInt(stopBits as string, 10) as 1 | 2 || 1,
-        parity: parity as 'none' | 'even' | 'odd' || 'none',
-        unitId: parseInt(slaveId as string, 10) || 1,
-      });
-    } else if (connectionType === 'tcp') {
-      // TCP Connection
-      const { ip, port, slaveId } = connectionParams;
-      
-      if (!ip || !port) {
-        throw new Error(`Device "${deviceName}" has incomplete TCP connection settings`);
-      }
-      
-      // Connect to the device with TCP
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
-      
-      // Add timeout to TCP connection to prevent hanging
-      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
-      );
-      
-      try {
-        await Promise.race([connectPromise, timeoutPromise]);
-        client.setID(parseInt(slaveId as string, 10) || 1);
-      } catch (error) {
-        console.error(`[coilControlService] TCP connection failed: ${error}`);
-        throw error;
-      }
-    } else {
-      throw new Error(`Unknown connection type: ${connectionType}`);
-    }
+    // Use the unified connection manager
+    connection = await ModbusConnectionManager.connectLegacy(device);
+    const client = connection.client;
     
     // Process each coil
     const results = [];
@@ -518,23 +353,12 @@ export const controlMultipleCoilRegisters = async (
     
     throw errorResult;
   } finally {
-    // Always close the client with timeout
-    if (client) {
+    // Always close the connection
+    if (connection) {
       try {
-        // Add a timeout to prevent hanging on close
-        const closePromise = safeCloseModbusClient(client);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
-        );
-        
-        await Promise.race([closePromise, timeoutPromise]);
+        await ModbusConnectionManager.disconnect(connection);
       } catch (closeError) {
-        // Force close if safe close fails or times out
-        try {
-          client.close();
-        } catch (forceCloseError) {
-          // Silently ignore force close errors
-        }
+        console.error('Error closing connection:', closeError);
       }
     }
   }
@@ -556,7 +380,7 @@ export const readCoilRegisters = async (
   coilType: 'control' | 'schedule' | 'status' = 'control',
   requestContext: any
 ) => {
-  const client: ModbusRTU | null = new ModbusRTU();
+  let connection: any = null;
   let deviceName = '';
   
   try {
@@ -569,7 +393,7 @@ export const readCoilRegisters = async (
     }
     
     // Use the helper to get the correct device model
-    const DeviceModel = await getDeviceModel(requestContext);
+    const DeviceModel = await DatabaseModelManager.getDeviceModel(requestContext);
     
     // Find the device
     const device = await DeviceModel.findById(deviceId);
@@ -584,86 +408,9 @@ export const readCoilRegisters = async (
       throw new Error(`Device "${deviceName}" is currently disabled`);
     }
     
-    // Get connection settings
-    let connectionType: string | undefined;
-    let connectionParams: any = {};
-    
-    // Try the new structure first
-    if (device.connectionSetting) {
-      const connSetting = device.connectionSetting as IConnectionSetting;
-      connectionType = connSetting.connectionType;
-      
-      if (connectionType === 'tcp' && connSetting.tcp) {
-        connectionParams = connSetting.tcp;
-      } else if (connectionType === 'rtu' && connSetting.rtu) {
-        connectionParams = connSetting.rtu;
-      }
-    } 
-    // Fall back to legacy fields if needed
-    else {
-      connectionType = device.connectionType;
-      connectionParams = {
-        ip: device.ip,
-        port: device.port,
-        slaveId: device.slaveId,
-        serialPort: device.serialPort,
-        baudRate: device.baudRate,
-        dataBits: device.dataBits,
-        stopBits: device.stopBits,
-        parity: device.parity
-      };
-    }
-    
-    if (!connectionType) {
-      throw new Error(`Device "${deviceName}" has no connection type defined`);
-    }
-    
-    // Set up connection based on type
-    if (connectionType === 'rtu') {
-      // RTU Connection
-      const { serialPort, baudRate, dataBits, stopBits, parity, slaveId } = connectionParams;
-      
-      if (!serialPort) {
-        throw new Error(`Device "${deviceName}" has no serial port defined`);
-      }
-      
-      // Connect to the device with RTU
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via RTU on port ${serialPort}`));
-      
-      await connectRTUBuffered(client, serialPort as string, {
-        baudRate: parseInt(baudRate as string, 10) || 9600,
-        dataBits: parseInt(dataBits as string, 10) as 5 | 6 | 7 | 8 || 8,
-        stopBits: parseInt(stopBits as string, 10) as 1 | 2 || 1,
-        parity: parity as 'none' | 'even' | 'odd' || 'none',
-        unitId: parseInt(slaveId as string, 10) || 1,
-      });
-    } else if (connectionType === 'tcp') {
-      // TCP Connection
-      const { ip, port, slaveId } = connectionParams;
-      
-      if (!ip || !port) {
-        throw new Error(`Device "${deviceName}" has incomplete TCP connection settings`);
-      }
-      
-      // Connect to the device with TCP
-      console.log(chalk.yellow(`[coilControlService] Connecting to device via TCP at ${ip}:${port}`));
-      
-      // Add timeout to TCP connection to prevent hanging
-      const connectPromise = client.connectTCP(ip as string, { port: parseInt(port as string, 10) });
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
-      );
-      
-      try {
-        await Promise.race([connectPromise, timeoutPromise]);
-        client.setID(parseInt(slaveId as string, 10) || 1);
-      } catch (error) {
-        console.error(`[coilControlService] TCP connection failed: ${error}`);
-        throw error;
-      }
-    } else {
-      throw new Error(`Unknown connection type: ${connectionType}`);
-    }
+    // Use the unified connection manager
+    connection = await ModbusConnectionManager.connectLegacy(device);
+    const client = connection.client;
     
     // Read the coils
     const response = await readCoilsWithTimeout(client, startAddress, count);
@@ -714,23 +461,12 @@ export const readCoilRegisters = async (
     
     throw errorResult;
   } finally {
-    // Always close the client with timeout
-    if (client) {
+    // Always close the connection
+    if (connection) {
       try {
-        // Add a timeout to prevent hanging on close
-        const closePromise = safeCloseModbusClient(client);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Close timeout after 3 seconds')), 3000)
-        );
-        
-        await Promise.race([closePromise, timeoutPromise]);
+        await ModbusConnectionManager.disconnect(connection);
       } catch (closeError) {
-        // Force close if safe close fails or times out
-        try {
-          client.close();
-        } catch (forceCloseError) {
-          // Silently ignore force close errors
-        }
+        console.error('Error closing connection:', closeError);
       }
     }
   }

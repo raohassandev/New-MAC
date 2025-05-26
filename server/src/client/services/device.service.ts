@@ -10,6 +10,8 @@ import {
 } from '../utils/modbusHelper';
 import { Device } from '../models/index.model';
 import { ensureClientDeviceModel } from '../utils/dbHelper';
+import { ModbusConnectionManager } from '../utils/modbusConnectionManager';
+import { DatabaseModelManager } from '../utils/databaseModelManager';
 
 // Type for connection settings
 interface ConnectionSettings {
@@ -38,154 +40,20 @@ interface RegisterResult {
 
 /**
  * Get a Device model that connects to the client database
+ * Now uses unified DatabaseModelManager for consistency
  */
 export const getDeviceModel = async (reqContext: any): Promise<mongoose.Model<IDevice>> => {
-  // Try to get from app.locals
-  if (reqContext?.app?.locals?.clientModels?.Device) {
-    const DeviceModel = reqContext.app.locals.clientModels.Device;
-    //console.log('[deviceService] Using client-specific Device model from app.locals');
-    
-    // Verify the connection is ready (readyState 1 means connected)
-    if (DeviceModel.db?.readyState as number === 1) {
-      return DeviceModel;
-    } else {
-      console.log('[deviceService] Device model from app.locals has invalid connection state:', 
-                  DeviceModel.db?.readyState);
-    }
-  }
-
-  // Use the helper function to ensure we have a valid client model
-  try {
-    const DeviceModel = await ensureClientDeviceModel(reqContext);
-    
-    // Verify we got a valid model (readyState 1 means connected)
-    if (DeviceModel && DeviceModel.db?.readyState as number === 1) {
-      return DeviceModel;
-    }
-  } catch (error) {
-    console.error('[deviceService] Error ensuring client device model:', error);
-  }
-  
-  // If we get here, neither approach worked - use the default Device model as fallback
-  // But first, check if the default model's connection is ready (readyState 1 means connected)
-  if (Device.db?.readyState as number === 1) {
-    //console.log('[deviceService] Using default Device model as fallback');
-    return Device;
-  }
-  
-  // If we get here, all approaches failed - attempt to repair the mongoose connection
-  try {
-    console.warn('[deviceService] All connection attempts failed, attempting to recreate default connection');
-    
-    // Check if we need to recreate the connection - readyState 1 means connected
-    if (mongoose.connection.readyState as number !== 1) {
-      // Wait for connection to finish if connecting (readyState 2 means connecting)
-      if (mongoose.connection.readyState as number === 2) {
-        console.log('[deviceService] Mongoose is connecting, waiting for completion...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-      
-      // If still not connected, try to reconnect
-      if (mongoose.connection.readyState as number !== 1) {
-        const clientDbUri = process.env.MONGO_URI || 'mongodb://localhost:27017/client';
-        await mongoose.connect(clientDbUri);
-        console.log('[deviceService] Reconnected to database');
-      }
-    }
-    
-    return Device;
-  } catch (reconnectError) {
-    console.error('[deviceService] Failed to reconnect to database:', reconnectError);
-    
-    // At this point, we've tried everything - just return Device and hope for the best
-    return Device;
-  }
+  return await DatabaseModelManager.getDeviceModel(reqContext);
 };
 
 /**
  * Connect to a Modbus device based on its connection settings
+ * Now uses unified ModbusConnectionManager for consistency
  */
 export const connectToModbusDevice = async (
   device: IDevice
 ): Promise<{ client: ModbusRTU; connectionType: string; slaveId: number }> => {
-  const client = new ModbusRTU();
-
-  // Get connection settings (support both new and legacy format)
-  const connectionType =
-    device.connectionSetting?.connectionType || device.connectionType || 'tcp';
-
-  // Get TCP settings
-  const ip = connectionType === 'tcp' ? device.connectionSetting?.tcp?.ip : device.ip || '';
-  const port = connectionType === 'tcp' ? device.connectionSetting?.tcp?.port : device.port || 0;
-  const tcpSlaveId =
-    connectionType === 'tcp' ? device.connectionSetting?.tcp?.slaveId : undefined;
-
-  // Get RTU settings
-  const serialPort =
-    connectionType === 'rtu'
-      ? device.connectionSetting?.rtu?.serialPort
-      : device.serialPort || '';
-  const baudRate =
-    connectionType === 'rtu' ? device.connectionSetting?.rtu?.baudRate : device.baudRate || 0;
-  const dataBits =
-    connectionType === 'rtu' ? device.connectionSetting?.rtu?.dataBits : device.dataBits || 0;
-  const stopBits =
-    connectionType === 'rtu' ? device.connectionSetting?.rtu?.stopBits : device.stopBits || 0;
-  const parity =
-    connectionType === 'rtu' ? device.connectionSetting?.rtu?.parity : device.parity || '';
-  const rtuSlaveId =
-    connectionType === 'rtu' ? device.connectionSetting?.rtu?.slaveId : undefined;
-
-  // Combined slaveId (prefer the one from the matching connection type)
-  const slaveId = connectionType === 'tcp' ? tcpSlaveId : rtuSlaveId || device.slaveId || 1;
-
-  // Apply advanced settings if available
-  if (device.advancedSettings) {
-    // Set timeout from advanced settings
-    if (device.advancedSettings.connectionOptions?.timeout) {
-      const timeout = Number(device.advancedSettings.connectionOptions.timeout);
-      if (!isNaN(timeout) && timeout > 0) {
-        console.log(`[deviceService] Setting timeout to ${timeout}ms from advanced settings`);
-        client.setTimeout(timeout);
-      }
-    }
-  }
-
-  // Connect based on connection type
-  if (connectionType === 'tcp' && ip && port) {
-    // Add timeout to TCP connection to prevent hanging
-    const connectPromise = client.connectTCP(ip, { port });
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('TCP connection timeout after 10 seconds')), 10000)
-    );
-    
-    try {
-      await Promise.race([connectPromise, timeoutPromise]);
-    } catch (error) {
-      console.error(`[deviceService] TCP connection failed: ${error}`);
-      throw error;
-    }
-  } else if (connectionType === 'rtu' && serialPort) {
-    const rtuOptions: any = {};
-    if (baudRate) rtuOptions.baudRate = baudRate;
-    if (dataBits) rtuOptions.dataBits = dataBits;
-    if (stopBits) rtuOptions.stopBits = stopBits;
-    if (parity) rtuOptions.parity = parity;
-
-    // Use the actual serial port from the device configuration
-    await client.connectRTUBuffered(serialPort, rtuOptions);
-  } else {
-    throw new Error('Invalid connection configuration');
-  }
-
-  // Set slave ID
-  if (slaveId !== undefined) {
-    client.setID(Number(slaveId));
-  } else {
-    client.setID(1); // Default slave ID
-  }
-
-  return { client, connectionType, slaveId: Number(slaveId) };
+  return await ModbusConnectionManager.connectLegacy(device);
 };
 
 /**

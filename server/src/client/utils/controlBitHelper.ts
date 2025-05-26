@@ -4,6 +4,8 @@
 import ModbusRTU from 'modbus-serial';
 import { getDeviceModel } from '../services/device.service';
 import { Request } from 'express';
+import { ModbusConnectionManager } from './modbusConnectionManager';
+import { DatabaseModelManager } from './databaseModelManager';
 
 /**
  * Control bit status cache with expiration to avoid excessive requests
@@ -120,8 +122,8 @@ export const getControlBitStatus = async (
       return cacheEntry.status;
     }
     
-    // Fetch the device data
-    const DeviceModel = await getDeviceModel(req);
+    // Fetch the device data using unified manager
+    const DeviceModel = await DatabaseModelManager.getDeviceModel(req);
     const device = await DeviceModel.findById(deviceId);
     
     if (!device) {
@@ -142,64 +144,19 @@ export const getControlBitStatus = async (
       return true;
     }
     
-    // Read control bit value via Modbus
-    const client = new ModbusRTU();
+    // Read control bit value via Modbus using unified connection manager
+    let connection;
     
     try {
-      // Connect to device
-      if (device.connectionSetting?.connectionType === 'tcp') {
-        const tcpSettings = device.connectionSetting.tcp;
-        if (!tcpSettings) {
-          throw new Error('TCP connection settings not found');
-        }
-        
-        // Add timeout to TCP connection to prevent hanging
-        const connectPromise = client.connectTCP(
-          tcpSettings.ip,
-          { port: tcpSettings.port }
-        );
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('TCP connection timeout after 5 seconds')), 5000)
-        );
-        
-        try {
-          await Promise.race([connectPromise, timeoutPromise]);
-        } catch (error) {
-          console.error(`[ControlBitHelper] TCP connection failed: ${error}`);
-          // Default to central control if connection fails
-          controlBitCache[deviceId] = { status: true, timestamp: now };
-          return true;
-        }
-        
-        client.setID(tcpSettings.slaveId);
-      } else if (device.connectionSetting?.connectionType === 'rtu') {
-        const rtuSettings = device.connectionSetting.rtu;
-        if (!rtuSettings) {
-          throw new Error('RTU connection settings not found');
-        }
-        
-        const { connectRTUBuffered } = await import('./modbusHelper');
-        try {
-          await connectRTUBuffered(client, rtuSettings.serialPort, {
-            baudRate: rtuSettings.baudRate,
-            dataBits: rtuSettings.dataBits as 5 | 6 | 7 | 8,
-            stopBits: rtuSettings.stopBits as 1 | 2,
-            parity: rtuSettings.parity as 'none' | 'even' | 'odd'
-          });
-        } catch (error) {
-          console.error(`[ControlBitHelper] RTU connection failed: ${error}`);
-          // Default to central control if connection fails
-          controlBitCache[deviceId] = { status: true, timestamp: now };
-          return true;
-        }
-        
-        client.setID(rtuSettings.slaveId);
-      } else {
-        throw new Error('Unsupported connection type');
-      }
+      // Connect to device using unified manager
+      connection = await ModbusConnectionManager.connect({
+        device,
+        timeout: 5000,
+        logPrefix: '[ControlBitHelper]'
+      });
       
       // Read the control bit
-      const response = await client.readCoils(controlBitAddress, 1);
+      const response = await connection.client.readCoils(controlBitAddress, 1);
       const isCentralControl = response.data[0];
       
       console.log(`[ControlBitHelper] Device ${deviceId} control bit at ${controlBitAddress} is ${isCentralControl ? 'ON (CENTRAL)' : 'OFF (LOCAL)'}`);
@@ -209,11 +166,18 @@ export const getControlBitStatus = async (
       
       return isCentralControl;
       
+    } catch (error) {
+      console.error(`[ControlBitHelper] Connection or reading failed: ${error}`);
+      // Default to central control if connection fails
+      controlBitCache[deviceId] = { status: true, timestamp: now };
+      return true;
     } finally {
-      try {
-        client.close();
-      } catch (error) {
-        console.error(`[ControlBitHelper] Error closing Modbus connection: ${error}`);
+      if (connection) {
+        try {
+          await ModbusConnectionManager.disconnect(connection, '[ControlBitHelper]');
+        } catch (error) {
+          console.error(`[ControlBitHelper] Error disconnecting: ${error}`);
+        }
       }
     }
     
