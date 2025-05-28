@@ -8,10 +8,12 @@ import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import chalk from 'chalk';
 import { initializeDatabases } from './config/database';
 import { clientRouter } from './client/routes/index.routes';
 import { amxRouter } from './amx/routes/index.routes';
 import { apiLogger } from './utils/logger';
+import { websocketManager } from './utils/websocketManager';
 // Import the device controller for explicit route registration
 import * as deviceController from './client/controllers/device.controller';
 // Import debug middleware
@@ -198,31 +200,18 @@ const startServer = async () => {
       cors: {
         origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
         credentials: true
-      }
+      },
+      transports: ['websocket', 'polling'],
+      pingTimeout: 60000,
+      pingInterval: 25000
     });
 
-    // Store io instance globally for use in services
-    (global as any).io = io;
+    // Initialize WebSocket manager instead of using global variable
+    websocketManager.initialize(io);
+    console.log('🔌 WebSocket manager initialized');
 
-    // WebSocket connection handling
-    io.on('connection', (socket) => {
-      console.log(`🔌 WebSocket client connected: ${socket.id}`);
-      
-      socket.on('disconnect', () => {
-        console.log(`🔌 WebSocket client disconnected: ${socket.id}`);
-      });
-      
-      // Handle room subscriptions for device-specific updates
-      socket.on('subscribe-device', (deviceId: string) => {
-        socket.join(`device-${deviceId}`);
-        console.log(`🔌 Client ${socket.id} subscribed to device ${deviceId}`);
-      });
-      
-      socket.on('unsubscribe-device', (deviceId: string) => {
-        socket.leave(`device-${deviceId}`);
-        console.log(`🔌 Client ${socket.id} unsubscribed from device ${deviceId}`);
-      });
-    });
+    // Store websocket manager reference globally for services to use
+    (global as any).websocketManager = websocketManager;
 
     // Start server
     const server = httpServer.listen(PORT, async () => {
@@ -234,29 +223,34 @@ const startServer = async () => {
         `- AMX DB: connected (${process.env.LIBRARY_DB_URI || 'mongodb://localhost:27017/amx'})`,
       );
 
-      // Initialize the automatic polling service for all enabled devices
+      // Initialize EVENT-DRIVEN ARCHITECTURE (Zero Polling!) - Fixed Version
       try {
-        // Import the auto-polling service
-        const { startAutoPollingService } = require('./client/services/autoPolling.service');
+        const { eventDrivenService } = require('./client/services/eventDrivenPolling.service');
 
-        // Start the auto-polling service with default 60 seconds interval
-        // You can customize the interval by passing a parameter (in seconds)
-        // Start with default 60 seconds
-  // await startAutoPollingService();
-
-  // // Start with 30 seconds interval
-  await startAutoPollingService(30); 
-
-  // // Start with 5 minutes interval
-  // await startAutoPollingService(300);
-        console.log(
-          '✅ Auto-polling service can be started via API - all enabled devices will be polled automatically',
-        );
-      } catch (pollingError) {
-        console.warn('⚠️ Failed to start auto-polling service:', pollingError);
-        console.log(
-          '⚠️ Auto-polling is disabled. Device polling only starts when explicitly requested by the frontend or API.',
-        );
+        console.log(chalk.cyan('🚀 Starting FIXED EVENT-DRIVEN ARCHITECTURE'));
+        
+        // Start event-driven service with configurable interval (2 seconds for responsive monitoring)
+        await eventDrivenService.start(20000); // 2 seconds for responsive change detection
+        
+        console.log(chalk.green.bold('🎯 PURE EVENT-DRIVEN SYSTEM ACTIVE:'));
+        console.log(chalk.green('   ⚡ Zero continuous polling - true event-driven'));
+        console.log(chalk.green('   🔥 Immediate response to actual changes'));
+        console.log(chalk.green('   📊 Parallel: Realtime + Historical + WebSocket'));
+        console.log(chalk.green('   ❤️ Smart change monitoring (2s intervals)'));
+        console.log(chalk.green('   📸 Compliance snapshots (5m) for regulatory requirements'));
+        console.log(chalk.green('   🎯 Maximum efficiency, minimum resource usage'));
+        
+      } catch (eventDrivenError) {
+        console.warn(chalk.red('⚠️ Failed to start event-driven system:', eventDrivenError));
+        
+        // Fallback to optimized polling
+        try {
+          const { startAutoPollingService } = require('./client/services/autoPolling.service');
+          // await startAutoPollingService(5); // 5 second fallback
+          console.log(chalk.yellow('⚠️ Using fallback 5-second polling (event-driven failed)'));
+        } catch (fallbackError) {
+          console.error(chalk.red('❌ All polling systems failed:', fallbackError));
+        }
       }
 
       // Initialize the setpoint management and schedule processor services

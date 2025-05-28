@@ -174,20 +174,14 @@ export const readModbusRegisters = async (
           (result as any).fc = fc;
           
           if (Array.isArray(result.data)) {
-            console.log(chalk.green(`[deviceService] Successfully read ${result.data.length} registers from address ${startAddress} using FC${fc}`));
             
             // Format output based on function code
             if (fc === 1 || fc === 2) {
               // For boolean values (coils, discrete inputs)
-              console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
             } else {
               // For numeric values (holding registers, input registers)
-              console.log(chalk.bgGreen.black(`[deviceService] Register values: [${result.data.join(', ')}]`));
             }
             
-            if (result.buffer) {
-              console.log(chalk.cyan(`[deviceService] Raw buffer: ${result.buffer.toString('hex')}`));
-            }
           } else {
             console.log(chalk.yellow(`[deviceService] Warning: Result data is not an array. Format: ${typeof result.data}`));
             console.log(chalk.yellow(`[deviceService] Full result: ${JSON.stringify(result)}`));
@@ -422,7 +416,6 @@ export const processValidRegistersAsFloat = (
 ): number | null => {
   try {
     // Log the input values
-    console.log(`[processValidRegistersAsFloat] Processing registers: reg1=${reg1} (0x${reg1.toString(16).padStart(4, '0')}), reg2=${reg2} (0x${reg2.toString(16).padStart(4, '0')}), byteOrder=${byteOrder}`);
     
     // Ensure the registers are valid numbers between 0-65535 (16-bit values)
     // Fixed: Removed Math.floor() to preserve decimal precision for FLOAT32 processing
@@ -448,7 +441,6 @@ export const processValidRegistersAsFloat = (
     const byte3 = (validReg2 >> 8) & 0xFF;  // High byte of reg2
     const byte4 = validReg2 & 0xFF;         // Low byte of reg2
     
-    console.log(`[processValidRegistersAsFloat] Extracted bytes: [${byte1.toString(16)}, ${byte2.toString(16)}, ${byte3.toString(16)}, ${byte4.toString(16)}]`);
     
     // Normalize byte order to uppercase and ensure valid value
     let mappedByteOrder: string;
@@ -462,7 +454,6 @@ export const processValidRegistersAsFloat = (
         mappedByteOrder = 'ABCD';
     }
     
-    console.log(`[processValidRegistersAsFloat] Using byte order: ${mappedByteOrder}`);
     
     // Arrange bytes in the buffer according to the byte order
     if (mappedByteOrder === 'ABCD') {
@@ -492,7 +483,6 @@ export const processValidRegistersAsFloat = (
     }
     
     // Log the buffer content in hexadecimal
-    console.log(`[processValidRegistersAsFloat] Buffer hex: ${buffer.toString('hex')}`);
     
     // Read the float value using the standard readFloatBE/LE methods
     // The float value is always interpreted as a whole 32-bit entity
@@ -502,12 +492,10 @@ export const processValidRegistersAsFloat = (
     // ABCD and CDAB are big-endian formats for the overall 32-bit value
     if (mappedByteOrder === 'ABCD' || mappedByteOrder === 'CDAB') {
       value = buffer.readFloatBE(0);
-      console.log(`[processValidRegistersAsFloat] Reading as BigEndian float: ${value}`);
     } 
     // BADC and DCBA are little-endian formats for the overall 32-bit value
     else {
       value = buffer.readFloatLE(0);
-      console.log(`[processValidRegistersAsFloat] Reading as LittleEndian float: ${value}`);
     }
     
     // Check for NaN or Infinity
@@ -519,7 +507,6 @@ export const processValidRegistersAsFloat = (
     // Round to 2 decimal places for better readability (e.g., 16.54 instead of 16.54123423)
     // This provides sufficient precision for most industrial applications
     const roundedValue = Number(value.toFixed(2));
-    console.log(`[processValidRegistersAsFloat] Final rounded value (2 decimals): ${roundedValue}`);
     return roundedValue;
   } catch (error) {
     console.error('[deviceService] Buffer operation error:', error);
@@ -845,7 +832,6 @@ export const processAndFormatValue = (
           appliedOperations.push('decimal formatting');
         }
       } else {
-        console.log(`[deviceService] Warning: Invalid decimalPoint for "${param.name}": ${param.decimalPoint}, skipping`);
       }
     } catch (error) {
       console.error(`[deviceService] Error formatting decimal places for "${param.name}":`, error);
@@ -882,7 +868,6 @@ export const processAndFormatValue = (
   if (appliedOperations.length > 0) {
     console.log(`[deviceService] Summary for "${param.name}": Applied ${appliedOperations.join(', ')} - Final value: ${value}`);
   } else {
-    console.log(`[deviceService] No scaling or formatting operations applied for "${param.name}" - Value unchanged: ${value}`);
   }
   
   return value;
@@ -901,7 +886,6 @@ export const processParameter = async (
   
   try {
     // Enhanced logging for debugging
-    console.log(`[deviceService] Processing parameter "${param.name}" of type ${param.dataType || 'Unknown'} at relative index ${relativeIndex}`);
     
     // Check if result is valid
     if (!result || !result.data || !Array.isArray(result.data)) {
@@ -910,7 +894,6 @@ export const processParameter = async (
     }
     
     // Log available data for debugging
-    console.log(`[deviceService] Available data length: ${result.data.length}, needed index: ${relativeIndex}`);
     
     // Handle data types that span multiple registers
     if ((param.dataType === 'FLOAT32' || 
@@ -971,7 +954,6 @@ export const processParameter = async (
         }
         
         if (value !== null) {
-          console.log(`[deviceService] Successfully processed ${param.dataType} value for "${param.name}": ${value}`);
         } else {
           console.error(`[deviceService] Failed to process ${param.dataType} value for "${param.name}"`);
         }
@@ -1040,7 +1022,6 @@ export const processParameter = async (
     // Apply additional processing (scaling, equations, etc.)
     if (value !== null) {
       value = processAndFormatValue(value, param);
-      console.log(`[deviceService] Final value for "${param.name}" after formatting: ${value}${param.unit ? ' ' + param.unit : ''}`);
     }
     
     return value;
@@ -1241,6 +1222,7 @@ export const readDeviceRegisters = async (
         
         // Get device driver from AMX database
         let deviceDriver;
+
         
         // Try to get the device driver from the templates collection
         if (reqContext?.app?.locals?.libraryDB) {
@@ -1248,6 +1230,7 @@ export const readDeviceRegisters = async (
           const objectId = new mongoose.Types.ObjectId(device.deviceDriverId);
           deviceDriver = await templatesCollection.findOne({ _id: objectId });
         } else if (reqContext?.app?.locals?.libraryModels?.DeviceDriver) {
+     
           // Fallback to DeviceDriver model if available
           const DeviceDriverModel = reqContext.app.locals.libraryModels.DeviceDriver;
           deviceDriver = await DeviceDriverModel.findById(device.deviceDriverId);

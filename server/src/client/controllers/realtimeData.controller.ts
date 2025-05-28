@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import chalk from 'chalk';
 import RealtimeData from '../models/realtimeData.model';
 import * as dataPollingService from '../services/polling.service';
 import { getDeviceModel } from '../services/device.service';
@@ -138,11 +139,15 @@ export const getRealtimeData = async (req: Request, res: Response) => {
     
     const realtimeData = await RealtimeDataModel.findOne({ deviceId });
     
-    if (!realtimeData) {
-      // No data in database, check in-memory cache
+    // Check if data exists but has empty readings (common with event-driven startup)
+    if (!realtimeData || !realtimeData.readings || realtimeData.readings.length === 0) {
+      console.log(chalk.yellow(`[realtimeDataController] No data or empty readings for ${deviceId}, checking cache and triggering fresh read`));
+      
+      // Check in-memory cache first
       const cachedData = dataPollingService.getRealtimeData(deviceId);
       
-      if (cachedData) {
+      if (cachedData && cachedData.readings && cachedData.readings.length > 0) {
+        console.log(chalk.green(`[realtimeDataController] Found cached data with ${cachedData.readings.length} readings`));
         return res.json({
           success: true,
           message: 'Cached data available but not yet stored in database',
@@ -151,6 +156,40 @@ export const getRealtimeData = async (req: Request, res: Response) => {
           hasData: true,
           data: cachedData,
           source: 'cache'
+        });
+      }
+      
+      // Try to trigger a fresh device read
+      try {
+        console.log(chalk.cyan(`[realtimeDataController] Triggering fresh device read for ${deviceId}`));
+        const freshData = await dataPollingService.pollDevice(deviceId, req);
+        
+        if (freshData && freshData.readings && freshData.readings.length > 0) {
+          console.log(chalk.green(`[realtimeDataController] Fresh read successful: ${freshData.readings.length} readings`));
+          return res.json({
+            success: true,
+            message: 'Fresh data retrieved successfully',
+            deviceId,
+            deviceName: device ? device.name : freshData.deviceName,
+            hasData: true,
+            data: freshData,
+            source: 'fresh_poll'
+          });
+        }
+      } catch (pollError: any) {
+        console.error(chalk.red(`[realtimeDataController] Fresh poll failed: ${pollError.message}`));
+      }
+      
+      // If all else fails, return the stale data or indicate no data
+      if (realtimeData) {
+        return res.json({
+          success: true,
+          message: 'Stale data with empty readings - device may be offline',
+          deviceId,
+          deviceName: device ? device.name : realtimeData.deviceName,
+          hasData: false,
+          data: realtimeData,
+          source: 'stale_database'
         });
       } else {
         return res.json({

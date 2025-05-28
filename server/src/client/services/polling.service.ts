@@ -168,13 +168,31 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
         realtimeDataCache.set(deviceId, deviceReading);
         console.log(chalk.blue(`Updated real-time cache for device ${readResult.deviceName} with ${deviceReading.readings.length} readings`));
         
-        // Store in realtime database
-        // Don't await this call to avoid blocking - just let it run in the background
+        // 🚀 IMMEDIATE WebSocket emission for real-time updates (before database operations)
+        try {
+          const websocketManager = (global as any).websocketManager;
+          if (websocketManager && websocketManager.isAvailable()) {
+            const success = websocketManager.emitRealtimeDataUpdate({
+              deviceId: deviceId,
+              deviceName: readResult.deviceName,
+              timestamp: deviceReading.timestamp,
+              readings: deviceReading.readings
+            });
+            
+            if (success) {
+              console.log(chalk.green(`[WebSocket] 🚀 IMMEDIATE emission for device ${readResult.deviceName}`));
+            }
+          }
+        } catch (wsError) {
+          console.warn(chalk.yellow('[WebSocket] Failed immediate emission:', wsError));
+        }
+        
+        // Store in databases (async - don't block WebSocket emission)
         storeRealtimeData(deviceId, deviceReading, req)
           .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
         
-        // Store in history database
-        await storeHistoricalData(deviceReading, req);
+        storeHistoricalData(deviceReading, req)
+          .catch(err => console.error(chalk.red(`❌ Error storing historical data: ${err}`)));
         
         return deviceReading;
       } else {
@@ -905,14 +923,33 @@ export async function pollDevice(deviceId: string, req?: any): Promise<DeviceRea
     realtimeDataCache.set(deviceId, deviceReading);
     console.log(chalk.blue(`Updated real-time cache for device ${device.name}`));
 
-    // Store in realtime database 
-    // Don't await this call to avoid blocking - just let it run in the background
+    // 🚀 IMMEDIATE WebSocket emission for real-time updates (before database operations)
+    try {
+      const websocketManager = (global as any).websocketManager;
+      if (websocketManager && websocketManager.isAvailable()) {
+        const success = websocketManager.emitRealtimeDataUpdate({
+          deviceId: deviceId,
+          deviceName: device.name,
+          timestamp: deviceReading.timestamp,
+          readings: deviceReading.readings
+        });
+        
+        if (success) {
+          console.log(chalk.green(`[WebSocket] 🚀 IMMEDIATE emission for device ${device.name}`));
+        }
+      }
+    } catch (wsError) {
+      console.warn(chalk.yellow('[WebSocket] Failed immediate emission:', wsError));
+    }
+
+    // Store in databases (async - don't block WebSocket emission)
     storeRealtimeData(deviceId, deviceReading, req)
       .catch(err => console.error(chalk.red(`❌ Error storing realtime data: ${err}`)));
 
     // Store in history database only if we have valid readings
     if (validReadings.length > 0) {
-      await storeHistoricalData(deviceReading, req);
+      storeHistoricalData(deviceReading, req)
+        .catch(err => console.error(chalk.red(`❌ Error storing historical data: ${err}`)));
       console.log(
         chalk.green(`✓ Successfully polled device ${device.name} with ${validReadings.length} valid readings`),
       );
@@ -1241,27 +1278,6 @@ export async function storeRealtimeData(deviceId: string, data: DeviceReading, r
         
         if (updateResult) {
           console.log(chalk.green(`✅ Updated realtime database entry for device ${data.deviceName}`));
-          
-          // Emit WebSocket event for real-time data updates
-          try {
-            const io = (global as any).io;
-            if (io) {
-              const eventData = {
-                deviceId: deviceId,
-                deviceName: data.deviceName,
-                timestamp: data.timestamp,
-                readings: data.readings
-              };
-              
-              // Emit to all clients and device-specific room
-              io.emit('realtimeDataUpdate', eventData);
-              io.to(`device-${deviceId}`).emit('deviceDataUpdate', eventData);
-              
-              console.log(chalk.green(`[WebSocket] Emitted realtime data update for device ${data.deviceName}`));
-            }
-          } catch (wsError) {
-            console.warn(chalk.yellow('[WebSocket] Failed to emit realtime data update:', wsError));
-          }
         } else {
           console.log(chalk.yellow(`⚠️ Could not update realtime database entry for device ${data.deviceName}`));
         }

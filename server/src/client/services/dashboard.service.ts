@@ -383,7 +383,7 @@ export class DashboardService {
         {
           $sort: { "_id.date": 1 }
         }
-      ]).maxTimeMS(5000).exec()
+      ], { maxTimeMS: 5000 })
         .catch((err: Error) => {
           console.error("Error getting historical performance data:", err);
           return [];

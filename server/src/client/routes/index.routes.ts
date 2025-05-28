@@ -11,6 +11,7 @@ import coilControlRoutes from './coilControl.routes';
 import controlDeviceRoutes from './controlDevice.routes';
 import scheduleRoutes from './schedule.routes';
 import { dashboardRouter } from './dashboard.routes';
+import { eventDrivenRouter } from './eventDriven.routes';
 
 
 export const clientRouter: Router = express.Router();
@@ -22,6 +23,7 @@ clientRouter.use('/data', realtimeDataRoutes); // Direct data routes for bulk op
 clientRouter.use('/monitoring', eventLogRoutes); // Event logging routes
 clientRouter.use('/schedules', scheduleRoutes);
 clientRouter.use('/dashboard', dashboardRouter); // Dashboard routes
+clientRouter.use('/event-driven', eventDrivenRouter); // Event-driven service routes
 clientRouter.use('', autoPollingRoutes); // Mount at root level for system-wide routes
 
 // Library routes (separate database)

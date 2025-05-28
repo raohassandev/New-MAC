@@ -21,7 +21,7 @@ let clientModels: any = {};
 let amxModels: any = {};
 
 /**
- * Initialize database connections and models
+ * Initialize database connections and modelsn
  */
 export const initializeDatabases = async () => {
   try {

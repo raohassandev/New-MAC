@@ -85,22 +85,22 @@ export const controlCoilRegister = async (
 
     // Emit WebSocket event for real-time updates
     try {
-      const io = (global as any).io;
-      if (io) {
-        const eventData = {
+      const websocketManager = (global as any).websocketManager;
+      if (websocketManager && websocketManager.isAvailable()) {
+        const success = websocketManager.emitCoilUpdate({
           deviceId,
           deviceName,
           coilAddress,
           coilType,
           value,
           timestamp: result.timestamp
-        };
+        });
         
-        // Emit to all clients and device-specific room
-        io.emit('coilUpdate', eventData);
-        io.to(`device-${deviceId}`).emit('deviceCoilUpdate', eventData);
-        
-        console.log(chalk.green(`[WebSocket] Emitted coil update for device ${deviceId}, coil ${coilAddress}`));
+        if (success) {
+          console.log(chalk.green(`[WebSocket] Emitted coil update for device ${deviceId}, coil ${coilAddress}`));
+        }
+      } else {
+        console.warn(chalk.yellow(`[WebSocket] WebSocket manager not available for coil update ${deviceId}:${coilAddress}`));
       }
     } catch (wsError) {
       console.warn(chalk.yellow('[WebSocket] Failed to emit coil update:', wsError));
