@@ -219,7 +219,7 @@ const generateOptimizedNodeData = (): DetailedNodeData[] => {
       type: 'service',
       description: 'Handles communication with Modbus devices over TCP',
       parameters: [
-        { name: 'host', type: 'string', required: true, description: 'IP address of the Modbus server' },
+        { name: 'host', type: 'string', required: true, description: 'IP address of the  MAC-SYS by Automatrix' },
         { name: 'port', type: 'number', description: 'TCP port, default is 502', defaultValue: 502 },
         { name: 'unitId', type: 'number', description: 'Modbus unit/slave ID', defaultValue: 1 },
         { name: 'connectionOptions', type: 'object', description: 'Advanced connection options' },
