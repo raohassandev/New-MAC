@@ -30,6 +30,23 @@ function fixWindowsPathsPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    port: 5173,
+    open: true,
+    allowedHosts: ['macsys-eng.automatrixcloud.com'],
+    proxy: {
+      '/api': {
+        target: 'https://api.automatrixcloud.com',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/client/api': {
+        target: 'https://api.automatrixcloud.com',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   plugins: [
     fixWindowsPathsPlugin(), // Add our custom plugin first
     react(), 
@@ -48,22 +65,6 @@ export default defineConfig({
       { find: '~/pages', replacement: path.resolve(__dirname, './src/pages') },
       { find: '~/api', replacement: path.resolve(__dirname, './src/api') },
     ],
-  },
-  server: {
-    port: 5173,
-    open: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3333',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/client/api': {
-        target: 'http://localhost:3333',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
   },
   build: {
     outDir: '../dist/client',

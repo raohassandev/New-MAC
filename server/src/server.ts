@@ -86,12 +86,13 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
 };
 
 // Middleware
-app.use(
-  cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175' , "http://192.168.1.16:5173"],
-    credentials: true,
-  }),
-);
+// app.use(
+//   cors({
+//     origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175' , "http://192.168.1.16:5173" , "https://api.automatrixcloud.com"],
+//     credentials: true,
+//   }),
+// );
+app.use(cors())
 app.use(express.json());
 
 // Add Morgan logger
